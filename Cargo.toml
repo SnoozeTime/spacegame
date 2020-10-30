@@ -1,0 +1,40 @@
+[package]
+name = "spacegame"
+version = "0.1.0"
+authors = ["Benoit Eudier <benoit.eudier@aurorasolutionsltd.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+luminance = "0.42"
+luminance-glfw = "0.14"
+luminance-gl = "0.15.0"
+luminance-windowing = "0.9"
+luminance-derive = "0.6"
+glfw = "0.40"
+image = "0.23.11"
+
+# ecs
+hecs = "0.2.15"
+
+bitflags = "1.2.1"
+downcast-rs = "1.2.0"
+
+# logging
+log = "0.4.11"
+pretty_env_logger = "0.4.0"
+dotenv = "0.15.0"
+shrev = "1.1.1"
+
+serde = "1.0.117"
+serde_derive = "1.0.117"
+serde_json = "1.0.59"
+rand = "0.7.3"
+
+# display text
+glyph_brush = "0.6.3"
+
+[dependencies.glam]
+version = "0.9.5"
+features = ["serde"]
