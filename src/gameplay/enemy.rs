@@ -41,10 +41,10 @@ pub enum EnemyType {
 impl EnemyType {
     fn get_sprite(&self) -> String {
         match *self {
-            EnemyType::Straight => "enemy2",
-            EnemyType::ProtoShip(_) => "proto-ship",
-            EnemyType::KamikazeRandom(_) => "enemy3",
-            EnemyType::Spammer { .. } => "enemyboss2",
+            EnemyType::Straight => "Enemy2.png",
+            EnemyType::ProtoShip(_) => "Proto-ship.png",
+            EnemyType::KamikazeRandom(_) => "Enemy3.png",
+            EnemyType::Spammer { .. } => "EnemyBoss2.png",
         }
         .to_string()
     }

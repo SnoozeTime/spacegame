@@ -1,85 +1,262 @@
+use crate::assets::sprite::SpriteAsset;
+use crate::resources::Resources;
 use log::debug;
-use luminance::backend::texture::Texture as TextureBackend;
 use luminance::context::GraphicsContext;
-use luminance::pixel::NormRGBA8UI;
-use luminance::texture::{Dim2, GenMipmaps, Sampler, Texture};
+use luminance_gl::GL33;
+use std::collections::hash_map::Keys;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use thiserror::Error;
 
-pub struct SpriteCache<B>
+pub mod sprite;
+
+pub fn create_asset_managers<S>(surface: &mut S, resources: &mut Resources)
 where
-    B: GraphicsContext + 'static,
-    B::Backend: luminance::backend::texture::Texture<
-        luminance::texture::Dim2,
-        luminance::pixel::NormRGBA8UI,
-    >,
+    S: GraphicsContext<Backend = GL33> + 'static,
 {
-    pub inner: HashMap<String, Texture<<B as GraphicsContext>::Backend, Dim2, NormRGBA8UI>>,
+    let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/sprites".to_string());
+
+    let mut sprite_manager: AssetManager<S, SpriteAsset<S>> =
+        AssetManager::from_loader(Box::new(sprite::SpriteSyncLoader::new(base_path)));
+
+    for n in &[
+        "Enemy2.png",
+        "Enemy3.png",
+        "round_bullet.png",
+        "fast_bullet.png",
+        "round_bullet_2.png",
+        "Proto-ship.png",
+        "P-blue-a.png",
+        "EnemyBoss2.png",
+        "starfield_2048.png",
+        "starfield_729.png",
+        "starfield_625.png",
+    ] {
+        sprite_manager.load(n);
+    }
+
+    sprite_manager.upload_all(surface);
+
+    resources.insert(sprite_manager);
 }
 
-impl<B> Default for SpriteCache<B>
-where
-    B: GraphicsContext,
-    B::Backend: luminance::backend::texture::Texture<
-        luminance::texture::Dim2,
-        luminance::pixel::NormRGBA8UI,
-    >,
-{
-    fn default() -> Self {
-        Self {
-            inner: HashMap::new(),
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct Handle(pub String);
+
+#[derive(Debug, Error)]
+pub enum AssetError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    ImageError(#[from] image::ImageError),
+
+    #[error(transparent)]
+    JsonError(#[from] serde_json::Error),
+}
+
+pub struct Asset<T> {
+    asset: Arc<Mutex<LoadingStatus<T, AssetError>>>,
+}
+
+impl<T> Clone for Asset<T> {
+    fn clone(&self) -> Self {
+        Asset {
+            asset: Arc::clone(&self.asset),
         }
     }
 }
 
-pub fn load_sprites<B>(surface: &mut B) -> SpriteCache<B>
-where
-    B: GraphicsContext,
-    B::Backend: TextureBackend<Dim2, NormRGBA8UI>,
-{
-    let mut sprite_cache = SpriteCache::default();
-
-    let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
-    for n in &[
-        "Enemy2",
-        "Enemy3",
-        "round_bullet",
-        "fast_bullet",
-        "round_bullet_2",
-        "Proto-ship",
-        "P-blue-a",
-        "EnemyBoss2",
-    ] {
-        let path = PathBuf::from(&base_path).join(format!("assets/sprites/{}.png", n));
-        debug!("Will load from {:?}", path);
-        sprite_cache
-            .inner
-            .insert(n.to_lowercase(), load_from_disk(surface, path));
+impl<T> Default for Asset<T> {
+    fn default() -> Self {
+        Asset::new()
     }
-
-    sprite_cache
 }
 
-fn load_from_disk<B, P: AsRef<Path>>(
-    surface: &mut B,
-    path: P,
-) -> Texture<B::Backend, Dim2, NormRGBA8UI>
+impl<T> From<AssetError> for Asset<T> {
+    fn from(e: AssetError) -> Self {
+        Self {
+            asset: Arc::new(Mutex::new(LoadingStatus::Error(e))),
+        }
+    }
+}
+
+impl<T> Asset<T> {
+    pub fn new() -> Self {
+        Self {
+            asset: Arc::new(Mutex::new(LoadingStatus::Loading)),
+        }
+    }
+
+    pub fn from_asset(asset: T) -> Self {
+        Self {
+            asset: Arc::new(Mutex::new(LoadingStatus::Ready(asset))),
+        }
+    }
+
+    pub fn set_ready(&mut self, v: T) {
+        *self.asset.lock().unwrap() = LoadingStatus::Loaded(v);
+    }
+
+    pub fn set_loaded(&mut self, v: T) {
+        *self.asset.lock().unwrap() = LoadingStatus::Loaded(v);
+    }
+
+    pub fn set_error(&mut self, e: AssetError) {
+        *self.asset.lock().unwrap() = LoadingStatus::Error(e);
+    }
+
+    /// Returns true if the asset has finished loading.
+    pub fn is_loaded(&self) -> bool {
+        let asset = &*self.asset.lock().unwrap();
+        if let LoadingStatus::Ready(_) = asset {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Returns true if the asset has failed loading.
+    pub fn is_error(&self) -> bool {
+        let asset = &*self.asset.lock().unwrap();
+        if let LoadingStatus::Error(_) = asset {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Execute a function only if the asset is loaded.
+    pub fn execute<F>(&self, mut f: F)
+    where
+        F: FnMut(&T),
+    {
+        let asset = &*self.asset.lock().unwrap();
+        if let LoadingStatus::Ready(ref inner) = asset {
+            f(inner);
+        }
+    }
+
+    /// Execute a function only if the asset is loaded.
+    pub fn execute_mut<F>(&self, mut f: F)
+    where
+        F: FnMut(&mut T),
+    {
+        let asset = &mut *self.asset.lock().unwrap();
+        if let LoadingStatus::Ready(ref mut inner) = asset {
+            debug!("Asset is ready");
+            f(inner);
+        } else {
+            debug!("Asset is not ready");
+        }
+    }
+}
+impl<T: Clone> Asset<T> {
+    /// Some assets should not be modified so it's better to get a copy of them
+    /// (Dialog for example)
+    pub fn clone_inner(&self) -> Option<T> {
+        let asset = &*self.asset.lock().unwrap();
+        if let LoadingStatus::Loaded(ref inner) = asset {
+            Some((*inner).clone())
+        } else {
+            None
+        }
+    }
+}
+
+pub enum LoadingStatus<T, E> {
+    Ready(T),
+    Loaded(T),
+    Loading,
+    Error(E),
+}
+
+impl<T: Default, E> LoadingStatus<T, E> {
+    pub fn move_to_read(&mut self) {
+        match self {
+            LoadingStatus::Loaded(asset) => *self = LoadingStatus::Ready(std::mem::take(asset)),
+            _ => (),
+        }
+    }
+}
+
+pub struct AssetManager<S, T: Default>
 where
-    B: GraphicsContext,
-    B::Backend: TextureBackend<Dim2, NormRGBA8UI>,
+    S: GraphicsContext<Backend = GL33>,
 {
-    let img = image::open(path).map(|img| img.flipv().to_rgba()).unwrap();
-    let (width, height) = img.dimensions();
-    let texels = img.into_raw();
+    // might want to use a LRU instead...
+    store: HashMap<Handle, Asset<T>>,
+    loader: Box<dyn Loader<S, T>>,
+}
 
-    // create the luminance texture; the third argument is the number of mipmaps we want (leave it
-    // to 0 for now) and the latest is the sampler to use when sampling the texels in the
-    // shader (we’ll just use the default one)
-    let mut tex = Texture::new(surface, [width, height], 0, Sampler::default())
-        .expect("luminance texture creation");
+impl<S, T: Default> AssetManager<S, T>
+where
+    S: GraphicsContext<Backend = GL33>,
+{
+    pub fn from_loader(loader: Box<dyn Loader<S, T>>) -> Self {
+        Self {
+            store: HashMap::new(),
+            loader,
+        }
+    }
 
-    // the first argument disables mipmap generation (we don’t care so far)
-    tex.upload_raw(GenMipmaps::No, &texels).unwrap();
+    pub fn load(&mut self, asset_name: &str) -> Handle {
+        let handle = Handle(asset_name.to_owned());
+        if self.store.contains_key(&handle) {
+            return handle;
+        }
+        let asset = self.loader.load(asset_name);
+        self.store.insert(handle.clone(), asset);
+        handle
+    }
 
-    tex
+    pub fn upload_all(&mut self, ctx: &mut S) {
+        // once every now and then, check the resources ready to be uploaded by the current thread.
+        for asset in self.store.values() {
+            let mut asset = &mut *asset.asset.lock().unwrap();
+            if let LoadingStatus::Loaded(ref mut t) = asset {
+                // UPLOAD
+                log::info!("HERE");
+                self.loader.upload_to_gpu(ctx, t);
+            }
+            asset.move_to_read();
+        }
+    }
+
+    pub fn get(&self, handle: &Handle) -> Option<&Asset<T>> {
+        self.store.get(handle)
+    }
+
+    pub fn get_mut(&mut self, handle: &Handle) -> Option<&mut Asset<T>> {
+        self.store.get_mut(handle)
+    }
+
+    pub fn is_loaded(&self, handle: &Handle) -> bool {
+        self.store
+            .get(handle)
+            .map(|asset| asset.is_loaded())
+            .unwrap_or(false)
+    }
+
+    pub fn is_error(&self, handle: &Handle) -> bool {
+        self.store
+            .get(handle)
+            .map(|asset| asset.is_error())
+            .unwrap_or(false)
+    }
+
+    /// Return the assets that are currently managed
+    pub fn keys(&self) -> Keys<Handle, Asset<T>> {
+        self.store.keys()
+    }
+}
+
+pub trait Loader<S, T>
+where
+    S: GraphicsContext<Backend = GL33>,
+{
+    /// Get an asset from an handle
+    fn load(&mut self, asset_name: &str) -> Asset<T>;
+
+    fn upload_to_gpu(&self, ctx: &mut S, inner: &mut T) {}
 }

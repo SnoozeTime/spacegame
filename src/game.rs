@@ -37,7 +37,7 @@ where
         resources.insert(input);
 
         // and some asset manager;
-        resources.insert(crate::assets::load_sprites(surface));
+        crate::assets::create_asset_managers(surface, &mut resources);
 
         Self {
             surface,

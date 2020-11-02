@@ -35,6 +35,8 @@ rand = "0.7.3"
 # display text
 glyph_brush = "0.6.3"
 
+thiserror = "1.0.21"
+
 [dependencies.glam]
 version = "0.9.5"
 features = ["serde"]

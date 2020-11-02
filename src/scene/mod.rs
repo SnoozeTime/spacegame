@@ -219,7 +219,7 @@ impl Scene for MainScene {
                 rotation: 0.0,
             },
             Sprite {
-                id: "p-blue-a".to_string(),
+                id: "P-blue-a.png".to_string(),
             },
             Player {
                 weapon: Weapon::Simple,

@@ -17,11 +17,11 @@ impl BulletType {
     /// Get the name of the sprite that this bullet is representing
     fn get_sprite_name(&self) -> String {
         match *self {
-            BulletType::Small => "small_bullet",
-            BulletType::Fast => "fast_bullet",
-            BulletType::Round1 => "round_bullet",
-            BulletType::Round2 => "round_bullet_2",
-            BulletType::BigAss => "big_ass_bullet",
+            BulletType::Small => "small_bullet.png",
+            BulletType::Fast => "fast_bullet.png",
+            BulletType::Round1 => "round_bullet.png",
+            BulletType::Round2 => "round_bullet_2.png",
+            BulletType::BigAss => "big_ass_bullet.png",
         }
         .to_string()
     }

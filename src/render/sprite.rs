@@ -1,3 +1,4 @@
+use log::debug;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
@@ -9,7 +10,7 @@ use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
 use luminance_gl::gl33::GL33;
 
-use crate::assets::SpriteCache;
+use crate::assets::{sprite::SpriteAsset, AssetManager, Handle};
 use crate::core::transform::Transform;
 use crate::{HEIGHT, WIDTH};
 use luminance::shading_gate::ShadingGate;
@@ -114,7 +115,7 @@ where
         pipeline: &Pipeline<S::Backend>,
         shd_gate: &mut ShadingGate<S::Backend>,
         world: &hecs::World,
-        textures: &mut SpriteCache<S>,
+        textures: &mut AssetManager<S, SpriteAsset<S>>,
     ) -> Result<(), PipelineError> {
         let view = crate::core::camera::get_view_matrix(world).unwrap();
         let mut shader = &mut self.shader;
@@ -129,23 +130,42 @@ where
             iface.set(&uni.view, view.to_cols_array_2d());
 
             for (e, (sprite, transform)) in world.query::<(&Sprite, &Transform)>().iter() {
-                if let Some(tex) = textures.inner.get_mut(&sprite.id) {
-                    // In case there is a blink animation, set up the correct uniforms.
-                    if let Ok(blink) = world.get::<Blink>(e) {
-                        iface.set(&uni.should_blink, true);
-                        iface.set(&uni.blink_color, blink.color);
-                        iface.set(&uni.time, elapsed);
-                        iface.set(&uni.amplitude, blink.amplitude);
-                    } else {
-                        iface.set(&uni.should_blink, false);
-                    }
+                if let Some(tex) = textures.get_mut(&Handle(sprite.id.to_string())) {
+                    let mut res = Ok(());
+                    tex.execute_mut(|asset| {
+                        if let Some(tex) = asset.texture() {
+                            // In case there is a blink animation, set up the correct uniforms.
+                            if let Ok(blink) = world.get::<Blink>(e) {
+                                iface.set(&uni.should_blink, true);
+                                iface.set(&uni.blink_color, blink.color);
+                                iface.set(&uni.time, elapsed);
+                                iface.set(&uni.amplitude, blink.amplitude);
+                            } else {
+                                iface.set(&uni.should_blink, false);
+                            }
 
-                    let bound_tex = pipeline.bind_texture(tex)?;
-                    iface.set(&uni.tex, bound_tex.binding());
-                    let model = transform.to_model();
-                    iface.set(&uni.model, model.to_cols_array_2d());
+                            let bound_tex = pipeline.bind_texture(tex);
 
-                    rdr_gate.render(render_state, |mut tess_gate| tess_gate.render(tess))?
+                            match bound_tex {
+                                Ok(bound_tex) => {
+                                    iface.set(&uni.tex, bound_tex.binding());
+                                    let model = transform.to_model();
+                                    iface.set(&uni.model, model.to_cols_array_2d());
+
+                                    res = rdr_gate.render(render_state, |mut tess_gate| {
+                                        tess_gate.render(tess)
+                                    });
+                                }
+                                Err(e) => {
+                                    res = Err(e);
+                                }
+                            }
+                        }
+                    });
+
+                    res?;
+                } else {
+                    debug!("Texture is not loaded {}", sprite.id);
                 }
             }
 

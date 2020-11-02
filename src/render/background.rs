@@ -1,6 +1,7 @@
 //! Background is a scrolling background
 
-use luminance::backend::texture::Texture as TextureBackend;
+use crate::assets::sprite::SpriteAsset;
+use crate::assets::{AssetManager, Handle};
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
@@ -9,7 +10,7 @@ use luminance::render_state::RenderState;
 use luminance::shader::{Program, Uniform};
 use luminance::shading_gate::ShadingGate;
 use luminance::tess::{Mode, Tess};
-use luminance::texture::{Dim2, GenMipmaps, MagFilter, MinFilter, Sampler, Texture, Wrap};
+use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
 use luminance_gl::GL33;
 use std::path::{Path, PathBuf};
@@ -37,9 +38,7 @@ where
 pub struct BackgroundRenderer<S: GraphicsContext<Backend = GL33>> {
     render_st: RenderState,
     current_offset: f32,
-    tex1: Texture<S::Backend, Dim2, NormRGBA8UI>,
-    tex2: Texture<S::Backend, Dim2, NormRGBA8UI>,
-    tex3: Texture<S::Backend, Dim2, NormRGBA8UI>,
+    texture_handles: Vec<Handle>,
     tess: Tess<S::Backend, ()>,
     shader: Program<S::Backend, (), (), BackgroundUniform>,
 }
@@ -63,25 +62,18 @@ where
             .build()
             .expect("Tess creation");
         let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
-        let tex1 = load_from_disk(
-            surface,
-            PathBuf::from(&base_path).join("assets/sprites/starfield_2048.png"),
-        );
-        let tex2 = load_from_disk(
-            surface,
-            PathBuf::from(&base_path).join("assets/sprites/starfield_729.png"),
-        );
-        let tex3 = load_from_disk(
-            surface,
-            PathBuf::from(&base_path).join("assets/sprites/starfield_625.png"),
-        );
 
         Self {
+            texture_handles: [
+                "starfield_2048.png",
+                "starfield_729.png",
+                "starfield_625.png",
+            ]
+            .iter()
+            .map(|n| Handle(n.to_string()))
+            .collect(),
             current_offset: 0.0,
             tess,
-            tex1,
-            tex2,
-            tex3,
             render_st,
             shader: new_shader(surface),
         }
@@ -91,68 +83,42 @@ where
         &mut self,
         pipeline: &Pipeline<S::Backend>,
         shd_gate: &mut ShadingGate<S::Backend>,
-        shader: &mut Program<S::Backend, (), (), BackgroundUniform>,
+        textures: &mut AssetManager<S, SpriteAsset<S>>,
     ) -> Result<(), PipelineError> {
-        let tex1 = &mut self.tex1;
-        let tex2 = &mut self.tex2;
-        let tex3 = &mut self.tex3;
         let shader = &mut self.shader;
         let render_state = &self.render_st;
         let tess = &self.tess;
+        let texture_handles = &self.texture_handles;
         self.current_offset += 0.001;
         let current_offset = self.current_offset;
         shd_gate.shade(shader, |mut iface, uni, mut rdr_gate| {
             iface.set(&uni.offset, current_offset);
-            // FIRST TEXTURE
-            let bound_tex = pipeline.bind_texture(tex1)?;
-            iface.set(&uni.tex, bound_tex.binding());
-            rdr_gate.render(render_state, |mut tess_gate| tess_gate.render(tess))?;
 
-            // SECOND TEXTURE
-            let bound_tex = pipeline.bind_texture(tex2)?;
-            iface.set(&uni.tex, bound_tex.binding());
-            rdr_gate.render(render_state, |mut tess_gate| tess_gate.render(tess))?;
+            for h in texture_handles {
+                if let Some(tex) = textures.get_mut(h) {
+                    let mut res = Ok(());
+                    tex.execute_mut(|tex| {
+                        if let Some(tex) = tex.texture() {
+                            let bound_tex = pipeline.bind_texture(tex);
+                            match bound_tex {
+                                Ok(bound_tex) => {
+                                    iface.set(&uni.tex, bound_tex.binding());
+                                    res = rdr_gate.render(render_state, |mut tess_gate| {
+                                        tess_gate.render(tess)
+                                    });
+                                }
+                                Err(e) => {
+                                    res = Err(e);
+                                }
+                            }
+                        }
+                    });
 
-            // THIRD TEXTURE
-            let bound_tex = pipeline.bind_texture(tex3)?;
-            iface.set(&uni.tex, bound_tex.binding());
-            rdr_gate.render(render_state, |mut tess_gate| tess_gate.render(tess))
+                    res?;
+                }
+            }
+
+            Ok(())
         })
     }
-}
-
-fn load_from_disk<B, P: AsRef<Path>>(
-    surface: &mut B,
-    path: P,
-) -> Texture<B::Backend, Dim2, NormRGBA8UI>
-where
-    B: GraphicsContext,
-    B::Backend: TextureBackend<Dim2, NormRGBA8UI>,
-{
-    let img = image::open(path).map(|img| img.flipv().to_rgba()).unwrap();
-    let (width, height) = img.dimensions();
-    let texels = img.into_raw();
-
-    // create the luminance texture; the third argument is the number of mipmaps we want (leave it
-    // to 0 for now) and the latest is the sampler to use when sampling the texels in the
-    // shader (we’ll just use the default one)
-    let mut tex = Texture::new(
-        surface,
-        [width, height],
-        0,
-        Sampler {
-            wrap_r: Wrap::Repeat,
-            wrap_s: Wrap::Repeat,
-            wrap_t: Wrap::Repeat,
-            min_filter: MinFilter::Nearest,
-            mag_filter: MagFilter::Nearest,
-            depth_comparison: None,
-        },
-    )
-    .expect("luminance texture creation");
-
-    // the first argument disables mipmap generation (we don’t care so far)
-    tex.upload_raw(GenMipmaps::No, &texels).unwrap();
-
-    tex
 }

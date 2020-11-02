@@ -1,7 +1,8 @@
-use crate::assets::SpriteCache;
+use crate::assets::sprite::SpriteAsset;
+use crate::assets::AssetManager;
 use crate::event::GameEvent;
 use crate::render::background::{BackgroundRenderer, BackgroundUniform};
-use crate::render::sprite::{ShaderUniform, SpriteRenderer};
+use crate::render::sprite::SpriteRenderer;
 use crate::render::text::TextRenderer;
 use crate::resources::Resources;
 use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
@@ -35,7 +36,6 @@ where
     /// render text on the screen.
     text_renderer: TextRenderer<S>,
 
-    background_shader: Program<S::Backend, (), (), BackgroundUniform>,
     text_shader: Program<S::Backend, text::VertexSemantics, (), text::ShaderInterface>,
 }
 
@@ -46,7 +46,6 @@ where
     pub fn new(surface: &mut S, resources: &mut Resources) -> Renderer<S> {
         let sprite_renderer = sprite::SpriteRenderer::new(surface);
         let background_renderer = background::BackgroundRenderer::new(surface);
-        let background_shader = background::new_shader(surface);
         let mut fonts = GlyphBrushBuilder::using_font_bytes(FONT_DATA).build();
         let text_renderer = TextRenderer::new(surface, &mut fonts);
 
@@ -57,7 +56,6 @@ where
             fonts,
             sprite_renderer,
             background_renderer,
-            background_shader,
             text_renderer,
             text_shader: text::new_shader(surface),
         }
@@ -70,18 +68,17 @@ where
         world: &hecs::World,
         resources: &Resources,
     ) -> Render<PipelineError> {
-        let mut textures = resources.fetch_mut::<SpriteCache<S>>().unwrap();
+        let mut textures = resources
+            .fetch_mut::<AssetManager<S, SpriteAsset<S>>>()
+            .unwrap();
         surface
             .new_pipeline_gate()
             .pipeline(
                 back_buffer,
                 &PipelineState::default().set_clear_color([0.0, 0.0, 0.0, 1.0]),
                 |pipeline, mut shd_gate| {
-                    self.background_renderer.render(
-                        &pipeline,
-                        &mut shd_gate,
-                        &mut self.background_shader,
-                    )?;
+                    self.background_renderer
+                        .render(&pipeline, &mut shd_gate, &mut *textures)?;
 
                     self.sprite_renderer.render(
                         &pipeline,
