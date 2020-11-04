@@ -1,5 +1,6 @@
 use crate::assets::sprite::SpriteAsset;
 use crate::resources::Resources;
+use downcast_rs::__std::path::PathBuf;
 use log::debug;
 use luminance::context::GraphicsContext;
 use luminance_gl::GL33;
@@ -14,10 +15,11 @@ pub fn create_asset_managers<S>(surface: &mut S, resources: &mut Resources)
 where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
-    let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/sprites".to_string());
+    let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
 
-    let mut sprite_manager: AssetManager<S, SpriteAsset<S>> =
-        AssetManager::from_loader(Box::new(sprite::SpriteSyncLoader::new(base_path)));
+    let mut sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
+        sprite::SpriteSyncLoader::new(PathBuf::from(base_path).join("assets/sprites")),
+    ));
 
     for n in &[
         "Enemy2.png",
@@ -213,10 +215,9 @@ where
     pub fn upload_all(&mut self, ctx: &mut S) {
         // once every now and then, check the resources ready to be uploaded by the current thread.
         for asset in self.store.values() {
-            let mut asset = &mut *asset.asset.lock().unwrap();
+            let asset = &mut *asset.asset.lock().unwrap();
             if let LoadingStatus::Loaded(ref mut t) = asset {
                 // UPLOAD
-                log::info!("HERE");
                 self.loader.upload_to_gpu(ctx, t);
             }
             asset.move_to_read();
@@ -258,5 +259,5 @@ where
     /// Get an asset from an handle
     fn load(&mut self, asset_name: &str) -> Asset<T>;
 
-    fn upload_to_gpu(&self, ctx: &mut S, inner: &mut T) {}
+    fn upload_to_gpu(&self, _ctx: &mut S, _inner: &mut T) {}
 }

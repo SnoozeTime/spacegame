@@ -1,15 +1,17 @@
 use crate::core::input::InputAction;
-use glfw::Key;
+use glfw::{Key, MouseButton};
 
 pub mod bullet;
+pub mod camera;
 pub mod collision;
 pub mod delete;
 pub mod enemy;
 pub mod gameover;
 pub mod health;
 pub mod level;
+pub mod physics;
 pub mod player;
-
+pub mod steering;
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Action {
     MoveLeft,
@@ -17,17 +19,36 @@ pub enum Action {
     MoveUp,
     MoveDown,
     Shoot,
+    RotateLeft,
+    RotateRight,
 }
 
 impl InputAction for Action {
     fn from_key(key: Key) -> Option<Action> {
         match key {
             Key::Up => Some(Action::MoveUp),
+            Key::W => Some(Action::MoveUp),
             Key::Down => Some(Action::MoveDown),
+            Key::S => Some(Action::MoveDown),
             Key::Left => Some(Action::MoveLeft),
+            Key::A => Some(Action::MoveLeft),
             Key::Right => Some(Action::MoveRight),
+            Key::D => Some(Action::MoveRight),
             Key::Space => Some(Action::Shoot),
+            Key::Q => Some(Action::RotateLeft),
+            Key::E => Some(Action::RotateRight),
             _ => None,
+        }
+    }
+
+    fn from_mouse_button(btn: MouseButton) -> Option<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        if let MouseButton::Button1 = btn {
+            Some(Action::Shoot)
+        } else {
+            None
         }
     }
 }

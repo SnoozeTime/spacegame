@@ -4,6 +4,7 @@ extern crate bitflags;
 use luminance_windowing::WindowDim;
 
 pub mod assets;
+pub mod config;
 pub mod core;
 pub mod event;
 pub mod game;

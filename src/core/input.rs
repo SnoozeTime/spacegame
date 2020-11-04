@@ -1,10 +1,16 @@
-use glfw::{Key, WindowEvent};
+use crate::{HEIGHT, WIDTH};
+use glfw::{Key, MouseButton, WindowEvent};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 pub trait InputAction: Hash + Eq + PartialEq + Clone {
     /// Get the action from the key
     fn from_key(key: Key) -> Option<Self>
+    where
+        Self: std::marker::Sized;
+
+    /// Get the action from the mouse button
+    fn from_mouse_button(btn: MouseButton) -> Option<Self>
     where
         Self: std::marker::Sized;
 }
@@ -25,6 +31,8 @@ where
     /// true for pressed
     action_state: HashMap<A, bool>,
     just_pressed: HashSet<A>,
+
+    mouse_pos: glam::Vec2,
 }
 
 impl<A> Input<A>
@@ -35,6 +43,7 @@ where
         Self {
             action_state: HashMap::default(),
             just_pressed: HashSet::default(),
+            mouse_pos: glam::Vec2::zero(),
         }
     }
 
@@ -54,6 +63,18 @@ where
                     self.action_state.insert(action, false);
                 }
             }
+            WindowEvent::MouseButton(btn, glfw::Action::Press, _) => {
+                if let Some(action) = A::from_mouse_button(btn) {
+                    self.action_state.insert(action.clone(), true);
+                    self.just_pressed.insert(action);
+                }
+            }
+            WindowEvent::MouseButton(btn, glfw::Action::Release, _) => {
+                if let Some(action) = A::from_mouse_button(btn) {
+                    self.action_state.insert(action, false);
+                }
+            }
+            WindowEvent::CursorPos(x, y) => self.mouse_pos = glam::vec2(x as f32, y as f32),
             _ => {}
         }
     }
@@ -72,5 +93,12 @@ where
 
     pub fn is_just_pressed(&self, action: A) -> bool {
         self.just_pressed.contains(&action)
+    }
+
+    pub fn mouse_position(&self) -> glam::Vec2 {
+        glam::vec2(
+            (self.mouse_pos.x() / WIDTH as f32) * 2.0 - 1.0,
+            ((HEIGHT as f32 - self.mouse_pos.y()) / HEIGHT as f32) * 2.0 - 1.0,
+        )
     }
 }

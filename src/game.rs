@@ -1,4 +1,5 @@
 use crate::core::input::{Input, InputAction};
+use crate::core::transform::update_transforms;
 use crate::event::GameEvent;
 use crate::gameplay::delete::GarbageCollector;
 use crate::render::Renderer;
@@ -169,6 +170,10 @@ where
                 }
             }
 
+            // Update children transforms:
+            // -----------------------------
+            update_transforms(&mut self.world);
+
             // 3. Clean up dead entities.
             // ------------------------------------------------
             self.garbage_collector
@@ -178,7 +183,7 @@ where
             // ------------------------------------------------
             log::debug!("RENDER");
             self.renderer
-                .update(self.surface, &self.world, &self.resources);
+                .update(self.surface, &self.world, dt, &self.resources);
             if resize {
                 back_buffer = self.surface.back_buffer().unwrap();
             }

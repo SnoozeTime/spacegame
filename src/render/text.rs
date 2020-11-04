@@ -88,6 +88,7 @@ where
     texture: Texture<S::Backend, Dim2, NormR8UI>,
     tess: Option<Tess<S::Backend, (), (), Instance>>,
     render_state: RenderState,
+    shader: Program<S::Backend, VertexSemantics, (), ShaderInterface>,
 }
 
 impl<S> TextRenderer<S>
@@ -121,6 +122,7 @@ where
             texture: tex,
             tess: None,
             render_state,
+            shader: new_shader(surface),
         }
     }
 
@@ -189,9 +191,9 @@ where
         &mut self,
         pipeline: &Pipeline<S::Backend>,
         shd_gate: &mut ShadingGate<S::Backend>,
-        shader: &mut Program<S::Backend, VertexSemantics, (), ShaderInterface>,
     ) -> Result<(), PipelineError> {
         let tex = &mut self.texture;
+        let shader = &mut self.shader;
         let render_state = &self.render_state;
         let proj = self.projection.to_cols_array_2d();
         if let Some(tess) = self.tess.as_ref() {

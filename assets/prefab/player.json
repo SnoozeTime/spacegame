@@ -1,0 +1,53 @@
+[
+  {
+    "translation": [
+      100.0,
+      100.0
+    ],
+    "scale": [
+      50.0,
+      50.0
+    ],
+    "rotation": 0.0
+  },
+  {
+    "id": "P-blue-a.png"
+  },
+  {
+    "weapon": "Simple",
+    "direction": [
+      0.0,
+      1.0
+    ],
+    "speed": [
+      0.0,
+      0.0
+    ],
+    "acceleration": [
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "half_extend": [
+      20.0,
+      20.0
+    ],
+    "collision_layer": {
+      "bits": 1
+    },
+    "collision_mask": {
+      "bits": 10
+    }
+  },
+  {
+    "max": 5,
+    "current": 5,
+    "hittable": true,
+    "invulnerability_timer": {
+      "deadline": 1.0,
+      "elapsed": 0.0,
+      "enabled": false
+    }
+  }
+]

@@ -18,11 +18,11 @@ impl Camera {
     }
 
     pub fn to_view(&self) -> glam::Mat4 {
-        glam::Mat4::look_at_rh(
-            self.position.extend(1.0),
-            self.position.extend(0.0),
-            glam::Vec3::unit_y(),
-        )
+        glam::Mat4::look_at_rh(self.eye(), self.position.extend(0.0), glam::Vec3::unit_y())
+    }
+
+    pub fn eye(&self) -> glam::Vec3 {
+        self.position.extend(1.0)
     }
 }
 
@@ -32,4 +32,16 @@ pub fn get_view_matrix(world: &World) -> Option<glam::Mat4> {
         .iter()
         .map(|(_, c)| c.to_view())
         .next()
+}
+
+pub fn screen_to_world(
+    screen_coords: glam::Vec2,
+    projection_matrix: glam::Mat4,
+    world: &World,
+) -> glam::Vec2 {
+    let view = get_view_matrix(world).unwrap();
+    let pv = projection_matrix * view;
+    let inv = pv.inverse();
+    let mouse_pos_world = inv * screen_coords.extend(0.0).extend(1.0);
+    glam::vec2(mouse_pos_world.x(), mouse_pos_world.y())
 }

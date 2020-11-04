@@ -1,5 +1,6 @@
 
-uniform float offset;
+uniform float offset_x;
+uniform float offset_y;
 
 out vec2 v_uv;
 
@@ -14,6 +15,7 @@ void main() {
     vec2 p = QUAD_POS[gl_VertexID];
     gl_Position = vec4(p, 0., 1.);
     vec2 uv = p * .5 + .5; // transform the position of the vertex into UV space
-    uv.t += offset;
-    v_uv =- uv;
+    uv.t += offset_y;
+    uv.r += offset_x;
+    v_uv = uv;
 }

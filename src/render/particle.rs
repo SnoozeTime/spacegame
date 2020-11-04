@@ -3,6 +3,8 @@ use crate::event::GameEvent;
 use crate::resources::Resources;
 use hecs::World;
 use luminance::context::GraphicsContext;
+use luminance::pipeline::PipelineError;
+use luminance::render_state::RenderState;
 use luminance::shader::{Program, Uniform};
 use luminance::shading_gate::ShadingGate;
 use luminance::tess::{Mode, Tess};
@@ -11,6 +13,7 @@ use luminance_gl::GL33;
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 struct Particle {
@@ -55,8 +58,8 @@ impl Particle {
 pub struct ParticleEmitter {
     #[serde(skip)]
     particles: Vec<Particle>,
-    position: glam::Vec2,
-    velocity: glam::Vec2,
+    pub position: glam::Vec2,
+    pub velocity: glam::Vec2,
 
     /// maximum number of particle to emit.
     particle_number: usize,
@@ -131,6 +134,20 @@ impl ParticleEmitter {
     }
 }
 
+const VS: &'static str = include_str!("particle-vs.glsl");
+const FS: &'static str = include_str!("particle-fs.glsl");
+
+pub fn new_shader<B>(surface: &mut B) -> Program<GL33, (), (), ParticleShaderInterface>
+where
+    B: GraphicsContext<Backend = GL33>,
+{
+    surface
+        .new_shader_program::<(), (), ParticleShaderInterface>()
+        .from_strings(VS, None, None, FS)
+        .expect("Program creation")
+        .ignore_warnings()
+}
+
 #[derive(UniformInterface)]
 pub struct ParticleShaderInterface {
     pub projection: Uniform<[[f32; 4]; 4]>,
@@ -138,9 +155,6 @@ pub struct ParticleShaderInterface {
     pub view: Uniform<[[f32; 4]; 4]>,
     pub model: Uniform<[[f32; 4]; 4]>,
     pub color: Uniform<[f32; 3]>,
-
-    pub camera_position: Uniform<[f32; 3]>,
-    pub center: Uniform<[f32; 3]>,
 }
 
 pub struct ParticleSystem<S>
@@ -148,6 +162,7 @@ where
     S: GraphicsContext<Backend = GL33>,
 {
     tess: Tess<S::Backend, ()>,
+    shader: Program<S::Backend, (), (), ParticleShaderInterface>,
 }
 
 impl<S> ParticleSystem<S>
@@ -161,78 +176,52 @@ where
             .set_mode(Mode::TriangleFan)
             .build()
             .expect("Tess creation");
-        Self { tess }
+        Self {
+            tess,
+            shader: new_shader(surface),
+        }
     }
 
-    pub fn update(&mut self, world: &mut World, dt: f32, resources: &mut Resources) {
+    pub fn update(&mut self, world: &World, dt: Duration, resources: &Resources) {
         let mut chan = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
         for (e, emitter) in world.query::<&mut ParticleEmitter>().iter() {
-            if !emitter.update(dt) {
+            if !emitter.update(dt.as_secs_f32()) {
                 chan.single_write(GameEvent::Delete(e));
             }
         }
     }
 
     pub fn render(
-        &self,
+        &mut self,
         shd_gate: &mut ShadingGate<S::Backend>,
-        shader: &mut Program<S::Backend, (), (), ParticleShaderInterface>,
         projection: &glam::Mat4,
         view: &glam::Mat4,
         world: &World,
-    ) {
+    ) -> Result<(), PipelineError> {
+        let tess = &self.tess;
+        shd_gate.shade(&mut self.shader, |mut iface, uni, mut rdr_gate| {
+            for (_, emitter) in world.query::<&mut ParticleEmitter>().iter() {
+                iface.set(&uni.projection, projection.to_cols_array_2d());
+                iface.set(&uni.view, view.to_cols_array_2d());
+
+                for p in &emitter.particles {
+                    iface.set(&uni.color, p.color.to_normalized());
+                    iface.set(
+                        &uni.model,
+                        glam::Mat4::from_scale_rotation_translation(
+                            glam::vec3(1.0, 1.0, 1.0),
+                            glam::Quat::identity(),
+                            p.position.extend(0.0),
+                        )
+                        .to_cols_array_2d(),
+                    );
+
+                    rdr_gate.render(&RenderState::default(), |mut tess_gate| {
+                        tess_gate.render(tess)
+                    })?;
+                }
+            }
+            Ok(())
+        })
     }
-    //
-    // pub fn render<S>(
-    //     &self,
-    //     projection: &Mat4,
-    //     view: &Mat4,
-    //     shd_gate: &mut ShadingGate<S>,
-    //     world: &World,
-    //     shaders: &Shaders,
-    // ) where
-    //     S: GraphicsContext,
-    // {
-    //     let camera_pos = {
-    //         world
-    //             .query::<(&Camera, &Transform)>()
-    //             .iter()
-    //             .filter_map(
-    //                 |(_, (c, t))| {
-    //                     if c.active {
-    //                         Some(t.translation)
-    //                     } else {
-    //                         None
-    //                     }
-    //                 },
-    //             )
-    //             .next()
-    //     };
-    //
-    //     if let Some(camera_position) = camera_pos {
-    //         shd_gate.shade(&shaders.particle_program, |iface, mut rdr_gate| {
-    //             iface.projection.update(projection.to_cols_array_2d());
-    //             iface.view.update(view.to_cols_array_2d());
-    //             iface.camera_position.update(camera_position.into());
-    //
-    //             for (_, emitter) in world.query::<&mut ParticleEmitter>().iter() {
-    //                 for p in &emitter.particles {
-    //                     iface.color.update(p.color.to_normalized());
-    //                     iface.center.update(p.position.into());
-    //                     iface.model.update(
-    //                         Mat4::from_scale_rotation_translation(
-    //                             glam::vec3(0.1, 0.1, 0.1),
-    //                             Quat::identity(),
-    //                             p.position,
-    //                         )
-    //                         .to_cols_array_2d(),
-    //                     );
-    //                     rdr_gate.render(&RenderState::default(), |mut tess_gate| {
-    //                         tess_gate.render(self.tess.slice(..));
-    //                     });
-    //                 }
-    //             }
-    //         });
-    //     }
-    // }
 }

@@ -1,12 +1,14 @@
 use crate::core::camera::Camera;
 use crate::core::colors::RgbColor;
 use crate::core::timer::Timer;
-use crate::core::transform::Transform;
+use crate::core::transform::{HasChildren, HasParent, LocalTransform, Transform};
 use crate::event::GameEvent;
+use crate::gameplay::camera::update_camera;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::enemy::{EnemyType, ProtoShip};
+use crate::gameplay::enemy::EnemyType;
 use crate::gameplay::health::{Health, HealthSystem};
 use crate::gameplay::level::{LevelInstruction, LevelSystem};
+use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
 use crate::gameplay::player::{Player, Weapon};
 use crate::gameplay::{bullet, collision, enemy, player};
 use crate::render::sprite::Sprite;
@@ -141,59 +143,15 @@ pub trait Scene {
 pub struct MainScene {
     level_system: LevelSystem,
     health_system: Option<HealthSystem>,
+    physic_system: PhysicSystem,
 }
 
 fn load_level() -> LevelSystem {
-    let instructions = vec![
-        LevelInstruction::SpawnEnemy {
-            health: 2,
-            pos: glam::Vec2::new(200.0, 400.0),
-            enemy_type: EnemyType::ProtoShip(ProtoShip {
-                current_target: glam::Vec2::new(400.0, 400.0),
-                speed: 2.0,
-                wait_time: 2.0,
-                current_timed_waited: 0.0,
-                elapsed_from_beginning: 0.0,
-            }),
-        },
-        LevelInstruction::Wait {
-            elapsed: 0.0,
-            to_wait: 5.0,
-        },
-        LevelInstruction::SpawnEnemy {
-            health: 15,
-            pos: glam::Vec2::new(200.0, 800.0),
-            enemy_type: EnemyType::Spammer {
-                path: enemy::Path {
-                    current: 0,
-                    path: vec![
-                        glam::Vec2::new(200.0, 600.0),
-                        glam::Vec2::new(600.0, 600.0),
-                        glam::Vec2::new(400.0, 600.0),
-                    ],
-                },
-                shoot_timer: Timer::of_seconds(2.0),
-                bullet_timeout: Timer::of_seconds(0.5),
-                shooting: false,
-            },
-        },
-        LevelInstruction::SpawnMultiple {
-            health: 1,
-            time_between: 0.5,
-            elapsed: 0.0,
-            nb: 5,
-            spawned: 0,
-            pos: glam::Vec2::new(400.0, 800.0),
-            enemy_type: EnemyType::KamikazeRandom(enemy::Path {
-                current: 0,
-                path: vec![
-                    glam::Vec2::new(400.0, 600.0),
-                    glam::Vec2::new(300.0, 400.0),
-                    glam::Vec2::new(400.0, 200.0),
-                ],
-            }),
-        },
-    ];
+    let instructions = vec![LevelInstruction::SpawnEnemy {
+        health: 2,
+        pos: glam::Vec2::new(200.0, 400.0),
+        enemy_type: EnemyType::FollowPlayer,
+    }];
     LevelSystem::new(instructions)
 }
 
@@ -202,6 +160,7 @@ impl MainScene {
         Self {
             level_system: load_level(),
             health_system: None, //Option<HealthSystem::new(resources)>,
+            physic_system: PhysicSystem::new(PhysicConfig { damping: 0.99 }),
         }
     }
 }
@@ -212,17 +171,25 @@ impl Scene for MainScene {
         self.health_system = Some(HealthSystem::new(resources));
 
         world.spawn((Camera::new(),));
-        world.spawn((
+        let player_components = (
             Transform {
                 translation: glam::Vec2::new(100.0, 100.0),
                 scale: glam::Vec2::new(50.0, 50.0),
                 rotation: 0.0,
+                dirty: true,
             },
             Sprite {
                 id: "P-blue-a.png".to_string(),
             },
             Player {
                 weapon: Weapon::Simple,
+                direction: glam::vec2(0.0, 1.0),
+            },
+            DynamicBody {
+                forces: vec![],
+                velocity: Default::default(),
+                max_velocity: 500.0,
+                mass: 1.0,
             },
             BoundingBox {
                 collision_layer: CollisionLayer::PLAYER,
@@ -230,13 +197,43 @@ impl Scene for MainScene {
                 half_extend: glam::vec2(20.0, 20.0),
             },
             Health::new(5, Timer::of_seconds(1.0)),
+        );
+        let player = world.spawn(player_components);
+
+        let child = world.spawn((
+            Transform {
+                translation: glam::Vec2::new(0.0, 0.0),
+                scale: glam::Vec2::new(50.0, 50.0),
+                rotation: 0.0,
+                dirty: true,
+            },
+            LocalTransform {
+                translation: glam::vec2(40.0, 0.0),
+                scale: glam::Vec2::new(1.0, 1.0),
+                rotation: 0.0,
+                dirty: true,
+            },
+            HasParent { entity: player },
+            Sprite {
+                id: "P-blue-a.png".to_string(),
+            },
         ));
+
+        world
+            .insert(
+                player,
+                (HasChildren {
+                    children: vec![child],
+                },),
+            )
+            .unwrap();
 
         world.spawn((
             Transform {
                 translation: glam::Vec2::new(100.0, 100.0),
                 scale: glam::Vec2::new(50.0, 50.0),
                 rotation: 0.0,
+                dirty: false,
             },
             Text {
                 content: "BENOIT".to_lowercase(),
@@ -249,8 +246,12 @@ impl Scene for MainScene {
     fn update(&mut self, dt: Duration, world: &mut World, resources: &Resources) -> SceneResult {
         log::debug!("UPDATE SYSTEMS");
         self.level_system.update(world, dt);
-        player::update_player(world, &resources);
+        player::update_player(world, dt, &resources);
+        update_camera(world);
         enemy::update_enemies(world, &resources, dt);
+
+        self.physic_system.update(world, dt, resources);
+
         bullet::process_bullets(world);
         let collisions = collision::find_collisions(world);
         collision::process_collisions(world, collisions, &resources);

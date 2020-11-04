@@ -1,0 +1,7 @@
+{
+  "thrust": 1000.0,
+  "lateral_thrust": 600.0,
+  "damping": 0.99,
+  "rotation_delta": 0.05,
+  "max_speed": 500.0
+}

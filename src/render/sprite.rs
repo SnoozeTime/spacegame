@@ -12,14 +12,15 @@ use luminance_gl::gl33::GL33;
 
 use crate::assets::{sprite::SpriteAsset, AssetManager, Handle};
 use crate::core::transform::Transform;
-use crate::{HEIGHT, WIDTH};
 use luminance::shading_gate::ShadingGate;
+use serde_derive::{Deserialize, Serialize};
 use std::time::Instant;
 
 const VS: &'static str = include_str!("texture-vs.glsl");
 const FS: &'static str = include_str!("texture-fs.glsl");
 
 /// Let's make it easy for now...
+#[derive(Serialize, Deserialize)]
 pub struct Sprite {
     pub id: String,
 }
@@ -64,7 +65,6 @@ pub struct SpriteRenderer<S>
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    projection_matrix: glam::Mat4,
     render_st: RenderState,
     tess: Tess<S::Backend, ()>,
 
@@ -79,8 +79,6 @@ where
     S: GraphicsContext<Backend = GL33>,
 {
     pub fn new(surface: &mut S) -> SpriteRenderer<S> {
-        let projection_matrix =
-            glam::Mat4::orthographic_rh_gl(0.0, WIDTH as f32, 0.0, HEIGHT as f32, -1.0, 10.0);
         let render_st = RenderState::default()
             .set_depth_test(None)
             .set_blending_separate(
@@ -102,7 +100,6 @@ where
             .build()
             .expect("Tess creation");
         SpriteRenderer {
-            projection_matrix,
             render_st,
             tess,
             creation_time: Instant::now(),
@@ -114,12 +111,12 @@ where
         &mut self,
         pipeline: &Pipeline<S::Backend>,
         shd_gate: &mut ShadingGate<S::Backend>,
+        proj_matrix: &glam::Mat4,
+        view: &glam::Mat4,
         world: &hecs::World,
         textures: &mut AssetManager<S, SpriteAsset<S>>,
     ) -> Result<(), PipelineError> {
-        let view = crate::core::camera::get_view_matrix(world).unwrap();
-        let mut shader = &mut self.shader;
-        let proj_matrix = &self.projection_matrix;
+        let shader = &mut self.shader;
         let render_state = &self.render_st;
         let tess = &self.tess;
 

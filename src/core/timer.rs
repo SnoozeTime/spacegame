@@ -7,6 +7,7 @@ pub struct Timer {
     deadline: f32,
 
     /// how much time in seconds
+    #[serde(default)]
     elapsed: f32,
 
     /// if true, then update will increase elapsed time.

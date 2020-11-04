@@ -4,10 +4,11 @@ use crate::gameplay::player::Player;
 use crate::render::sprite::Blink;
 use crate::resources::Resources;
 use log::{debug, trace};
+use serde_derive::{Deserialize, Serialize};
 use shrev::{EventChannel, ReaderId};
 use std::time::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Health {
     max: u32,
     current: u32,

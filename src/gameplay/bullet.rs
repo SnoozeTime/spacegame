@@ -52,7 +52,7 @@ pub fn spawn_player_bullet(
     world.spawn((
         Bullet {
             direction,
-            speed: 5.0,
+            speed: 20.0,
         },
         Sprite {
             id: bullet_type.get_sprite_name(),
@@ -61,6 +61,7 @@ pub fn spawn_player_bullet(
             translation: initial_position,
             rotation: 0.0,
             scale: glam::vec2(7.0, 7.0),
+            dirty: false,
         },
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
@@ -88,6 +89,7 @@ pub fn spawn_enemy_bullet(
             translation: initial_position,
             rotation: 0.0,
             scale: glam::vec2(7.0, 7.0),
+            dirty: false,
         },
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),

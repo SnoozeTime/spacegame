@@ -2,10 +2,12 @@
 
 use crate::assets::sprite::SpriteAsset;
 use crate::assets::{AssetManager, Handle};
+use crate::core::camera::Camera;
+use crate::{HEIGHT, WIDTH};
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
-use luminance::pixel::{NormRGBA8UI, NormUnsigned};
+use luminance::pixel::NormUnsigned;
 use luminance::render_state::RenderState;
 use luminance::shader::{Program, Uniform};
 use luminance::shading_gate::ShadingGate;
@@ -13,14 +15,14 @@ use luminance::tess::{Mode, Tess};
 use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
 use luminance_gl::GL33;
-use std::path::{Path, PathBuf};
 
 const VS: &'static str = include_str!("background-vs.glsl");
 const FS: &'static str = include_str!("background-fs.glsl");
 
 #[derive(UniformInterface)]
 pub struct BackgroundUniform {
-    offset: Uniform<f32>,
+    offset_x: Uniform<f32>,
+    offset_y: Uniform<f32>,
     tex: Uniform<TextureBinding<Dim2, NormUnsigned>>,
 }
 
@@ -37,7 +39,8 @@ where
 
 pub struct BackgroundRenderer<S: GraphicsContext<Backend = GL33>> {
     render_st: RenderState,
-    current_offset: f32,
+    offset_x: f32,
+    offset_y: f32,
     texture_handles: Vec<Handle>,
     tess: Tess<S::Backend, ()>,
     shader: Program<S::Backend, (), (), BackgroundUniform>,
@@ -61,7 +64,6 @@ where
             .set_mode(Mode::TriangleFan)
             .build()
             .expect("Tess creation");
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
 
         Self {
             texture_handles: [
@@ -72,10 +74,18 @@ where
             .iter()
             .map(|n| Handle(n.to_string()))
             .collect(),
-            current_offset: 0.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
             tess,
             render_st,
             shader: new_shader(surface),
+        }
+    }
+
+    pub fn update(&mut self, world: &hecs::World) {
+        if let Some((_, cam)) = world.query::<&Camera>().iter().next() {
+            self.offset_x = cam.position.x() / (WIDTH as f32);
+            self.offset_y = cam.position.y() / (HEIGHT as f32);
         }
     }
 
@@ -89,10 +99,11 @@ where
         let render_state = &self.render_st;
         let tess = &self.tess;
         let texture_handles = &self.texture_handles;
-        self.current_offset += 0.001;
-        let current_offset = self.current_offset;
+        let offset_x = self.offset_x;
+        let offset_y = self.offset_y;
         shd_gate.shade(shader, |mut iface, uni, mut rdr_gate| {
-            iface.set(&uni.offset, current_offset);
+            iface.set(&uni.offset_x, offset_x);
+            iface.set(&uni.offset_y, offset_y);
 
             for h in texture_handles {
                 if let Some(tex) = textures.get_mut(h) {

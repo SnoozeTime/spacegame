@@ -1,22 +1,32 @@
 use super::bullet;
+use crate::config::PlayerConfig;
+use crate::core::camera::screen_to_world;
 use crate::core::input::{Axis, Input};
 use crate::core::transform::Transform;
 use crate::gameplay::bullet::BulletType;
-use crate::gameplay::Action;
+use crate::gameplay::physics::DynamicBody;
+use crate::gameplay::{steering, Action};
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
+use bitflags::_core::time::Duration;
 use hecs::{Entity, World};
-use log::trace;
 
+#[allow(unused_imports)]
+use log::{info, trace};
+use serde_derive::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Weapon {
     Simple,
     Multiple,
 }
 
 impl Weapon {
-    pub fn shoot(&self, initial_pos: glam::Vec2) -> Vec<(glam::Vec2, glam::Vec2, BulletType)> {
-        let direction = glam::Vec2::unit_y();
-
+    pub fn shoot(
+        &self,
+        initial_pos: glam::Vec2,
+        direction: glam::Vec2,
+    ) -> Vec<(glam::Vec2, glam::Vec2, BulletType)> {
         match *self {
             Weapon::Simple => vec![(initial_pos, direction, bullet::BulletType::Round1)],
             Weapon::Multiple => vec![
@@ -37,8 +47,10 @@ impl Weapon {
 }
 
 /// Tag to tell the ECS that the entity is a player.
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
     pub weapon: Weapon,
+    pub direction: glam::Vec2,
 }
 
 /// Will return the player entity if it exists.
@@ -60,53 +72,72 @@ fn y_axis() -> Axis<Action> {
     }
 }
 
-pub fn update_player(world: &mut World, resources: &Resources) {
+fn z_axis() -> Axis<Action> {
+    Axis {
+        left: Action::RotateLeft,
+        right: Action::RotateRight,
+    }
+}
+
+pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
     // only one player for now.
-    let player_entity = get_player(world);
-    if let Some(player_entity) = player_entity {
-        trace!("update_player");
-        let input = resources.fetch::<Input<Action>>().unwrap();
-        // Move the player
-        let player_pos = {
-            let mut player_pos = world.get_mut::<Transform>(player_entity).unwrap();
-            let (delta_x, delta_y) = (input.get_axis(x_axis()), input.get_axis(y_axis()));
-            if delta_x != 0.0 || delta_y != 0.0 {
-                let delta_pos = 5.0 * glam::Vec2::new(delta_x, delta_y).normalize();
-                player_pos.translation += delta_pos;
+    let input = resources.fetch::<Input<Action>>().unwrap();
+    let player_controller_conf = resources.fetch::<PlayerConfig>().unwrap();
 
-                // constraint position to the screen.
-                let min_allowed_x = 10.0;
-                let min_allowed_y = 10.0;
-                let max_allowed_y = HEIGHT as f32 / 2.0 - 10.0;
-                let max_allowed_x = WIDTH as f32 - 10.0;
-                if player_pos.translation.x() < min_allowed_x {
-                    player_pos.translation.set_x(min_allowed_x);
-                } else if player_pos.translation.x() > max_allowed_x {
-                    player_pos.translation.set_x(max_allowed_x);
-                } else if player_pos.translation.y() < min_allowed_y {
-                    player_pos.translation.set_y(min_allowed_y);
-                } else if player_pos.translation.y() > max_allowed_y {
-                    player_pos.translation.set_y(max_allowed_y);
-                }
-            }
+    let projection_matrix =
+        glam::Mat4::orthographic_rh_gl(0.0, WIDTH as f32, 0.0, HEIGHT as f32, -1.0, 10.0);
 
-            *player_pos
-        };
+    let mut bullets = vec![];
+    for (_, (transform, player, dynamic)) in world
+        .query::<(&mut Transform, &mut Player, &mut DynamicBody)>()
+        .iter()
+    {
+        let (delta_x, delta_y, delta_z) = (
+            input.get_axis(x_axis()),
+            input.get_axis(y_axis()),
+            input.get_axis(z_axis()),
+        );
+        let dir = glam::Mat2::from_angle(transform.rotation) * glam::Vec2::unit_y();
 
-        // check if we should shoot.
+        // DESIRED VELOCITY IF FORWARD TO THE MOUSE CURSOR
+        let target = screen_to_world(input.mouse_position(), projection_matrix, world);
+
+        let steering_force = steering::seek(
+            transform.translation,
+            dynamic.velocity,
+            target,
+            dynamic.max_velocity * delta_y.max(0.0),
+        );
+
+        // lateral force from the side-thrusters.
+        let lateral_force = delta_x
+            * player_controller_conf.lateral_thrust
+            * glam::Mat2::from_angle(transform.rotation)
+            * glam::Vec2::unit_x();
+
+        dynamic.add_force(steering_force);
+        dynamic.add_force(lateral_force);
+
+        // rotation from player angle to desired direction.
+        if dynamic.forces.len() > 0 {
+            let angle_to_perform = (target - transform.translation).angle_between(dir);
+            transform.rotation -= player_controller_conf.rotation_delta * angle_to_perform;
+        }
+        transform.rotation -= player_controller_conf.rotation_delta * delta_z;
+
+        // Shoot stuff
         if input.is_just_pressed(Action::Shoot) {
             // shoot from the top.
-            let initial_pos = player_pos.translation + glam::vec2(0.0, player_pos.scale.y() / 2.0);
-            let bullets = {
-                let player = world.get::<Player>(player_entity).unwrap();
-                player.weapon.shoot(initial_pos)
-            };
-
-            bullets.iter().for_each(|(p, d, b)| {
-                bullet::spawn_player_bullet(world, *p, *d, *b);
-            });
+            let initial_pos = transform.translation
+                + glam::Mat2::from_angle(transform.rotation)
+                    * glam::vec2(0.0, transform.scale.y() / 2.0);
+            bullets = player.weapon.shoot(initial_pos, dir);
         }
     }
+
+    bullets.iter().for_each(|(p, d, b)| {
+        bullet::spawn_player_bullet(world, *p, *d, *b);
+    });
 
     trace!("finished update_player");
 }

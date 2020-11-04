@@ -5,10 +5,11 @@ use crate::gameplay::health::Health;
 use crate::resources::Resources;
 use hecs::{Entity, World};
 use log::{debug, trace};
+use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
 
 /// Bounding box to detect collisions.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BoundingBox {
     pub half_extend: glam::Vec2,
     pub collision_layer: CollisionLayer,
@@ -32,6 +33,8 @@ impl BoundingBox {
 }
 
 bitflags! {
+
+    #[derive(Serialize, Deserialize)]
     pub struct CollisionLayer: u32 {
         const PLAYER = 0b00000001;
         const ENEMY = 0b00000010;
