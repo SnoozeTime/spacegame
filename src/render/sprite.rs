@@ -163,6 +163,7 @@ where
                     res?;
                 } else {
                     debug!("Texture is not loaded {}", sprite.id);
+                    textures.load(&sprite.id.to_string());
                 }
             }
 

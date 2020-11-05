@@ -2,6 +2,7 @@ use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::Bullet;
 use crate::gameplay::health::Health;
+use crate::gameplay::physics::DynamicBody;
 use crate::resources::Resources;
 use hecs::{Entity, World};
 use log::{debug, trace};
@@ -36,10 +37,12 @@ bitflags! {
 
     #[derive(Serialize, Deserialize)]
     pub struct CollisionLayer: u32 {
+        const NOTHING = 0b10000000;
         const PLAYER = 0b00000001;
         const ENEMY = 0b00000010;
         const PLAYER_BULLET = 0b00000100;
         const ENEMY_BULLET = 0b00001000;
+        const ASTEROID = 0b00010000;
     }
 }
 
@@ -98,10 +101,21 @@ pub fn process_collisions(
     for (e1, e2) in collision_pairs {
         debug!("Will process collision between {:?} and {:?}", e1, e2);
         // If an entity is a bullet, let's destroy it.
-        if world.get::<Bullet>(e1).is_ok() {
+        if let Ok(mut b) = world.get_mut::<Bullet>(e1) {
+            // if bullet is not alive, let's not process the rest.
+            if !b.alive {
+                continue;
+            }
+            b.alive = false;
+
             events.push(GameEvent::Delete(e1));
         }
-        if world.get::<Bullet>(e2).is_ok() {
+        if let Ok(mut b) = world.get_mut::<Bullet>(e2) {
+            // if bullet is not alive, let's not process the rest.
+            if !b.alive {
+                continue;
+            }
+            b.alive = false;
             events.push(GameEvent::Delete(e2));
         }
 
@@ -111,6 +125,22 @@ pub fn process_collisions(
         }
         if world.get::<Health>(e2).is_ok() {
             events.push(GameEvent::Hit(e2));
+        }
+
+        let e1_query = world.query_one::<(&Transform, &mut DynamicBody)>(e1);
+        let e2_query = world.query_one::<(&Transform, &mut DynamicBody)>(e2);
+
+        match (e1_query, e2_query) {
+            (Ok(mut e1_query), Ok(mut e2_query)) => match (e1_query.get(), e2_query.get()) {
+                (Some((t1, b1)), Some((t2, b2))) => {
+                    let dir = (t1.translation - t2.translation).normalize();
+                    // BIM!
+                    b2.add_force(dir * 10.0 * -b2.max_velocity);
+                    b1.add_force(dir * 10.0 * b1.max_velocity);
+                }
+                _ => (),
+            },
+            _ => (),
         }
     }
 

@@ -45,11 +45,43 @@ impl RgbColor {
     }
 }
 
+impl From<[f32; 3]> for RgbColor {
+    fn from(c: [f32; 3]) -> Self {
+        let r = (c[0] * 255.0).round().min(255.0).max(0.0) as u8;
+        let g = (c[1] * 255.0).round().min(255.0).max(0.0) as u8;
+        let b = (c[2] * 255.0).round().min(255.0).max(0.0) as u8;
+        Self { r, g, b }
+    }
+}
+
 impl From<[f32; 4]> for RgbColor {
     fn from(c: [f32; 4]) -> Self {
         let r = (c[0] * 255.0).round().min(255.0).max(0.0) as u8;
         let g = (c[1] * 255.0).round().min(255.0).max(0.0) as u8;
         let b = (c[2] * 255.0).round().min(255.0).max(0.0) as u8;
         Self { r, g, b }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
+pub struct RgbaColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+impl RgbaColor {
+    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self { r, g, b, a }
+    }
+
+    pub fn to_normalized(self) -> [f32; 4] {
+        [
+            self.r as f32 / 255.0,
+            self.g as f32 / 255.0,
+            self.b as f32 / 255.0,
+            self.a as f32 / 255.0,
+        ]
     }
 }

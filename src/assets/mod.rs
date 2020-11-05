@@ -33,6 +33,7 @@ where
         "starfield_2048.png",
         "starfield_729.png",
         "starfield_625.png",
+        "background.png",
     ] {
         sprite_manager.load(n);
     }

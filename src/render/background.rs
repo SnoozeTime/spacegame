@@ -3,7 +3,8 @@
 use crate::assets::sprite::SpriteAsset;
 use crate::assets::{AssetManager, Handle};
 use crate::core::camera::Camera;
-use crate::{HEIGHT, WIDTH};
+use crate::core::window::WindowDim;
+use crate::resources::Resources;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
@@ -82,10 +83,11 @@ where
         }
     }
 
-    pub fn update(&mut self, world: &hecs::World) {
+    pub fn update(&mut self, world: &hecs::World, resources: &Resources) {
         if let Some((_, cam)) = world.query::<&Camera>().iter().next() {
-            self.offset_x = cam.position.x() / (WIDTH as f32);
-            self.offset_y = cam.position.y() / (HEIGHT as f32);
+            let dim = resources.fetch::<WindowDim>().unwrap();
+            self.offset_x = cam.position.x() / (dim.width as f32);
+            self.offset_y = cam.position.y() / (dim.height as f32);
         }
     }
 

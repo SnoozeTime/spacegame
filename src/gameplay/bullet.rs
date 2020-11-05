@@ -1,8 +1,12 @@
 use crate::core::transform::Transform;
+use crate::core::window::WindowDim;
+use crate::event::GameEvent;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::render::sprite::Sprite;
+use crate::resources::Resources;
 use hecs::World;
 use log::trace;
+use shrev::EventChannel;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BulletType {
@@ -31,14 +35,34 @@ impl BulletType {
 pub struct Bullet {
     pub direction: glam::Vec2,
     pub speed: f32,
+    pub alive: bool,
 }
 
 /// Every frame, will move the bullet in the given direction at the given speed.
-pub fn process_bullets(world: &World) {
+pub fn process_bullets(world: &World, resources: &Resources) {
     trace!("process_bullets");
 
-    for (_, (b, t)) in world.query::<(&Bullet, &mut Transform)>().iter() {
+    let window_dim = resources.fetch::<WindowDim>().unwrap();
+
+    let max_width = 2.0 * window_dim.width as f32;
+    let max_height = 2.0 * window_dim.height as f32;
+
+    let mut to_despawn = vec![];
+    for (e, (b, t)) in world.query::<(&Bullet, &mut Transform)>().iter() {
         t.translation += b.direction * b.speed;
+
+        if t.translation.x() > max_width
+            || t.translation.x() < -max_width
+            || t.translation.y() > max_height
+            || t.translation.y() < -max_height
+        {
+            to_despawn.push(GameEvent::Delete(e));
+        }
+    }
+
+    {
+        let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
+        channel.drain_vec_write(&mut to_despawn)
     }
     trace!("finished process_bullets");
 }
@@ -53,6 +77,7 @@ pub fn spawn_player_bullet(
         Bullet {
             direction,
             speed: 20.0,
+            alive: true,
         },
         Sprite {
             id: bullet_type.get_sprite_name(),
@@ -66,7 +91,7 @@ pub fn spawn_player_bullet(
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
             collision_layer: CollisionLayer::PLAYER_BULLET,
-            collision_mask: CollisionLayer::ENEMY,
+            collision_mask: CollisionLayer::ENEMY | CollisionLayer::ASTEROID,
         },
     ))
 }
@@ -80,7 +105,8 @@ pub fn spawn_enemy_bullet(
     world.spawn((
         Bullet {
             direction,
-            speed: 5.0,
+            speed: 15.0,
+            alive: true,
         },
         Sprite {
             id: bullet_type.get_sprite_name(),
@@ -94,7 +120,7 @@ pub fn spawn_enemy_bullet(
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
             collision_layer: CollisionLayer::ENEMY_BULLET,
-            collision_mask: CollisionLayer::PLAYER,
+            collision_mask: CollisionLayer::PLAYER | CollisionLayer::ASTEROID,
         },
     ))
 }

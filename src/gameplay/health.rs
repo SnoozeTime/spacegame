@@ -10,8 +10,8 @@ use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Health {
-    max: u32,
-    current: u32,
+    pub max: u32,
+    pub current: u32,
 
     /// true if can hit the component.
     hittable: bool,

@@ -1,6 +1,7 @@
-use super::{Asset, AssetError, Loader};
+use super::{Asset, Loader};
 
 use downcast_rs::__std::path::PathBuf;
+use image::ImageError;
 use log::{error, info};
 use luminance::context::GraphicsContext;
 use luminance::depth_test::DepthComparison;
@@ -44,6 +45,21 @@ struct SpriteAssetMetadata {
     sampler: SamplerDef,
 }
 
+impl Default for SpriteAssetMetadata {
+    fn default() -> Self {
+        Self {
+            sampler: SamplerDef {
+                wrap_r: WrapDef::ClampToEdge,
+                wrap_s: WrapDef::ClampToEdge,
+                wrap_t: WrapDef::ClampToEdge,
+                min_filter: MinFilterDef::Nearest,
+                mag_filter: MagFilterDef::Linear,
+                depth_comparison: None,
+            },
+        }
+    }
+}
+
 pub struct SpriteSyncLoader {
     base_path: PathBuf,
 }
@@ -57,45 +73,55 @@ impl SpriteSyncLoader {
     }
 }
 
-impl<S> Loader<S, SpriteAsset<S>> for SpriteSyncLoader
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    fn load(&mut self, asset_name: &str) -> Asset<SpriteAsset<S>> {
-        let mut asset = Asset::new();
-
-        let asset_path = self.base_path.join(asset_name);
-        // Try to load the metadata first.
-        let metadata_path = asset_path.with_extension("json");
-
+impl SpriteSyncLoader {
+    fn load_metadata(&self, asset_name: &str) -> SpriteAssetMetadata {
+        let metadata_path = self.base_path.join(asset_name).with_extension("json");
         info!(
             "Will load {:?} metadata at {}",
             asset_name,
             metadata_path.display()
         );
         let metadata_str = std::fs::read_to_string(metadata_path);
-        if let Err(e) = metadata_str {
-            asset.set_error(AssetError::IoError(e));
-            error!("No metadata for {}", asset_name);
-            return asset;
-        }
 
-        let metadata: Result<SpriteAssetMetadata, _> = serde_json::from_str(&metadata_str.unwrap());
-
-        match metadata {
-            Ok(metadata) => {
-                let sampler = metadata.sampler.to_sampler();
-                let (w, h, data) = load_texels(asset_path);
-                asset.set_loaded(SpriteAsset::Loading(w, h, data, sampler));
-                info!("Finished loading texture");
+        match metadata_str {
+            Ok(metadata_str) => serde_json::from_str::<SpriteAssetMetadata>(&metadata_str)
+                .unwrap_or_else(|e| {
+                    error!(
+                        "Cannot deserialize Metadata file, will use default instead = {:?}",
+                        e
+                    );
+                    SpriteAssetMetadata::default()
+                }),
+            Err(_) => {
+                info!(
+                    "No metadata file for {}, Will use default instead.",
+                    asset_name
+                );
+                SpriteAssetMetadata::default()
             }
+        }
+    }
+}
+
+impl<S> Loader<S, SpriteAsset<S>> for SpriteSyncLoader
+where
+    S: GraphicsContext<Backend = GL33>,
+{
+    fn load(&mut self, asset_name: &str) -> Asset<SpriteAsset<S>> {
+        let mut asset = Asset::new();
+        let asset_path = self.base_path.join(asset_name);
+        let metadata = self.load_metadata(asset_name);
+        let sampler = metadata.sampler.to_sampler();
+
+        match load_texels(asset_path) {
+            Ok((w, h, data)) => asset.set_loaded(SpriteAsset::Loading(w, h, data, sampler)),
             Err(e) => {
-                error!("Metadata cannot be deserialized from json = {}", e);
-
-                asset.set_error(AssetError::JsonError(e));
+                error!("Error while loading {} = {}", asset_name, e);
+                asset.set_error(e.into());
             }
         }
 
+        info!("Finished loading texture");
         asset
     }
 
@@ -243,8 +269,8 @@ impl DepthComparisonDef {
     }
 }
 
-fn load_texels<P: AsRef<Path>>(path: P) -> (u32, u32, Vec<u8>) {
-    let img = image::open(path).map(|img| img.flipv().to_rgba()).unwrap();
+fn load_texels<P: AsRef<Path>>(path: P) -> Result<(u32, u32, Vec<u8>), ImageError> {
+    let img = image::open(path).map(|img| img.flipv().to_rgba())?;
     let (width, height) = img.dimensions();
-    (width, height, img.into_raw())
+    Ok((width, height, img.into_raw()))
 }

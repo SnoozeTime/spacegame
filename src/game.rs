@@ -1,10 +1,16 @@
+use crate::assets::sprite::SpriteAsset;
+use crate::assets::AssetManager;
+use crate::core::camera::ProjectionMatrix;
 use crate::core::input::{Input, InputAction};
+use crate::core::random::Seed;
+use crate::core::scene::{Scene, SceneStack};
 use crate::core::transform::update_transforms;
+use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::delete::GarbageCollector;
 use crate::render::Renderer;
 use crate::resources::Resources;
-use crate::scene::{Scene, SceneStack};
+use crate::{HEIGHT, WIDTH};
 use glfw::{Action, Context, Key, WindowEvent};
 use log::info;
 use luminance_glfw::GlfwSurface;
@@ -21,6 +27,7 @@ pub struct GameBuilder<'a, A> {
     scene: Option<Box<dyn Scene>>,
     resources: Resources,
     phantom: PhantomData<A>,
+    seed: Option<Seed>,
 }
 
 impl<'a, A> GameBuilder<'a, A>
@@ -40,11 +47,16 @@ where
         // and some asset manager;
         crate::assets::create_asset_managers(surface, &mut resources);
 
+        // the proj matrix.
+        resources.insert(ProjectionMatrix::new(WIDTH as f32, HEIGHT as f32));
+        resources.insert(WindowDim::new(WIDTH, HEIGHT));
+
         Self {
             surface,
             scene: None,
             resources,
             phantom: PhantomData::default(),
+            seed: None,
         }
     }
 
@@ -60,8 +72,13 @@ where
         self
     }
 
+    pub fn with_seed(mut self, seed: Seed) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
     pub fn build(mut self) -> Game<'a, A> {
-        let renderer = Renderer::new(self.surface, &mut self.resources);
+        let renderer = Renderer::new(self.surface);
 
         let mut world = hecs::World::new();
 
@@ -82,6 +99,11 @@ where
         };
 
         let garbage_collector = GarbageCollector::new(&mut self.resources);
+
+        // if a seed is provided, let's add it to the resources.
+        if let Some(seed) = self.seed {
+            self.resources.insert(seed);
+        }
 
         Game {
             surface: self.surface,
@@ -168,6 +190,10 @@ where
                         scene.process_event(*ev);
                     }
                 }
+
+                if let Some(gui) = scene.prepare_gui(dt, &mut self.world, &self.resources) {
+                    self.renderer.prepare_ui(self.surface, gui);
+                }
             }
 
             // Update children transforms:
@@ -186,6 +212,12 @@ where
                 .update(self.surface, &self.world, dt, &self.resources);
             if resize {
                 back_buffer = self.surface.back_buffer().unwrap();
+                let new_size = back_buffer.size();
+                let mut proj = self.resources.fetch_mut::<ProjectionMatrix>().unwrap();
+                proj.resize(new_size[0] as f32, new_size[1] as f32);
+
+                let mut dim = self.resources.fetch_mut::<WindowDim>().unwrap();
+                dim.resize(new_size[0], new_size[1]);
             }
 
             let render =
@@ -195,6 +227,15 @@ where
                 self.surface.window.swap_buffers();
             } else {
                 break 'app;
+            }
+
+            // Either clean up or load new resources.
+            {
+                let mut sprite_manager = self
+                    .resources
+                    .fetch_mut::<AssetManager<GlfwSurface, SpriteAsset<GlfwSurface>>>()
+                    .unwrap();
+                sprite_manager.upload_all(self.surface);
             }
 
             let now = Instant::now();

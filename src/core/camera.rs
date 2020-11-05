@@ -45,3 +45,16 @@ pub fn screen_to_world(
     let mouse_pos_world = inv * screen_coords.extend(0.0).extend(1.0);
     glam::vec2(mouse_pos_world.x(), mouse_pos_world.y())
 }
+
+#[derive(Copy, Clone, Debug)]
+pub struct ProjectionMatrix(pub(crate) glam::Mat4);
+
+impl ProjectionMatrix {
+    pub fn new(w: f32, h: f32) -> Self {
+        Self(glam::Mat4::orthographic_rh_gl(0.0, w, 0.0, h, -1.0, 10.0))
+    }
+
+    pub fn resize(&mut self, w: f32, h: f32) {
+        self.0 = glam::Mat4::orthographic_rh_gl(0.0, w, 0.0, h, -1.0, 10.0);
+    }
+}

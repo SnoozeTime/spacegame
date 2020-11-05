@@ -28,7 +28,7 @@ pub enum EnemyType {
     /// Move in a straight line.
     Straight,
     ProtoShip(ProtoShip),
-    FollowPlayer,
+    FollowPlayer(Timer),
 
     /// follow a path and crash in the player.
     KamikazeRandom(Path),
@@ -46,7 +46,7 @@ impl EnemyType {
     fn get_sprite(&self) -> String {
         match *self {
             EnemyType::Straight => "Enemy2.png",
-            EnemyType::FollowPlayer => "Enemy2.png",
+            EnemyType::FollowPlayer(_) => "Enemy2.png",
             EnemyType::ProtoShip(_) => "Proto-ship.png",
             EnemyType::KamikazeRandom(_) => "Enemy3.png",
             EnemyType::Spammer { .. } => "EnemyBoss2.png",
@@ -57,7 +57,7 @@ impl EnemyType {
     fn get_scale(&self) -> glam::Vec2 {
         match *self {
             EnemyType::Straight => glam::vec2(50.0, 50.0),
-            EnemyType::FollowPlayer => glam::vec2(50.0, 50.0),
+            EnemyType::FollowPlayer(_) => glam::vec2(50.0, 50.0),
             EnemyType::ProtoShip(_) => glam::vec2(50.0, 50.0),
             EnemyType::KamikazeRandom(_) => glam::vec2(25.0, 25.0),
             EnemyType::Spammer { .. } => glam::vec2(75.0, 75.0),
@@ -67,7 +67,7 @@ impl EnemyType {
     fn get_speed(&self) -> f32 {
         match *self {
             EnemyType::Straight => 2.0,
-            EnemyType::FollowPlayer => 2.0,
+            EnemyType::FollowPlayer(_) => 2.0,
             EnemyType::ProtoShip(_) => 2.0,
             EnemyType::KamikazeRandom(_) => 4.0,
             EnemyType::Spammer { .. } => 0.5,
@@ -116,7 +116,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         .iter()
     {
         match enemy.enemy_type {
-            EnemyType::FollowPlayer => {
+            EnemyType::FollowPlayer(ref mut shoot_timer) => {
                 if let Some(player_position) = maybe_player {
                     let steering = if (t.translation - player_position).length() > 200.0 {
                         seek(
@@ -135,6 +135,14 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                     let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
                     let angle_to_perform = (player_position - t.translation).angle_between(dir);
                     t.rotation -= 0.05 * angle_to_perform;
+
+                    // shoot if it's time.
+                    shoot_timer.tick(dt);
+                    if shoot_timer.finished() {
+                        shoot_timer.reset();
+                        let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
+                        bullets.push(to_spawn);
+                    }
                 }
             }
             EnemyType::Straight => t.translation -= glam::Vec2::unit_y() * enemy.speed,
@@ -261,7 +269,9 @@ pub fn spawn_enemy(world: &mut World, health: u32, position: glam::Vec2, enemy_t
         BoundingBox {
             half_extend: enemy_type.get_scale() / 2.0,
             collision_layer: CollisionLayer::ENEMY,
-            collision_mask: CollisionLayer::PLAYER_BULLET | CollisionLayer::PLAYER,
+            collision_mask: CollisionLayer::PLAYER_BULLET
+                | CollisionLayer::PLAYER
+                | CollisionLayer::ASTEROID,
         },
         Health::new(health, Timer::of_seconds(0.5)),
         Enemy {

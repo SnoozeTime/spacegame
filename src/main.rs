@@ -25,6 +25,8 @@ fn main() {
 }
 
 fn main_loop(mut surface: GlfwSurface) {
+    println!("{:?}", surface.window.get_framebuffer_size());
+
     dotenv::dotenv().ok();
     pretty_env_logger::init();
 
