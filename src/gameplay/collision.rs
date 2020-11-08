@@ -30,6 +30,7 @@ impl BoundingBox {
             (self.collision_layer & other.collision_mask).bits
         );
         (self.collision_layer & other.collision_mask).bits != 0
+            || (self.collision_mask & other.collision_layer).bits != 0
     }
 }
 
@@ -43,6 +44,7 @@ bitflags! {
         const PLAYER_BULLET = 0b00000100;
         const ENEMY_BULLET = 0b00001000;
         const ASTEROID = 0b00010000;
+        const MISSILE = 0b00100000;
     }
 }
 

@@ -47,6 +47,40 @@ impl GuiContext {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub enum HorizontalAlign {
+    Left,
+    Center,
+    Right,
+}
+
+impl Into<glyph_brush::HorizontalAlign> for HorizontalAlign {
+    fn into(self) -> glyph_brush::HorizontalAlign {
+        match self {
+            Self::Center => glyph_brush::HorizontalAlign::Center,
+            Self::Left => glyph_brush::HorizontalAlign::Left,
+            Self::Right => glyph_brush::HorizontalAlign::Right,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub enum VerticalAlign {
+    Top,
+    Center,
+    Bottom,
+}
+
+impl Into<glyph_brush::VerticalAlign> for VerticalAlign {
+    fn into(self) -> glyph_brush::VerticalAlign {
+        match self {
+            Self::Top => glyph_brush::VerticalAlign::Top,
+            Self::Center => glyph_brush::VerticalAlign::Center,
+            Self::Bottom => glyph_brush::VerticalAlign::Bottom,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Style {
     /// background color for buttons
     pub button_bg_color: RgbaColor,
@@ -56,6 +90,8 @@ pub struct Style {
     pub button_text_color: RgbaColor,
     /// color for text when button is hovered
     pub button_hovered_text_color: RgbaColor,
+    /// Horizontal and vertical align for text in a button
+    pub button_text_align: (HorizontalAlign, VerticalAlign),
     /// text color
     pub text_color: RgbaColor,
     /// font size
@@ -69,6 +105,7 @@ impl Default for Style {
             button_hover_bg_color: RgbaColor::new(155, 155, 155, 155),
             button_text_color: RgbaColor::new(255, 255, 255, 255),
             button_hovered_text_color: RgbaColor::new(255, 255, 255, 255),
+            button_text_align: (HorizontalAlign::Center, VerticalAlign::Center),
             text_color: RgbaColor::new(0, 0, 0, 255),
             font_size: 16.0,
         }

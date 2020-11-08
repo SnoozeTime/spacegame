@@ -1,8 +1,10 @@
 use crate::core::colors::RgbaColor;
 use crate::core::window::WindowDim;
+use crate::render::ui::gui::{HorizontalAlign, VerticalAlign};
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
-use glyph_brush::{rusttype::*, *};
+use glyph_brush::rusttype::*;
+use glyph_brush::{BrushAction, GlyphBrush, Layout, Section};
 use log::info;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
@@ -65,6 +67,8 @@ pub struct ShaderInterface {
 pub struct Text {
     pub content: String,
     pub font_size: f32,
+    pub color: RgbaColor,
+    pub align: (HorizontalAlign, VerticalAlign),
 }
 
 /// X and Y coords between 0 and 1. (0,0) being the top-left corner and (1,1) bottom-right corner
@@ -136,7 +140,7 @@ where
     pub fn prepare(
         &mut self,
         surface: &mut S,
-        text_data: Vec<(Text, glam::Vec2, RgbaColor)>,
+        text_data: Vec<(Text, glam::Vec2)>,
         glyph_brush: &mut GlyphBrush<'static, Instance>,
         resources: &Resources,
     ) {
@@ -144,7 +148,7 @@ where
         let width = window_dim.width as f32;
         let height = window_dim.height as f32;
 
-        for (text, position, color) in text_data {
+        for (text, position) in text_data {
             // screen position is top-left origin
             let pos_x = position.x();
             let pos_y = position.y();
@@ -156,10 +160,10 @@ where
                 scale,
                 screen_position: (pos_x, pos_y),
                 bounds: (width / 3.15, height),
-                color: color.to_normalized(),
+                color: text.color.to_normalized(),
                 layout: Layout::default()
-                    .h_align(HorizontalAlign::Center)
-                    .v_align(VerticalAlign::Bottom),
+                    .h_align(text.align.0.into())
+                    .v_align(text.align.1.into()),
                 ..Section::default()
             });
         }
@@ -204,7 +208,6 @@ where
         let tex = &mut self.texture;
         let shader = &mut self.shader;
         let render_state = &self.render_state;
-        let proj = self.projection.to_cols_array_2d();
         if let Some(tess) = self.tess.as_ref() {
             shd_gate.shade(shader, |mut iface, uni, mut rdr_gate| {
                 let bound_tex = pipeline.bind_texture(tex)?;

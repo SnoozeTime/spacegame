@@ -8,7 +8,7 @@ use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::camera::update_camera;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::enemy::{spawn_enemy, EnemyType};
+use crate::gameplay::enemy::{spawn_enemy, EnemyType, Satellite};
 use crate::gameplay::health::{Health, HealthSystem};
 use crate::gameplay::level::generate_terrain;
 use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
@@ -95,7 +95,8 @@ impl Scene for MainScene {
                 collision_layer: CollisionLayer::PLAYER,
                 collision_mask: CollisionLayer::ENEMY_BULLET
                     | CollisionLayer::ENEMY
-                    | CollisionLayer::ASTEROID,
+                    | CollisionLayer::ASTEROID
+                    | CollisionLayer::MISSILE,
                 half_extend: glam::vec2(20.0, 20.0),
             },
             Health::new(5, Timer::of_seconds(1.0)),
@@ -127,6 +128,13 @@ impl Scene for MainScene {
             EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
         );
 
+        spawn_enemy(
+            world,
+            2,
+            glam::vec2(-500.0, 400.0),
+            EnemyType::Satellite(Satellite::default()),
+        );
+
         {
             let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
             channel.single_write(GameEvent::TextUpdated);
@@ -142,6 +150,8 @@ impl Scene for MainScene {
         self.physic_system.update(world, dt, resources);
 
         bullet::process_bullets(world, resources);
+        bullet::process_missiles(world, resources);
+
         let collisions = collision::find_collisions(world);
         collision::process_collisions(world, collisions, &resources);
         if let Some(hs) = self.health_system.as_mut() {

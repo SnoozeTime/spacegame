@@ -2,7 +2,7 @@ use crate::core::colors::RgbaColor;
 use crate::core::input::Input;
 use crate::core::window::WindowDim;
 use crate::gameplay::Action::MoveUp;
-use crate::render::ui::gui::Style;
+use crate::render::ui::gui::{HorizontalAlign, Style, VerticalAlign};
 use crate::render::ui::text::{Text, TextRenderer};
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
@@ -75,7 +75,7 @@ pub struct Panel {
 
 pub enum DrawData {
     Vertices(Vec<Vertex>, Vec<u32>),
-    Text(Text, glam::Vec2, RgbaColor),
+    Text(Text, glam::Vec2),
 }
 
 pub struct Gui {
@@ -116,9 +116,10 @@ impl Gui {
             Text {
                 content: text,
                 font_size: self.style.font_size,
+                color: self.style.text_color,
+                align: (HorizontalAlign::Left, VerticalAlign::Top),
             },
             pos,
-            self.style.text_color,
         ));
     }
     pub fn colored_label(&mut self, pos: glam::Vec2, text: String, color: RgbaColor) {
@@ -126,9 +127,10 @@ impl Gui {
             Text {
                 content: text,
                 font_size: self.style.font_size,
+                color,
+                align: (HorizontalAlign::Left, VerticalAlign::Top),
             },
             pos,
-            color,
         ));
     }
 
@@ -174,10 +176,11 @@ impl Gui {
             Text {
                 content: text,
                 font_size: self.style.font_size,
+                color: text_color,
+                align: self.style.button_text_align,
             },
             pos + glam::Vec2::unit_y() * self.style.font_size
                 + dimensions.x() / 2.0 * glam::Vec2::unit_x(),
-            text_color,
         ));
 
         if self.mouse_clicked.contains(&MouseButton::Button1) {
@@ -281,7 +284,7 @@ where
                         .unwrap();
                     self.tesses.push(tess);
                 }
-                DrawData::Text(text, pos, color) => text_data.push((text, pos, color)),
+                DrawData::Text(text, pos) => text_data.push((text, pos)),
             }
         }
 

@@ -1,7 +1,7 @@
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
-use crate::gameplay::bullet::{spawn_enemy_bullet, BulletType};
+use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
@@ -29,6 +29,7 @@ pub enum EnemyType {
     Straight,
     ProtoShip(ProtoShip),
     FollowPlayer(Timer),
+    Satellite(Satellite),
 
     /// follow a path and crash in the player.
     KamikazeRandom(Path),
@@ -42,10 +43,28 @@ pub enum EnemyType {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Satellite {
+    /// Time between missiles
+    shoot_timer: Timer,
+    /// Detection distance for player
+    shoot_distance: f32,
+}
+
+impl Default for Satellite {
+    fn default() -> Self {
+        Self {
+            shoot_distance: 500.0,
+            shoot_timer: Timer::of_seconds(5.0),
+        }
+    }
+}
+
 impl EnemyType {
     fn get_sprite(&self) -> String {
         match *self {
             EnemyType::Straight => "Enemy2.png",
+            EnemyType::Satellite(_) => "sat.png",
             EnemyType::FollowPlayer(_) => "Enemy2.png",
             EnemyType::ProtoShip(_) => "Proto-ship.png",
             EnemyType::KamikazeRandom(_) => "Enemy3.png",
@@ -57,6 +76,7 @@ impl EnemyType {
     fn get_scale(&self) -> glam::Vec2 {
         match *self {
             EnemyType::Straight => glam::vec2(50.0, 50.0),
+            EnemyType::Satellite(_) => glam::vec2(32.0, 32.0),
             EnemyType::FollowPlayer(_) => glam::vec2(50.0, 50.0),
             EnemyType::ProtoShip(_) => glam::vec2(50.0, 50.0),
             EnemyType::KamikazeRandom(_) => glam::vec2(25.0, 25.0),
@@ -67,6 +87,7 @@ impl EnemyType {
     fn get_speed(&self) -> f32 {
         match *self {
             EnemyType::Straight => 2.0,
+            EnemyType::Satellite(_) => 0.0,
             EnemyType::FollowPlayer(_) => 2.0,
             EnemyType::ProtoShip(_) => 2.0,
             EnemyType::KamikazeRandom(_) => 4.0,
@@ -105,6 +126,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 
     let mut bullets = vec![];
     let mut to_remove = vec![];
+    let mut missiles = vec![];
 
     let maybe_player = world
         .query::<(&Player, &Transform)>()
@@ -116,6 +138,29 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         .iter()
     {
         match enemy.enemy_type {
+            EnemyType::Satellite(ref mut sat) => {
+                // If the player is really close, will shoot some missiles.
+                if let Some(player_position) = maybe_player {
+                    sat.shoot_timer.tick(dt);
+                    let mut dir = player_position - t.translation;
+                    if dir.length() < sat.shoot_distance {
+                        if sat.shoot_timer.finished() {
+                            sat.shoot_timer.reset();
+                            dir = dir.normalize();
+                            missiles.push((
+                                t.translation + dir * t.scale.x() * 2.0, // TODO better spawn points
+                                dir,
+                                player,
+                            ));
+                        }
+                    }
+
+                    // face player.
+                    let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
+                    let angle_to_perform = (player_position - t.translation).angle_between(dir);
+                    t.rotation -= 0.05 * angle_to_perform;
+                }
+            }
             EnemyType::FollowPlayer(ref mut shoot_timer) => {
                 if let Some(player_position) = maybe_player {
                     let steering = if (t.translation - player_position).length() > 200.0 {
@@ -245,6 +290,10 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         spawn_enemy_bullet(world, pos, dir, bullet);
     }
 
+    for (pos, dir, entity) in missiles {
+        spawn_missile(world, pos, dir, entity);
+    }
+
     ev_channel.drain_vec_write(&mut to_remove);
     trace!("Finished update_enemies")
 }
@@ -271,7 +320,8 @@ pub fn spawn_enemy(world: &mut World, health: u32, position: glam::Vec2, enemy_t
             collision_layer: CollisionLayer::ENEMY,
             collision_mask: CollisionLayer::PLAYER_BULLET
                 | CollisionLayer::PLAYER
-                | CollisionLayer::ASTEROID,
+                | CollisionLayer::ASTEROID
+                | CollisionLayer::MISSILE,
         },
         Health::new(health, Timer::of_seconds(0.5)),
         Enemy {
