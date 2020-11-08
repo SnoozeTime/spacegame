@@ -4,17 +4,74 @@ use crate::gameplay::bullet::Bullet;
 use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
 use crate::resources::Resources;
+use glam::Vec2;
 use hecs::{Entity, World};
 use log::{debug, trace};
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
+use std::mem::swap;
+
+#[derive(Debug)]
+pub struct CollisionWorld {
+    bodies: Vec<(glam::Vec2, BoundingBox, Entity)>,
+}
+
+impl Default for CollisionWorld {
+    fn default() -> Self {
+        Self { bodies: vec![] }
+    }
+}
+
+impl CollisionWorld {
+    /// most likely not super good to do... let's see if we have perf issues later.
+    pub fn synchronize(&mut self, world: &World) {
+        self.bodies = world
+            .query::<(&Transform, &BoundingBox)>()
+            .iter()
+            .map(|(e, (t, b))| (t.translation, *b, e))
+            .collect();
+    }
+
+    /// Find collisions with ray. will ignore the bounding boxes with the `ignore` layer.
+    pub fn ray(&self, ray: Ray, ignore: CollisionLayer) -> Vec<(Entity, f32, Vec2)> {
+        let mut intersections = vec![];
+        for (t, bb, e) in self.bodies.iter() {
+            if (bb.collision_layer & ignore).bits != 0 {
+                continue;
+            }
+
+            if let Some((t, pos)) = bb.intersect_ray(*t, ray) {
+                intersections.push((*e, t, pos));
+            }
+        }
+
+        return intersections;
+    }
+}
 
 /// Bounding box to detect collisions.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct BoundingBox {
-    pub half_extend: glam::Vec2,
+    pub half_extend: Vec2,
     pub collision_layer: CollisionLayer,
     pub collision_mask: CollisionLayer,
+}
+
+const EPSILON: f32 = 0.0001;
+
+#[derive(Debug, Copy, Clone)]
+pub struct Ray {
+    /// origin of ray
+    pub c: Vec2,
+
+    /// direction of ray
+    pub d: Vec2,
+}
+
+impl Ray {
+    pub fn new(c: Vec2, d: Vec2) -> Self {
+        Self { c, d }
+    }
 }
 
 impl BoundingBox {
@@ -32,10 +89,73 @@ impl BoundingBox {
         (self.collision_layer & other.collision_mask).bits != 0
             || (self.collision_mask & other.collision_layer).bits != 0
     }
+
+    /// Check if ray intersects the AABB. If yes, it will return the time of intersection and point
+    /// of intersection;
+    ///
+    /// # Algorithm
+    /// Check the intersection of ray with each slabs of the AABB (x-axis slab, y-axis, z-axis).
+    /// If the intersections overlap, then the ray intersects with the AABB (recall, a point is
+    /// in the AABB if it is in the three slabs).
+    ///
+    /// For each slab, compute the time of entry and the time of exit. Then, take the max of time
+    /// of entry, take the min of time of exit. If t_entry < t_exit, the slabs overlap.
+    ///
+    /// Ray equation: R(t) = P + t.d where P is origin of ray and d its direction.
+    /// Equation of planes: X.ni = di.
+    /// Substitute X by R to get the intersection.
+    /// (P + t.d) . ni = di
+    /// t = (di - P.ni)/(d.ni)
+    ///
+    /// For the AABB planes, n is along the axis. The expression can be simplified: for example
+    /// t = (d - px)/dx where d is the position of the plane along the x axis.
+    pub fn intersect_ray(&self, pos: glam::Vec2, ray: Ray) -> Option<(f32, Vec2)> {
+        let mut tmin = 0.0f32; // set to -FLT_MAX to get first hit on the line.
+        let mut tmax = std::f32::MAX; // max distance the ray can travel.
+
+        let min = pos - self.half_extend;
+        let max = pos + self.half_extend;
+
+        for i in 0..2 {
+            if ray.d[i].abs() < EPSILON {
+                // ray is parallel to the slab so we only need to test whether the origin is within
+                // the slab.
+                if ray.c[i] < min[i] || ray.c[i] > max[i] {
+                    return None;
+                }
+            } else {
+                let ood = 1.0 / ray.d[i];
+                let mut t1 = (min[i] - ray.c[i]) * ood;
+                let mut t2 = (max[i] - ray.c[i]) * ood;
+
+                // make t1 intersection with the near plane.
+                if t2 < t1 {
+                    swap(&mut t2, &mut t1);
+                }
+
+                // compute intersection of slabs intersection intervals.
+                // farthest of all entries.
+                if t1 > tmin {
+                    tmin = t1;
+                }
+                // nearest of all exits
+                if t2 < tmax {
+                    tmax = t2;
+                }
+
+                if tmin > tmax {
+                    return None;
+                }
+            }
+        }
+
+        let q = ray.c + tmin * ray.d;
+
+        Some((tmin, q))
+    }
 }
 
 bitflags! {
-
     #[derive(Serialize, Deserialize)]
     pub struct CollisionLayer: u32 {
         const NOTHING = 0b10000000;

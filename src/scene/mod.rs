@@ -10,6 +10,7 @@ use crate::gameplay::camera::update_camera;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::gameplay::enemy::{spawn_enemy, EnemyType, Satellite};
 use crate::gameplay::health::{Health, HealthSystem};
+use crate::gameplay::inventory::Inventory;
 use crate::gameplay::level::generate_terrain;
 use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
 use crate::gameplay::player::{get_player, Player, Weapon};
@@ -112,28 +113,28 @@ impl Scene for MainScene {
         spawn_enemy(
             world,
             2,
-            glam::vec2(550.0, 400.0),
+            glam::vec2(650.0, 500.0),
             EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
         );
-        spawn_enemy(
-            world,
-            2,
-            glam::vec2(550.0, 450.0),
-            EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
-        );
-        spawn_enemy(
-            world,
-            2,
-            glam::vec2(500.0, 700.0),
-            EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
-        );
-
-        spawn_enemy(
-            world,
-            2,
-            glam::vec2(-500.0, 400.0),
-            EnemyType::Satellite(Satellite::default()),
-        );
+        // spawn_enemy(
+        //     world,
+        //     2,
+        //     glam::vec2(550.0, 450.0),
+        //     EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
+        // );
+        // spawn_enemy(
+        //     world,
+        //     2,
+        //     glam::vec2(500.0, 700.0),
+        //     EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
+        // );
+        //
+        // spawn_enemy(
+        //     world,
+        //     2,
+        //     glam::vec2(-500.0, 400.0),
+        //     EnemyType::Satellite(Satellite::default()),
+        // );
 
         {
             let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
@@ -184,14 +185,25 @@ impl Scene for MainScene {
                 ((health.current as f32 / health.max as f32) * 100.0).round() as i32
             );
             gui.colored_label(glam::vec2(15.0, 15.0), text, RgbaColor::new(255, 0, 0, 255));
+
+            if let Some(inv) = resources.fetch::<Inventory>() {
+                gui.label(
+                    glam::vec2(15.0, 40.0),
+                    format!("Scratch: {}", inv.scratch()),
+                )
+            }
         }
 
         Some(gui)
     }
 
-    fn process_event(&mut self, ev: GameEvent) {
+    fn process_event(&mut self, ev: GameEvent, resources: &Resources) {
         if let GameEvent::GameOver = ev {
             std::process::exit(0); // TODO Replace that.
+        } else if let GameEvent::EnemyDied = ev {
+            if let Some(ref mut inv) = resources.fetch_mut::<Inventory>() {
+                inv.add_scratch(50);
+            }
         }
     }
 }

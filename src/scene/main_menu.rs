@@ -52,8 +52,4 @@ impl Scene for MainMenu {
 
         Some(gui)
     }
-
-    fn process_event(&mut self, ev: GameEvent) {
-        // noop
-    }
 }

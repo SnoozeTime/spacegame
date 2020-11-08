@@ -7,6 +7,7 @@ use crate::core::scene::{Scene, SceneStack};
 use crate::core::transform::update_transforms;
 use crate::core::window::WindowDim;
 use crate::event::GameEvent;
+use crate::gameplay::collision::CollisionWorld;
 use crate::gameplay::delete::GarbageCollector;
 use crate::render::ui::gui::GuiContext;
 use crate::render::Renderer;
@@ -54,6 +55,7 @@ where
         // the proj matrix.
         resources.insert(ProjectionMatrix::new(WIDTH as f32, HEIGHT as f32));
         resources.insert(WindowDim::new(WIDTH, HEIGHT));
+        resources.insert(CollisionWorld::default());
 
         Self {
             surface,
@@ -203,7 +205,7 @@ where
                 {
                     let chan = self.resources.fetch::<EventChannel<GameEvent>>().unwrap();
                     for ev in chan.read(&mut self.rdr_id) {
-                        scene.process_event(*ev);
+                        scene.process_event(*ev, &self.resources);
                     }
                 }
 
@@ -250,6 +252,12 @@ where
                 self.surface.window.swap_buffers();
             } else {
                 break 'app;
+            }
+
+            // Update collision world for collision queries.
+            {
+                let mut collisions = self.resources.fetch_mut::<CollisionWorld>().unwrap();
+                collisions.synchronize(&self.world);
             }
 
             // Either clean up or load new resources.

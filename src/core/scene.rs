@@ -132,5 +132,5 @@ pub trait Scene {
     }
 
     /// React to game events.
-    fn process_event(&mut self, ev: GameEvent);
+    fn process_event(&mut self, _ev: GameEvent, _resources: &Resources) {}
 }

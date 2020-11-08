@@ -1,5 +1,6 @@
 use crate::core::timer::Timer;
 use crate::event::GameEvent;
+use crate::gameplay::enemy::Enemy;
 use crate::gameplay::player::Player;
 use crate::render::sprite::Blink;
 use crate::resources::Resources;
@@ -58,6 +59,7 @@ impl HealthSystem {
                 let mut insert_blink = false;
                 {
                     let health = world.get_mut::<Health>(*e);
+                    let is_enemy = world.get::<Enemy>(*e).is_ok();
                     if let Ok(mut health) = health {
                         if !health.hittable {
                             continue;
@@ -70,6 +72,11 @@ impl HealthSystem {
                                 death_events.push(GameEvent::GameOver);
                             } else {
                                 death_events.push(GameEvent::Delete(*e));
+                            }
+
+                            if is_enemy {
+                                info!("Enemy died");
+                                death_events.push(GameEvent::EnemyDied);
                             }
                         } else {
                             // start invulnerability frames.

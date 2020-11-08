@@ -8,6 +8,7 @@ pub mod delete;
 pub mod enemy;
 pub mod gameover;
 pub mod health;
+pub mod inventory;
 pub mod level;
 pub mod physics;
 pub mod player;

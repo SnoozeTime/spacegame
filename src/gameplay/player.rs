@@ -11,6 +11,8 @@ use crate::{HEIGHT, WIDTH};
 use bitflags::_core::time::Duration;
 use hecs::{Entity, World};
 
+use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
+use crate::gameplay::steering::avoid;
 #[allow(unused_imports)]
 use log::{info, trace};
 use serde_derive::{Deserialize, Serialize};
@@ -88,7 +90,8 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
         glam::Mat4::orthographic_rh_gl(0.0, WIDTH as f32, 0.0, HEIGHT as f32, -1.0, 10.0);
 
     let mut bullets = vec![];
-    for (_, (transform, player, dynamic)) in world
+
+    for (e, (transform, player, dynamic)) in world
         .query::<(&mut Transform, &mut Player, &mut DynamicBody)>()
         .iter()
     {

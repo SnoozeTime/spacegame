@@ -152,7 +152,7 @@ where
             // screen position is top-left origin
             let pos_x = position.x();
             let pos_y = position.y();
-            info!("Will display text at {}/{}", pos_x, pos_y);
+            debug!("Will display text at {}/{}", pos_x, pos_y);
 
             let scale = Scale::uniform(text.font_size.round());
             glyph_brush.queue(Section {
@@ -239,7 +239,7 @@ fn to_vertex(
         min: point(pixel_coords.min.x as f32, pixel_coords.min.y as f32),
         max: point(pixel_coords.max.x as f32, pixel_coords.max.y as f32),
     };
-    info!("GL_RECT = {:?}", gl_rect);
+    debug!("GL_RECT = {:?}", gl_rect);
 
     // handle overlapping bounds, modify uv_rect to preserve texture aspect
     if gl_rect.max.x > gl_bounds.max.x {
@@ -279,6 +279,6 @@ fn to_vertex(
         color: TextColor::new(color),
     };
 
-    info!("vertex -> {:?}", v);
+    debug!("vertex -> {:?}", v);
     v
 }

@@ -2,11 +2,11 @@ use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
-use crate::gameplay::collision::{BoundingBox, CollisionLayer};
+use crate::gameplay::collision::{BoundingBox, CollisionLayer, CollisionWorld};
 use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
-use crate::gameplay::steering::{halt, seek};
+use crate::gameplay::steering::{avoid, halt, seek};
 use crate::render::sprite::Sprite;
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
@@ -25,22 +25,8 @@ pub struct Enemy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EnemyType {
-    /// Move in a straight line.
-    Straight,
-    ProtoShip(ProtoShip),
     FollowPlayer(Timer),
     Satellite(Satellite),
-
-    /// follow a path and crash in the player.
-    KamikazeRandom(Path),
-
-    /// moves slowly, shoots a ton of bullets.
-    Spammer {
-        path: Path,
-        shoot_timer: Timer,
-        bullet_timeout: Timer,
-        shooting: bool,
-    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,35 +49,23 @@ impl Default for Satellite {
 impl EnemyType {
     fn get_sprite(&self) -> String {
         match *self {
-            EnemyType::Straight => "Enemy2.png",
             EnemyType::Satellite(_) => "sat.png",
             EnemyType::FollowPlayer(_) => "Enemy2.png",
-            EnemyType::ProtoShip(_) => "Proto-ship.png",
-            EnemyType::KamikazeRandom(_) => "Enemy3.png",
-            EnemyType::Spammer { .. } => "EnemyBoss2.png",
         }
         .to_string()
     }
 
     fn get_scale(&self) -> glam::Vec2 {
         match *self {
-            EnemyType::Straight => glam::vec2(50.0, 50.0),
-            EnemyType::Satellite(_) => glam::vec2(32.0, 32.0),
+            EnemyType::Satellite(_) => glam::vec2(20.0, 20.0),
             EnemyType::FollowPlayer(_) => glam::vec2(50.0, 50.0),
-            EnemyType::ProtoShip(_) => glam::vec2(50.0, 50.0),
-            EnemyType::KamikazeRandom(_) => glam::vec2(25.0, 25.0),
-            EnemyType::Spammer { .. } => glam::vec2(75.0, 75.0),
         }
     }
 
     fn get_speed(&self) -> f32 {
         match *self {
-            EnemyType::Straight => 2.0,
             EnemyType::Satellite(_) => 0.0,
             EnemyType::FollowPlayer(_) => 2.0,
-            EnemyType::ProtoShip(_) => 2.0,
-            EnemyType::KamikazeRandom(_) => 4.0,
-            EnemyType::Spammer { .. } => 0.5,
         }
     }
 }
@@ -120,7 +94,6 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         return;
     }
     let player = maybe_player.unwrap();
-    let player_position = world.get::<Transform>(player).unwrap().translation;
 
     let mut ev_channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
 
@@ -133,7 +106,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         .iter()
         .map(|(_, (_, t))| t.translation)
         .next();
-    for (_e, (t, enemy, body)) in world
+    for (e, (t, enemy, body)) in world
         .query::<(&mut Transform, &mut Enemy, &mut DynamicBody)>()
         .iter()
     {
@@ -174,6 +147,23 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                         halt(body.velocity)
                     };
 
+                    // for debugging.
+                    {
+                        let collision_world = resources.fetch::<CollisionWorld>().unwrap();
+                        if body.velocity.length() > 0.0 {
+                            if let Some(f) = avoid(
+                                e,
+                                t.translation,
+                                body.velocity,
+                                1000.0,
+                                &*collision_world,
+                                300.0,
+                            ) {
+                                body.add_force(f);
+                            }
+                        }
+                    }
+
                     body.add_force(steering);
 
                     // rotate toward the player
@@ -190,99 +180,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                     }
                 }
             }
-            EnemyType::Straight => t.translation -= glam::Vec2::unit_y() * enemy.speed,
-            EnemyType::ProtoShip(ref mut proto) => {
-                // If not close to target, let's move the ship.
-                if (proto.current_target - t.translation).length_squared() > 25.0 {
-                    let d = (proto.current_target - t.translation).normalize();
-                    t.translation += d * enemy.speed
-                } else {
-                    // find another target.
-                    let mut rng = rand::thread_rng();
-                    let x_next = rng.gen_range(10, WIDTH - 10) as f32;
-                    let y_next = rng.gen_range(200, HEIGHT - 50) as f32;
-                    proto.current_target = glam::vec2(x_next, y_next);
-                }
-
-                // update timers to decide when to shoot.
-                proto.current_timed_waited += dt.as_secs_f32();
-                proto.elapsed_from_beginning += dt.as_secs_f32();
-                debug!("Time elapsed for proto = {:?}", proto.current_timed_waited);
-                if proto.current_timed_waited > proto.wait_time {
-                    proto.current_timed_waited = 0.0;
-                    let to_spawn = (
-                        t.translation,
-                        (player_position - t.translation).normalize(),
-                        BulletType::Round2,
-                    );
-                    bullets.push(to_spawn);
-                }
-            }
-            EnemyType::KamikazeRandom(ref mut p) => {
-                if let Some(current_target) = p.path.get_mut(p.current) {
-                    if (*current_target - t.translation).length_squared() > 25.0 {
-                        let d = (*current_target - t.translation).normalize();
-                        t.translation += d * enemy.speed
-                    } else {
-                        // find another target.
-                        p.current += 1;
-                    }
-                } else {
-                    p.current = 0;
-                }
-            }
-            EnemyType::Spammer {
-                path: ref mut p,
-                ref mut shooting,
-                ref mut shoot_timer,
-                ref mut bullet_timeout,
-            } => {
-                if !*shooting {
-                    if let Some(current_target) = p.path.get_mut(p.current) {
-                        if (*current_target - t.translation).length_squared() > 25.0 {
-                            let d = (*current_target - t.translation).normalize();
-                            t.translation += d * enemy.speed
-                        } else {
-                            // WAIT AND SHOOT !!!!.
-                            *shooting = true;
-                            p.current += 1;
-                            shoot_timer.reset();
-                            bullet_timeout.reset();
-                            shoot_timer.start();
-                            bullet_timeout.start();
-                        }
-                    } else {
-                        // if no more target, just go straight !
-                        //enemy.enemy_type = EnemyType::Straight;
-                        p.current = 0;
-                    }
-                } else {
-                    // spawn some bullets.
-                    shoot_timer.tick(dt);
-                    bullet_timeout.tick(dt);
-
-                    if bullet_timeout.finished() {
-                        for i in 0..16 {
-                            bullets.push((
-                                t.translation,
-                                glam::Mat2::from_angle(i as f32 * std::f32::consts::PI / 8.0)
-                                    * glam::Vec2::unit_y(),
-                                BulletType::Round2,
-                            ));
-                        }
-                        bullet_timeout.reset();
-                    }
-
-                    if shoot_timer.finished() {
-                        *shooting = false;
-                    }
-                }
-            }
         }
-
-        // if t.translation.y() < 0.0 {
-        //     to_remove.push(GameEvent::Delete(e));
-        // }
     }
 
     for (pos, dir, bullet) in bullets {

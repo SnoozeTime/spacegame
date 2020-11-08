@@ -8,6 +8,7 @@ use std::process::exit;
 use spacegame::game::{Game, GameBuilder};
 
 use spacegame::config::PlayerConfig;
+use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::Action;
 use spacegame::scene::main_menu::MainMenu;
 use spacegame::scene::MainScene;
@@ -39,6 +40,7 @@ fn main_loop(mut surface: GlfwSurface) {
     let mut game: Game<Action> = GameBuilder::new(&mut surface)
         .for_scene(Box::new(MainMenu::default()))
         .with_resource(player_config)
+        .with_resource(Inventory::default())
         .build();
 
     game.run();
