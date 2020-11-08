@@ -1,13 +1,14 @@
 use crate::assets::sprite::SpriteAsset;
 use crate::assets::AssetManager;
-use crate::core::camera::ProjectionMatrix;
+use crate::core::camera::{Camera, ProjectionMatrix};
 use crate::core::input::{Input, InputAction};
-use crate::core::random::Seed;
+use crate::core::random::{RandomGenerator, Seed};
 use crate::core::scene::{Scene, SceneStack};
 use crate::core::transform::update_transforms;
 use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::delete::GarbageCollector;
+use crate::render::ui::gui::GuiContext;
 use crate::render::Renderer;
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
@@ -43,6 +44,9 @@ where
         // Need some input :D
         let input: Input<A> = Input::new();
         resources.insert(input);
+
+        // for GUI.
+        resources.insert(GuiContext::new(WindowDim::new(WIDTH, HEIGHT)));
 
         // and some asset manager;
         crate::assets::create_asset_managers(surface, &mut resources);
@@ -82,6 +86,13 @@ where
 
         let mut world = hecs::World::new();
 
+        // if a seed is provided, let's add it to the resources.
+        if let Some(seed) = self.seed {
+            self.resources.insert(RandomGenerator::new(seed));
+        } else {
+            self.resources.insert(RandomGenerator::from_entropy());
+        }
+
         let scene_stack = {
             let mut scenes = SceneStack::default();
             if let Some(scene) = self.scene {
@@ -100,10 +111,10 @@ where
 
         let garbage_collector = GarbageCollector::new(&mut self.resources);
 
-        // if a seed is provided, let's add it to the resources.
-        if let Some(seed) = self.seed {
-            self.resources.insert(seed);
-        }
+        // we need a camera :)
+        world.spawn((Camera::new(),));
+
+        info!("Finished building game");
 
         Game {
             surface: self.surface,
@@ -168,21 +179,26 @@ where
             self.surface.window.glfw.poll_events();
             {
                 let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
+                let mut gui_context = self.resources.fetch_mut::<GuiContext>().unwrap();
                 input.prepare();
+                gui_context.reset_inputs();
                 for (_, event) in self.surface.events_rx.try_iter() {
                     match event {
                         WindowEvent::Close
                         | WindowEvent::Key(Key::Escape, _, Action::Release, _) => break 'app,
                         WindowEvent::FramebufferSize(_, _) => resize = true,
-                        ev => input.process_event(ev),
+                        ev => {
+                            gui_context.process_event(ev.clone());
+                            input.process_event(ev)
+                        }
                     }
                 }
             }
 
             // 2. Update the scene.
             // ------------------------------------------------
-            if let Some(scene) = self.scene_stack.current_mut() {
-                scene.update(dt, &mut self.world, &self.resources);
+            let scene_result = if let Some(scene) = self.scene_stack.current_mut() {
+                let scene_res = scene.update(dt, &mut self.world, &self.resources);
 
                 {
                     let chan = self.resources.fetch::<EventChannel<GameEvent>>().unwrap();
@@ -192,9 +208,13 @@ where
                 }
 
                 if let Some(gui) = scene.prepare_gui(dt, &mut self.world, &self.resources) {
-                    self.renderer.prepare_ui(self.surface, gui);
+                    self.renderer.prepare_ui(self.surface, gui, &self.resources);
                 }
-            }
+
+                Some(scene_res)
+            } else {
+                None
+            };
 
             // Update children transforms:
             // -----------------------------
@@ -218,6 +238,9 @@ where
 
                 let mut dim = self.resources.fetch_mut::<WindowDim>().unwrap();
                 dim.resize(new_size[0], new_size[1]);
+
+                let mut gui_context = self.resources.fetch_mut::<GuiContext>().unwrap();
+                gui_context.window_dim = *dim;
             }
 
             let render =
@@ -236,6 +259,12 @@ where
                     .fetch_mut::<AssetManager<GlfwSurface, SpriteAsset<GlfwSurface>>>()
                     .unwrap();
                 sprite_manager.upload_all(self.surface);
+            }
+
+            // Now, if need to switch scenes, do it.
+            if let Some(res) = scene_result {
+                self.scene_stack
+                    .apply_result(res, &mut self.world, &mut self.resources);
             }
 
             let now = Instant::now();

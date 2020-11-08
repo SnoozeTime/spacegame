@@ -9,6 +9,7 @@ use spacegame::game::{Game, GameBuilder};
 
 use spacegame::config::PlayerConfig;
 use spacegame::gameplay::Action;
+use spacegame::scene::main_menu::MainMenu;
 use spacegame::scene::MainScene;
 use spacegame::DIMENSIONS;
 
@@ -25,8 +26,6 @@ fn main() {
 }
 
 fn main_loop(mut surface: GlfwSurface) {
-    println!("{:?}", surface.window.get_framebuffer_size());
-
     dotenv::dotenv().ok();
     pretty_env_logger::init();
 
@@ -38,7 +37,7 @@ fn main_loop(mut surface: GlfwSurface) {
     });
 
     let mut game: Game<Action> = GameBuilder::new(&mut surface)
-        .for_scene(Box::new(MainScene::new()))
+        .for_scene(Box::new(MainMenu::default()))
         .with_resource(player_config)
         .build();
 

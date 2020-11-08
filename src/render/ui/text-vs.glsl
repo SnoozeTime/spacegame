@@ -6,7 +6,7 @@ vec4(0.0, 0.0, 1.0, 0.0),
 vec4(0.0, 0.0, 0.0, 1.0)
 );
 
-uniform mat4 transform;
+//uniform mat4 transform;
 in vec4 color;
 
 in vec3 left_top;
@@ -45,5 +45,5 @@ void main() {
     }
 
     f_color = color;
-    gl_Position = INVERT_Y_AXIS * transform * vec4(pos, left_top.z, 1.0);
+    gl_Position = vec4(pos, left_top.z, 1.0);
 }

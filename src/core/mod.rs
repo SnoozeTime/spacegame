@@ -1,6 +1,7 @@
 pub mod camera;
 pub mod colors;
 pub mod input;
+pub mod noise;
 pub mod random;
 pub mod scene;
 pub mod timer;

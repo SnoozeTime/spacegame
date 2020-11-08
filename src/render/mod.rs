@@ -46,8 +46,8 @@ where
         }
     }
 
-    pub fn prepare_ui(&mut self, surface: &mut S, gui: Gui) {
-        self.ui_renderer.prepare(surface, gui);
+    pub fn prepare_ui(&mut self, surface: &mut S, gui: Gui, resources: &Resources) {
+        self.ui_renderer.prepare(surface, gui, resources);
     }
 
     pub fn render(

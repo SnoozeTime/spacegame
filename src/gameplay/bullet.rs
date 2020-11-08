@@ -14,6 +14,7 @@ pub enum BulletType {
     Fast,
     Round1,
     Round2,
+    Twin,
     BigAss,
 }
 
@@ -23,6 +24,7 @@ impl BulletType {
         match *self {
             BulletType::Small => "small_bullet.png",
             BulletType::Fast => "fast_bullet.png",
+            BulletType::Twin => "twin_bullets.png",
             BulletType::Round1 => "round_bullet.png",
             BulletType::Round2 => "round_bullet_2.png",
             BulletType::BigAss => "big_ass_bullet.png",
@@ -73,6 +75,8 @@ pub fn spawn_player_bullet(
     direction: glam::Vec2,
     bullet_type: BulletType,
 ) -> hecs::Entity {
+    let angle = -direction.angle_between(glam::Vec2::unit_y());
+
     world.spawn((
         Bullet {
             direction,
@@ -84,7 +88,7 @@ pub fn spawn_player_bullet(
         },
         Transform {
             translation: initial_position,
-            rotation: 0.0,
+            rotation: angle,
             scale: glam::vec2(7.0, 7.0),
             dirty: false,
         },
@@ -102,6 +106,7 @@ pub fn spawn_enemy_bullet(
     direction: glam::Vec2,
     bullet_type: BulletType,
 ) -> hecs::Entity {
+    let angle = -direction.angle_between(glam::Vec2::unit_y());
     world.spawn((
         Bullet {
             direction,
@@ -113,7 +118,7 @@ pub fn spawn_enemy_bullet(
         },
         Transform {
             translation: initial_position,
-            rotation: 0.0,
+            rotation: angle,
             scale: glam::vec2(7.0, 7.0),
             dirty: false,
         },

@@ -1,4 +1,6 @@
 use crate::core::colors::RgbaColor;
+use crate::core::window::WindowDim;
+use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
 use glyph_brush::{rusttype::*, *};
 use log::info;
@@ -56,7 +58,7 @@ pub struct Instance {
 #[derive(UniformInterface)]
 pub struct ShaderInterface {
     pub tex: Uniform<TextureBinding<Dim2, NormUnsigned>>,
-    pub transform: Uniform<[[f32; 4]; 4]>,
+    //pub transform: Uniform<[[f32; 4]; 4]>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,14 +138,17 @@ where
         surface: &mut S,
         text_data: Vec<(Text, glam::Vec2, RgbaColor)>,
         glyph_brush: &mut GlyphBrush<'static, Instance>,
+        resources: &Resources,
     ) {
-        let width = WIDTH as f32;
-        let height = HEIGHT as f32;
+        let window_dim = resources.fetch::<WindowDim>().unwrap();
+        let width = window_dim.width as f32;
+        let height = window_dim.height as f32;
 
         for (text, position, color) in text_data {
-            // screen position is top-left origin, and value is between 0 and 1.
+            // screen position is top-left origin
             let pos_x = position.x();
             let pos_y = position.y();
+            info!("Will display text at {}/{}", pos_x, pos_y);
 
             let scale = Scale::uniform(text.font_size.round());
             glyph_brush.queue(Section {
@@ -153,7 +158,7 @@ where
                 bounds: (width / 3.15, height),
                 color: color.to_normalized(),
                 layout: Layout::default()
-                    .h_align(HorizontalAlign::Left)
+                    .h_align(HorizontalAlign::Center)
                     .v_align(VerticalAlign::Bottom),
                 ..Section::default()
             });
@@ -172,7 +177,7 @@ where
                         )
                         .expect("Cannot upload part of texture");
                 },
-                |vertex_data| to_vertex(vertex_data),
+                |vertex_data| to_vertex(width, height, vertex_data),
             )
             .unwrap();
 
@@ -204,7 +209,7 @@ where
             shd_gate.shade(shader, |mut iface, uni, mut rdr_gate| {
                 let bound_tex = pipeline.bind_texture(tex)?;
                 iface.set(&uni.tex, bound_tex.binding());
-                iface.set(&uni.transform, proj);
+                //iface.set(&uni.transform, proj);
                 rdr_gate.render(render_state, |mut tess_gate| tess_gate.render(tess))
             })?;
         }
@@ -215,6 +220,8 @@ where
 
 #[inline]
 fn to_vertex(
+    width: f32,
+    height: f32,
     glyph_brush::GlyphVertex {
         mut tex_coords,
         pixel_coords,
@@ -253,9 +260,17 @@ fn to_vertex(
         tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
     }
 
+    let to_view_space = |x: f32, y: f32| -> [f32; 2] {
+        let pos_x = (x / width) * 2.0 - 1.0;
+        let pos_y = (1.0 - y / height) * 2.0 - 1.0;
+        [pos_x, pos_y]
+    };
+
+    let left_top = to_view_space(gl_rect.min.x, gl_rect.max.y);
+
     let v = Instance {
-        left_top: VertexLeftTop::new([gl_rect.min.x, gl_rect.max.y, z]),
-        right_bottom: VertexRightBottom::new([gl_rect.max.x, gl_rect.min.y]),
+        left_top: VertexLeftTop::new([left_top[0], left_top[1], z]),
+        right_bottom: VertexRightBottom::new(to_view_space(gl_rect.max.x, gl_rect.min.y)),
         tex_left_top: TextureLeftTop::new([tex_coords.min.x, tex_coords.max.y]),
         tex_right_bottom: TextureRightBottom::new([tex_coords.max.x, tex_coords.min.y]),
         color: TextColor::new(color),

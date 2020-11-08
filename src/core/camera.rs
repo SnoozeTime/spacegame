@@ -1,3 +1,4 @@
+use crate::WIDTH;
 use glam::Vec2;
 use hecs::World;
 

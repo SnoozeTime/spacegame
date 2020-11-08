@@ -1,49 +1,46 @@
 use crate::core::camera::Camera;
 use crate::core::colors::RgbaColor;
-use crate::core::random::Seed;
+use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
+use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::camera::update_camera;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::gameplay::enemy::{spawn_enemy, EnemyType};
 use crate::gameplay::health::{Health, HealthSystem};
-use crate::gameplay::level::{LevelInstruction, LevelSystem};
+use crate::gameplay::level::generate_terrain;
 use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
 use crate::gameplay::player::{get_player, Player, Weapon};
 use crate::gameplay::{bullet, collision, enemy, player};
 use crate::render::sprite::Sprite;
+use crate::render::ui::gui::GuiContext;
 use crate::render::ui::text::Text;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
 use hecs::World;
 use log::info;
-use rand::prelude::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 use shrev::EventChannel;
 use std::time::Duration;
 
+pub mod main_menu;
+
 pub struct MainScene {
-    level_system: LevelSystem,
     health_system: Option<HealthSystem>,
     physic_system: PhysicSystem,
 }
 
-fn load_level() -> LevelSystem {
-    let instructions = vec![LevelInstruction::SpawnEnemy {
-        health: 2,
-        pos: glam::Vec2::new(200.0, 400.0),
-        enemy_type: EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
-    }];
-    LevelSystem::new(instructions)
+impl Default for MainScene {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MainScene {
     pub fn new() -> Self {
         Self {
-            level_system: load_level(),
             health_system: None,
             physic_system: PhysicSystem::new(PhysicConfig { damping: 0.99 }),
         }
@@ -57,78 +54,23 @@ impl Scene for MainScene {
 
         let backgrounds = ["front.png", "left.png", "top.png", "right.png", "back.png"];
 
-        let mut rng = if let Some(seed) = resources.fetch::<Seed>() {
-            StdRng::from_seed(seed.0)
-        } else {
-            StdRng::from_entropy()
+        let background = {
+            let mut rng = resources.fetch_mut::<RandomGenerator>().unwrap();
+            backgrounds.choose(rng.rng()).unwrap().to_string()
         };
-
         // First choose a random background.
         world.spawn((
             Transform {
                 translation: glam::Vec2::new(0.0, 0.0),
-                scale: glam::Vec2::new(2048.0, 2048.0),
+                scale: glam::Vec2::new(1600.0, 960.0),
                 rotation: 0.0,
                 dirty: false,
             },
-            Sprite {
-                id: backgrounds.choose(&mut rng).unwrap().to_string(),
-            },
+            Sprite { id: background },
         ));
 
-        world.spawn((
-            Transform {
-                translation: glam::Vec2::new(0.0, 0.0),
-                scale: glam::Vec2::new(32.0, 32.0),
-                rotation: 0.0,
-                dirty: false,
-            },
-            Sprite {
-                id: "asteroid.png".to_string(),
-            },
-            DynamicBody {
-                forces: vec![],
-                velocity: Default::default(),
-                max_velocity: 500.0,
-                mass: 5.0,
-            },
-            BoundingBox {
-                collision_layer: CollisionLayer::ASTEROID,
-                collision_mask: CollisionLayer::PLAYER
-                    | CollisionLayer::ENEMY
-                    | CollisionLayer::PLAYER_BULLET
-                    | CollisionLayer::ENEMY_BULLET,
-                half_extend: glam::vec2(16.0, 16.0),
-            },
-        ));
+        generate_terrain(world, resources);
 
-        world.spawn((
-            Transform {
-                translation: glam::Vec2::new(-200.0, 0.0),
-                scale: glam::Vec2::new(64.0, 64.0),
-                rotation: 0.0,
-                dirty: false,
-            },
-            Sprite {
-                id: "asteroid.png".to_string(),
-            },
-            DynamicBody {
-                forces: vec![],
-                velocity: Default::default(),
-                max_velocity: 500.0,
-                mass: 100.0,
-            },
-            BoundingBox {
-                collision_layer: CollisionLayer::ASTEROID,
-                collision_mask: CollisionLayer::PLAYER
-                    | CollisionLayer::ENEMY
-                    | CollisionLayer::PLAYER_BULLET
-                    | CollisionLayer::ENEMY_BULLET,
-                half_extend: glam::vec2(32.0, 32.0),
-            },
-        ));
-
-        world.spawn((Camera::new(),));
         let player_components = (
             Transform {
                 translation: glam::Vec2::new(100.0, 100.0),
@@ -193,7 +135,6 @@ impl Scene for MainScene {
 
     fn update(&mut self, dt: Duration, world: &mut World, resources: &Resources) -> SceneResult {
         log::debug!("UPDATE SYSTEMS");
-        self.level_system.update(world, dt);
         player::update_player(world, dt, resources);
         update_camera(world, resources);
         enemy::update_enemies(world, &resources, dt);
@@ -210,19 +151,15 @@ impl Scene for MainScene {
         SceneResult::Noop
     }
 
-    fn process_event(&mut self, ev: GameEvent) {
-        if let GameEvent::GameOver = ev {
-            std::process::exit(0); // TODO Replace that.
-        }
-    }
-
     fn prepare_gui(
         &mut self,
         _dt: Duration,
         world: &mut World,
-        _resources: &Resources,
+        resources: &Resources,
     ) -> Option<Gui> {
-        let mut gui = Gui::new();
+        let gui_context = resources.fetch::<GuiContext>().unwrap();
+
+        let mut gui = gui_context.new_frame();
         gui.panel(
             glam::vec2(10.0, 10.0),
             glam::vec2(200.0, 500.0),
@@ -236,16 +173,15 @@ impl Scene for MainScene {
                 "Hull {:02}%",
                 ((health.current as f32 / health.max as f32) * 100.0).round() as i32
             );
-            gui.label(
-                glam::vec2(15.0, 15.0),
-                Text {
-                    font_size: 16.0,
-                    content: text,
-                },
-                RgbaColor::new(255, 0, 0, 255),
-            );
+            gui.colored_label(glam::vec2(15.0, 15.0), text, RgbaColor::new(255, 0, 0, 255));
         }
 
         Some(gui)
+    }
+
+    fn process_event(&mut self, ev: GameEvent) {
+        if let GameEvent::GameOver = ev {
+            std::process::exit(0); // TODO Replace that.
+        }
     }
 }

@@ -1,6 +1,12 @@
 use crate::core::colors::RgbaColor;
+use crate::core::input::Input;
+use crate::core::window::WindowDim;
+use crate::gameplay::Action::MoveUp;
+use crate::render::ui::gui::Style;
 use crate::render::ui::text::{Text, TextRenderer};
+use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
+use glfw::MouseButton;
 use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
@@ -12,6 +18,7 @@ use luminance::tess::{Mode, Tess};
 use luminance_derive::{Semantics, Vertex};
 use luminance_gl::GL33;
 
+pub mod gui;
 pub mod text;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Semantics)]
@@ -73,11 +80,26 @@ pub enum DrawData {
 
 pub struct Gui {
     draw_data: Vec<DrawData>,
+    window_dim: WindowDim,
+    mouse_pos: glam::Vec2,
+    mouse_clicked: Vec<MouseButton>,
+    style: Style,
 }
 
 impl Gui {
-    pub fn new() -> Self {
-        Self { draw_data: vec![] }
+    pub fn new(
+        window_dim: WindowDim,
+        mouse_pos: glam::Vec2,
+        mouse_clicked: Vec<MouseButton>,
+        style: Style,
+    ) -> Self {
+        Self {
+            draw_data: vec![],
+            window_dim,
+            mouse_clicked,
+            mouse_pos,
+            style,
+        }
     }
     pub fn panel(&mut self, pos: glam::Vec2, dimensions: glam::Vec2, color: RgbaColor) {
         let (vertices, indices) = Panel {
@@ -85,25 +107,100 @@ impl Gui {
             dimensions,
             color,
         }
-        .vertices();
+        .vertices(self.window_dim);
         self.draw_data.push(DrawData::Vertices(vertices, indices));
     }
 
-    pub fn label(&mut self, pos: glam::Vec2, text: Text, color: RgbaColor) {
-        self.draw_data.push(DrawData::Text(text, pos, color));
+    pub fn label(&mut self, pos: glam::Vec2, text: String) {
+        self.draw_data.push(DrawData::Text(
+            Text {
+                content: text,
+                font_size: self.style.font_size,
+            },
+            pos,
+            self.style.text_color,
+        ));
+    }
+    pub fn colored_label(&mut self, pos: glam::Vec2, text: String, color: RgbaColor) {
+        self.draw_data.push(DrawData::Text(
+            Text {
+                content: text,
+                font_size: self.style.font_size,
+            },
+            pos,
+            color,
+        ));
+    }
+
+    pub fn button(
+        &mut self,
+        pos: glam::Vec2,
+        dimensions: Option<glam::Vec2>,
+        text: String,
+    ) -> bool {
+        let padding = 10.0;
+        let dimensions = if let Some(dimension) = dimensions {
+            dimension
+        } else {
+            let height = padding * 2.0 + self.style.font_size;
+            let width = padding * 2.0 + text.len() as f32 * self.style.font_size * 0.8;
+            glam::vec2(width, height)
+        };
+
+        let mouse_pos_rel = self.mouse_pos - pos;
+        let is_above = mouse_pos_rel.x() >= 0.0
+            && mouse_pos_rel.x() < dimensions.x()
+            && mouse_pos_rel.y() >= 0.0
+            && mouse_pos_rel.y() <= dimensions.y();
+
+        let (color, text_color) = if is_above {
+            (
+                self.style.button_hover_bg_color,
+                self.style.button_hovered_text_color,
+            )
+        } else {
+            (self.style.button_bg_color, self.style.button_text_color)
+        };
+
+        let (vertices, indices) = Panel {
+            anchor: pos,
+            dimensions,
+            color,
+        }
+        .vertices(self.window_dim);
+
+        self.draw_data.push(DrawData::Vertices(vertices, indices));
+        self.draw_data.push(DrawData::Text(
+            Text {
+                content: text,
+                font_size: self.style.font_size,
+            },
+            pos + glam::Vec2::unit_y() * self.style.font_size
+                + dimensions.x() / 2.0 * glam::Vec2::unit_x(),
+            text_color,
+        ));
+
+        if self.mouse_clicked.contains(&MouseButton::Button1) {
+            return is_above;
+        }
+
+        false
     }
 }
 
 impl Panel {
-    fn vertices(&self) -> (Vec<Vertex>, Vec<u32>) {
-        let top_left = glam::vec2(
-            -1.0 + self.anchor.x() / WIDTH as f32,
-            1.0 - self.anchor.y() / HEIGHT as f32,
-        );
-        let dim = glam::vec2(
-            self.dimensions.x() / WIDTH as f32,
-            self.dimensions.y() / HEIGHT as f32,
-        );
+    fn vertices(&self, window_dim: WindowDim) -> (Vec<Vertex>, Vec<u32>) {
+        info!("WindowDim -> {:#?}", window_dim);
+
+        let w = window_dim.width as f32;
+        let h = window_dim.height as f32;
+        let x = (self.anchor.x() / w) * 2.0 - 1.0;
+        let y = (1.0 - self.anchor.y() / h) * 2.0 - 1.0;
+        let top_left = glam::vec2(x, y);
+        info!("Anchor -> {:#?}", self.anchor);
+        info!("Top left -> {:#?}", top_left);
+        let dim = glam::vec2(2.0 * self.dimensions.x() / w, 2.0 * self.dimensions.y() / h);
+        info!("Dimensions = {:?} => {:?}", self.dimensions, dim);
         let top_right = top_left + dim.x() * glam::Vec2::unit_x();
         let bottom_right =
             top_left + dim.x() * glam::Vec2::unit_x() - dim.y() * glam::Vec2::unit_y();
@@ -168,7 +265,7 @@ where
     }
 
     /// Recreate the texture
-    pub fn prepare(&mut self, surface: &mut S, gui: Gui) {
+    pub fn prepare(&mut self, surface: &mut S, gui: Gui, resources: &Resources) {
         self.tesses.clear();
 
         let mut text_data = vec![];
@@ -189,7 +286,7 @@ where
         }
 
         self.text_renderer
-            .prepare(surface, text_data, &mut self.fonts);
+            .prepare(surface, text_data, &mut self.fonts, resources);
     }
 
     pub fn render(

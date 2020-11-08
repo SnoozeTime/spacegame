@@ -28,7 +28,7 @@ impl Weapon {
         direction: glam::Vec2,
     ) -> Vec<(glam::Vec2, glam::Vec2, BulletType)> {
         match *self {
-            Weapon::Simple => vec![(initial_pos, direction, bullet::BulletType::Round1)],
+            Weapon::Simple => vec![(initial_pos, direction, bullet::BulletType::Twin)],
             Weapon::Multiple => vec![
                 (initial_pos, direction, bullet::BulletType::Fast),
                 (
