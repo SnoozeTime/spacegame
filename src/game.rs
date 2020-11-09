@@ -9,6 +9,7 @@ use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::collision::CollisionWorld;
 use crate::gameplay::delete::GarbageCollector;
+use crate::render::path::debug::DebugQueue;
 use crate::render::ui::gui::GuiContext;
 use crate::render::Renderer;
 use crate::resources::Resources;
@@ -56,6 +57,7 @@ where
         resources.insert(ProjectionMatrix::new(WIDTH as f32, HEIGHT as f32));
         resources.insert(WindowDim::new(WIDTH, HEIGHT));
         resources.insert(CollisionWorld::default());
+        resources.insert(DebugQueue::default());
 
         Self {
             surface,

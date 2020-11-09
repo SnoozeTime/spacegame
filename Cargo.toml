@@ -31,12 +31,14 @@ serde = "1.0.117"
 serde_derive = "1.0.117"
 serde_json = "1.0.59"
 rand = "0.7.3"
-noise ="0.6.0" 
+
 # display text
 glyph_brush = "0.6.3"
 
 thiserror = "1.0.21"
 
+# path tessellation
+lyon = "0.16.2"
 
 [dependencies.glam]
 version = "0.9.5"

@@ -1,11 +1,8 @@
 use crate::core::colors::RgbaColor;
-use crate::core::input::Input;
 use crate::core::window::WindowDim;
-use crate::gameplay::Action::MoveUp;
 use crate::render::ui::gui::{HorizontalAlign, Style, VerticalAlign};
 use crate::render::ui::text::{Text, TextRenderer};
 use crate::resources::Resources;
-use crate::{HEIGHT, WIDTH};
 use glfw::MouseButton;
 use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
 use luminance::blending::{Blending, Equation, Factor};

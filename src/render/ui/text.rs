@@ -2,10 +2,8 @@ use crate::core::colors::RgbaColor;
 use crate::core::window::WindowDim;
 use crate::render::ui::gui::{HorizontalAlign, VerticalAlign};
 use crate::resources::Resources;
-use crate::{HEIGHT, WIDTH};
 use glyph_brush::rusttype::*;
 use glyph_brush::{BrushAction, GlyphBrush, Layout, Section};
-use log::info;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
@@ -95,7 +93,6 @@ pub struct TextRenderer<S>
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    projection: glam::Mat4,
     texture: Texture<S::Backend, Dim2, NormR8UI>,
     tess: Option<Tess<S::Backend, (), (), Instance>>,
     render_state: RenderState,
@@ -107,9 +104,6 @@ where
     S: GraphicsContext<Backend = GL33>,
 {
     pub fn new(surface: &mut S, glyph_brush: &mut GlyphBrush<'static, Instance>) -> Self {
-        let projection =
-            glam::Mat4::orthographic_rh_gl(0.0, WIDTH as f32, 0.0, HEIGHT as f32, 1.0, -1.0);
-
         let render_state = RenderState::default()
             .set_blending(Blending {
                 equation: Equation::Additive,
@@ -129,7 +123,6 @@ where
         .expect("luminance texture creation");
 
         Self {
-            projection,
             texture: tex,
             tess: None,
             render_state,

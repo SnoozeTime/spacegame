@@ -11,7 +11,6 @@ use spacegame::config::PlayerConfig;
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::Action;
 use spacegame::scene::main_menu::MainMenu;
-use spacegame::scene::MainScene;
 use spacegame::DIMENSIONS;
 
 fn main() {

@@ -2,6 +2,7 @@ use crate::assets::sprite::SpriteAsset;
 use crate::assets::AssetManager;
 use crate::core::camera::ProjectionMatrix;
 use crate::render::particle::ParticleSystem;
+use crate::render::path::PathRenderer;
 use crate::render::sprite::SpriteRenderer;
 use crate::render::ui::{Gui, UiRenderer};
 use crate::resources::Resources;
@@ -14,6 +15,7 @@ use std::time::Duration;
 
 pub mod background;
 pub mod particle;
+pub mod path;
 pub mod sprite;
 pub mod ui;
 
@@ -28,6 +30,8 @@ where
     particle_renderer: ParticleSystem<S>,
 
     ui_renderer: UiRenderer<S>,
+
+    path_renderer: PathRenderer<S>,
 }
 
 impl<S> Renderer<S>
@@ -39,15 +43,18 @@ where
 
         let particle_renderer = ParticleSystem::new(surface);
         let ui_renderer = UiRenderer::new(surface);
+        let path_renderer = PathRenderer::new(surface);
         Self {
             sprite_renderer,
             particle_renderer,
             ui_renderer,
+            path_renderer,
         }
     }
 
     pub fn prepare_ui(&mut self, surface: &mut S, gui: Gui, resources: &Resources) {
         self.ui_renderer.prepare(surface, gui, resources);
+        self.path_renderer.prepare(surface, resources);
     }
 
     pub fn render(
@@ -85,7 +92,9 @@ where
                         world,
                     )?;
 
-                    self.ui_renderer.render(&pipeline, &mut shd_gate)
+                    self.ui_renderer.render(&pipeline, &mut shd_gate)?;
+                    self.path_renderer
+                        .render(&projection_matrix, &view, &mut shd_gate)
                 },
             )
             .assume()

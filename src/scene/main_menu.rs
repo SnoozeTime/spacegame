@@ -1,9 +1,6 @@
 use crate::core::colors::RgbaColor;
 use crate::core::scene::{Scene, SceneResult};
-use crate::core::window::WindowDim;
-use crate::event::GameEvent;
 use crate::render::ui::gui::GuiContext;
-use crate::render::ui::text::Text;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
 use crate::scene::MainScene;

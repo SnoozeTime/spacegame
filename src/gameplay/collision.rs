@@ -47,6 +47,32 @@ impl CollisionWorld {
 
         return intersections;
     }
+
+    pub fn ray_with_offset(
+        &self,
+        ray: Ray,
+        ignore: CollisionLayer,
+        offset: f32,
+    ) -> Vec<(Entity, f32, Vec2, Vec2)> {
+        let mut intersections = vec![];
+        for (transform, bb, e) in self.bodies.iter() {
+            if (bb.collision_layer & ignore).bits != 0 {
+                continue;
+            }
+
+            // enlarge the bounding box with our own.
+            let enlarged = BoundingBox {
+                collision_mask: CollisionLayer::NOTHING,
+                collision_layer: CollisionLayer::NOTHING,
+                half_extend: bb.half_extend + offset * glam::Vec2::one(),
+            };
+            if let Some((t, pos)) = enlarged.intersect_ray(*transform, ray) {
+                intersections.push((*e, t, pos, *transform));
+            }
+        }
+
+        return intersections;
+    }
 }
 
 /// Bounding box to detect collisions.

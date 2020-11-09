@@ -10,9 +10,6 @@ use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
 use bitflags::_core::time::Duration;
 use hecs::{Entity, World};
-
-use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
-use crate::gameplay::steering::avoid;
 #[allow(unused_imports)]
 use log::{info, trace};
 use serde_derive::{Deserialize, Serialize};
@@ -91,7 +88,7 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
 
     let mut bullets = vec![];
 
-    for (e, (transform, player, dynamic)) in world
+    for (_e, (transform, player, dynamic)) in world
         .query::<(&mut Transform, &mut Player, &mut DynamicBody)>()
         .iter()
     {

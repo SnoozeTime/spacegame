@@ -50,7 +50,7 @@ pub struct Missile {
     pub home_to_entity: Option<Entity>,
 }
 
-pub fn process_missiles(world: &World, resources: &Resources) {
+pub fn process_missiles(world: &World, _resources: &Resources) {
     for (_e, (t, missile, body)) in world
         .query::<(&mut Transform, &mut Missile, &mut DynamicBody)>()
         .iter()

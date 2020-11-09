@@ -1,14 +1,12 @@
-use crate::core::camera::Camera;
 use crate::core::colors::RgbaColor;
 use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
-use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::camera::update_camera;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::enemy::{spawn_enemy, EnemyType, Satellite};
+use crate::gameplay::enemy::{spawn_enemy, EnemyType};
 use crate::gameplay::health::{Health, HealthSystem};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::level::generate_terrain;
@@ -17,7 +15,6 @@ use crate::gameplay::player::{get_player, Player, Weapon};
 use crate::gameplay::{bullet, collision, enemy, player};
 use crate::render::sprite::Sprite;
 use crate::render::ui::gui::GuiContext;
-use crate::render::ui::text::Text;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
 use hecs::World;
@@ -116,19 +113,19 @@ impl Scene for MainScene {
             glam::vec2(650.0, 500.0),
             EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
         );
-        // spawn_enemy(
-        //     world,
-        //     2,
-        //     glam::vec2(550.0, 450.0),
-        //     EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
-        // );
-        // spawn_enemy(
-        //     world,
-        //     2,
-        //     glam::vec2(500.0, 700.0),
-        //     EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
-        // );
-        //
+        spawn_enemy(
+            world,
+            2,
+            glam::vec2(550.0, 450.0),
+            EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
+        );
+        spawn_enemy(
+            world,
+            2,
+            glam::vec2(500.0, 700.0),
+            EnemyType::FollowPlayer(Timer::of_seconds(2.0)),
+        );
+
         // spawn_enemy(
         //     world,
         //     2,

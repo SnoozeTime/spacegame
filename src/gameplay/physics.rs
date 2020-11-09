@@ -1,7 +1,8 @@
+use crate::core::colors;
 use crate::core::transform::Transform;
-use crate::gameplay::collision::BoundingBox;
+use crate::render::path::debug;
 use crate::resources::Resources;
-use hecs::{Entity, World};
+use hecs::World;
 use serde_derive::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -44,7 +45,7 @@ impl PhysicSystem {
         Self { config }
     }
 
-    pub fn update(&self, world: &mut World, dt: Duration, _resources: &Resources) {
+    pub fn update(&self, world: &mut World, dt: Duration, resources: &Resources) {
         for (_, (transform, body)) in world.query::<(&mut Transform, &mut DynamicBody)>().iter() {
             // acceleration is sum of all forces divided by the mass
             let acc = body
@@ -62,6 +63,13 @@ impl PhysicSystem {
                 body.velocity *= self.config.damping;
             }
             transform.translate(body.velocity * dt.as_secs_f32());
+
+            debug::stroke_line(
+                resources,
+                transform.translation,
+                transform.translation + body.velocity,
+                colors::GREEN,
+            );
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::core::transform::Transform;
 use crate::gameplay::collision::{CollisionLayer, CollisionWorld, Ray};
 use hecs::Entity;
 use rand::Rng;
@@ -33,36 +34,40 @@ pub fn halt(velocity: glam::Vec2) -> glam::Vec2 {
 
 pub fn avoid(
     myself: Entity,
-    pos: glam::Vec2,
+    transform: &Transform,
     velocity: glam::Vec2,
     look_ahead: f32,
     collision_world: &CollisionWorld,
     avoidance_strength: f32,
 ) -> Option<glam::Vec2> {
     let ray = Ray {
-        c: pos,
+        c: transform.translation,
         d: velocity.normalize(),
     };
 
-    let collisions = collision_world.ray(ray, CollisionLayer::NOTHING);
+    let collisions = collision_world.ray_with_offset(
+        ray,
+        CollisionLayer::ENEMY_BULLET | CollisionLayer::PLAYER_BULLET,
+        transform.scale.x() / 2.0,
+    );
 
     let mut current_t = std::f32::INFINITY;
-    let mut collision_pos = None;
-    for (e, t, pos) in collisions {
+    let mut collision_data = None;
+    for (e, t, pos, center) in collisions {
         if e == myself {
             continue;
         }
-        info!("Collide with entity = {:?} in {} at {:?}", e, t, pos);
+        debug!("Collide with entity = {:?} in {} at {:?}", e, t, pos);
 
         if t < look_ahead && t < current_t {
             current_t = t;
             // there will be a collisions.
-            collision_pos = Some(pos);
+            collision_data = Some((pos, center));
         }
     }
 
-    if let Some(obstacle_pos) = collision_pos {
-        let d = (obstacle_pos - pos).length();
+    if let Some((_obstacle_pos, obstacle_center)) = collision_data {
+        let d = (obstacle_center - transform.translation).length();
         let avoidance_force = glam::vec2(velocity.y(), -velocity.x());
         Some(avoidance_force.normalize() * avoidance_strength * look_ahead / d)
     } else {

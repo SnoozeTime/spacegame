@@ -1,3 +1,4 @@
+use crate::core::colors;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
@@ -7,12 +8,11 @@ use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
 use crate::gameplay::steering::{avoid, halt, seek};
+use crate::render::path::debug;
 use crate::render::sprite::Sprite;
 use crate::resources::Resources;
-use crate::{HEIGHT, WIDTH};
 use hecs::World;
 use log::{debug, trace};
-use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
 use std::time::Duration;
@@ -147,24 +147,30 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                         halt(body.velocity)
                     };
 
-                    // for debugging.
                     {
                         let collision_world = resources.fetch::<CollisionWorld>().unwrap();
                         if body.velocity.length() > 0.0 {
-                            if let Some(f) = avoid(
-                                e,
-                                t.translation,
-                                body.velocity,
-                                1000.0,
-                                &*collision_world,
-                                300.0,
-                            ) {
+                            if let Some(f) =
+                                avoid(e, t, body.velocity, 300.0, &*collision_world, 300.0)
+                            {
                                 body.add_force(f);
+                                debug::stroke_line(
+                                    resources,
+                                    t.translation,
+                                    t.translation + f,
+                                    colors::BLUE,
+                                );
                             }
                         }
                     }
 
                     body.add_force(steering);
+                    debug::stroke_line(
+                        resources,
+                        t.translation,
+                        t.translation + steering,
+                        colors::RED,
+                    );
 
                     // rotate toward the player
                     let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
@@ -178,6 +184,9 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                         let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
                         bullets.push(to_spawn);
                     }
+
+                    // Draw stuff to the screen.
+                    debug::stroke_circle(resources, t.translation, 300.0, colors::RED);
                 }
             }
         }

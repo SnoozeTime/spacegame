@@ -7,11 +7,11 @@ pub const PASTEL_ORANGE: RgbColor = RgbColor::new(234, 144, 133);
 #[allow(unused)]
 pub const PASTEL_BEIGE: RgbColor = RgbColor::new(233, 225, 204);
 #[allow(unused)]
-pub const RED: RgbColor = RgbColor::new(255, 0, 0);
+pub const RED: RgbaColor = RgbaColor::new(255, 0, 0, 255);
 #[allow(unused)]
-pub const BLUE: RgbColor = RgbColor::new(0, 0, 255);
+pub const BLUE: RgbaColor = RgbaColor::new(0, 0, 255, 255);
 #[allow(unused)]
-pub const GREEN: RgbColor = RgbColor::new(0, 255, 0);
+pub const GREEN: RgbaColor = RgbaColor::new(0, 255, 0, 255);
 
 use serde_derive::{Deserialize, Serialize};
 
