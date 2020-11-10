@@ -9,9 +9,14 @@ use serde_derive::{Deserialize, Serialize};
 use shrev::{EventChannel, ReaderId};
 use std::time::Duration;
 
+/// Health/Hull is the health points of an entity. When those reach 0, then the entity dies.
+/// It does not refill over time, so the player will need to refill it with some money.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Health {
+    /// Maximum amount of health.
     pub max: u32,
+
+    /// Current amount of health.
     pub current: u32,
 
     /// true if can hit the component.
@@ -31,6 +36,34 @@ impl Health {
 
     fn is_dead(&self) -> bool {
         self.current == 0
+    }
+}
+
+/// Shield will be reduced at first when the player is hit. It will replenish when the player hasn't
+/// been hit for some time.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Shield {
+    /// max amount of shield
+    pub max: f32,
+
+    /// current amount of shield
+    pub current: f32,
+
+    /// Timer until the shield will start to refill
+    timer_until_replenish: Timer,
+
+    /// Amount of shield entity get back per second.
+    replenish_rate: f32,
+}
+
+impl Shield {
+    pub fn new(amt: f32, down_time: f32, replenish_rate: f32) -> Self {
+        Self {
+            max: amt,
+            current: amt,
+            timer_until_replenish: Timer::of_seconds(down_time),
+            replenish_rate,
+        }
     }
 }
 
@@ -59,34 +92,46 @@ impl HealthSystem {
                 let mut insert_blink = false;
                 {
                     let health = world.get_mut::<Health>(*e);
+                    let shield = world.get_mut::<Shield>(*e);
+
                     let is_enemy = world.get::<Enemy>(*e).is_ok();
-                    if let Ok(mut health) = health {
-                        if !health.hittable {
-                            continue;
-                        }
 
-                        health.current -= 1;
-                        if health.is_dead() {
-                            debug!("{:?} is dead ({:?}", e, *health);
-                            if world.get::<Player>(*e).is_ok() {
-                                death_events.push(GameEvent::GameOver);
-                            } else {
-                                death_events.push(GameEvent::Delete(*e));
-                            }
-
-                            if is_enemy {
-                                info!("Enemy died");
-                                death_events.push(GameEvent::EnemyDied);
-                            }
+                    let has_shield = if let Ok(mut shield) = shield {
+                        // reset shield timer. Shield cannot recharge until elapsed.
+                        shield.timer_until_replenish.reset();
+                        shield.timer_until_replenish.start();
+                        if shield.current == 0.0 {
+                            false
                         } else {
-                            // start invulnerability frames.
-                            health.hittable = false;
-                            health.invulnerability_timer.reset();
-                            health.invulnerability_timer.start();
-                            insert_blink = true;
+                            shield.current = (shield.current - 1.0).max(0.0);
+                            true
                         }
                     } else {
-                        log::error!("Entity that has been Hit should have a health component");
+                        false
+                    };
+
+                    // if no shield, then we can hit the health.
+                    if !has_shield {
+                        if let Ok(mut health) = health {
+                            if !health.hittable {
+                                continue;
+                            }
+
+                            health.current -= 1;
+                            if health.is_dead() {
+                                debug!("{:?} is dead ({:?}", e, *health);
+                                Self::add_death_events(&mut death_events, world, *e, is_enemy);
+                            } else {
+                                // start invulnerability frames.
+                                health.hittable = false;
+                                health.invulnerability_timer.reset();
+                                health.invulnerability_timer.start();
+                                insert_blink = true;
+                            }
+                        } else {
+                            // no shield, no health,  you're dead boy.
+                            Self::add_death_events(&mut death_events, world, *e, is_enemy);
+                        }
                     }
                 }
 
@@ -128,6 +173,33 @@ impl HealthSystem {
             }
         });
 
+        // Then, update shields
+        // ----------------------------------------------------
+        for (_e, shield) in world.query::<&mut Shield>().iter() {
+            shield.timer_until_replenish.tick(dt);
+            if shield.timer_until_replenish.finished() {
+                shield.current =
+                    (shield.current + shield.replenish_rate * dt.as_secs_f32()).min(shield.max);
+            }
+        }
         trace!("Finished updating HealthSystem");
+    }
+
+    fn add_death_events(
+        death_events: &mut Vec<GameEvent>,
+        world: &hecs::World,
+        entity: hecs::Entity,
+        is_enemy: bool,
+    ) {
+        // no shield, no health,  you're dead boy.
+        if world.get::<Player>(entity).is_ok() {
+            death_events.push(GameEvent::GameOver);
+        } else {
+            death_events.push(GameEvent::Delete(entity));
+        }
+
+        if is_enemy {
+            death_events.push(GameEvent::EnemyDied);
+        }
     }
 }

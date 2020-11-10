@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 use spacegame::core::noise::perlin::{make_permutation, perlin2d, Perlin};

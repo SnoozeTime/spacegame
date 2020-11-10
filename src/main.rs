@@ -11,6 +11,7 @@ use spacegame::config::PlayerConfig;
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::Action;
 use spacegame::scene::main_menu::MainMenu;
+use spacegame::scene::particle_scene::ParticleScene;
 use spacegame::DIMENSIONS;
 
 fn main() {
@@ -30,13 +31,16 @@ fn main_loop(mut surface: GlfwSurface) {
     pretty_env_logger::init();
 
     let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
-    let player_config_path = PathBuf::from(base_path).join("config/player_controller.json");
+    let player_config_path = PathBuf::from(base_path.clone()).join("config/player_controller.json");
     let player_config = PlayerConfig::load(player_config_path).unwrap_or_else(|e| {
         log::info!("Will use default PlayerConfig because = {:?}", e);
         PlayerConfig::default()
     });
 
     let mut game: Game<Action> = GameBuilder::new(&mut surface)
+        // .for_scene(Box::new(ParticleScene::new(
+        //     PathBuf::from(base_path).join("particle/particle.json"),
+        // )))
         .for_scene(Box::new(MainMenu::default()))
         .with_resource(player_config)
         .with_resource(Inventory::default())

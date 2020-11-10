@@ -25,7 +25,6 @@ where
 {
     /// Render sprites on screen.
     sprite_renderer: SpriteRenderer<S>,
-
     /// particles :)
     particle_renderer: ParticleSystem<S>,
 
@@ -40,7 +39,6 @@ where
 {
     pub fn new(surface: &mut S) -> Renderer<S> {
         let sprite_renderer = sprite::SpriteRenderer::new(surface);
-
         let particle_renderer = ParticleSystem::new(surface);
         let ui_renderer = UiRenderer::new(surface);
         let path_renderer = PathRenderer::new(surface);

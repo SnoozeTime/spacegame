@@ -13,6 +13,8 @@ pub mod level;
 pub mod physics;
 pub mod player;
 pub mod steering;
+pub mod trail;
+
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Action {
     MoveLeft,

@@ -10,13 +10,13 @@ vec2(-1.,  1.)
 
 uniform vec3 camera_position;
 uniform vec3 center;
-uniform vec3 color;
+uniform vec4 color;
 uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
 out vec2 v_uv;
-out vec3 v_color;
+out vec4 v_color;
 
 
 void main() {

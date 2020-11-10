@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 use lyon::lyon_tessellation::geometry_builder::simple_builder;
 use lyon::lyon_tessellation::{BuffersBuilder, StrokeAttributes, StrokeOptions};
 use lyon::math::Point;

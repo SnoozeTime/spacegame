@@ -1,4 +1,4 @@
-use crate::core::colors::RgbaColor;
+use crate::core::colors::{RgbColor, RgbaColor};
 use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
@@ -7,12 +7,14 @@ use crate::event::GameEvent;
 use crate::gameplay::camera::update_camera;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::gameplay::enemy::{spawn_enemy, EnemyType};
-use crate::gameplay::health::{Health, HealthSystem};
+use crate::gameplay::health::{Health, HealthSystem, Shield};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::level::generate_terrain;
 use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
 use crate::gameplay::player::{get_player, Player, Weapon};
+use crate::gameplay::trail::{update_trails, Trail};
 use crate::gameplay::{bullet, collision, enemy, player};
+use crate::render::particle::{EmitterSource, ParticleEmitter};
 use crate::render::sprite::Sprite;
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::Gui;
@@ -21,9 +23,10 @@ use hecs::World;
 use log::info;
 use rand::seq::SliceRandom;
 use shrev::EventChannel;
+use std::path::PathBuf;
 use std::time::Duration;
-
 pub mod main_menu;
+pub mod particle_scene;
 
 pub struct MainScene {
     health_system: Option<HealthSystem>,
@@ -68,7 +71,12 @@ impl Scene for MainScene {
         ));
 
         generate_terrain(world, resources);
-
+        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let mut emitter: ParticleEmitter = serde_json::from_str(
+            &std::fs::read_to_string(PathBuf::from(base_path).join("particle/trail.json")).unwrap(),
+        )
+        .unwrap();
+        emitter.init_pool();
         let player_components = (
             Transform {
                 translation: glam::Vec2::new(100.0, 100.0),
@@ -98,6 +106,10 @@ impl Scene for MainScene {
                 half_extend: glam::vec2(20.0, 20.0),
             },
             Health::new(5, Timer::of_seconds(1.0)),
+            Shield::new(3.0, 5.0, 1.0),
+            Trail,
+            emitter, // ParticleEmitter::new(EmitterSource::Point(glam::Vec2::new(100.0, 100.0)),
+                     // )
         );
         world.spawn(player_components);
 
@@ -144,7 +156,7 @@ impl Scene for MainScene {
         player::update_player(world, dt, resources);
         update_camera(world, resources);
         enemy::update_enemies(world, &resources, dt);
-
+        update_trails(world);
         self.physic_system.update(world, dt, resources);
 
         bullet::process_bullets(world, resources);
@@ -183,9 +195,24 @@ impl Scene for MainScene {
             );
             gui.colored_label(glam::vec2(15.0, 15.0), text, RgbaColor::new(255, 0, 0, 255));
 
+            let shield = world.get::<Shield>(player_health);
+            let shield_text = if let Ok(shield) = shield {
+                format!(
+                    "Hull {:02}%",
+                    ((shield.current as f32 / shield.max as f32) * 100.0).round() as i32
+                )
+            } else {
+                "Shield: 0%".to_string()
+            };
+            gui.colored_label(
+                glam::vec2(15.0, 40.0),
+                shield_text,
+                RgbaColor::new(0, 0, 255, 255),
+            );
+
             if let Some(inv) = resources.fetch::<Inventory>() {
                 gui.label(
-                    glam::vec2(15.0, 40.0),
+                    glam::vec2(15.0, 75.0),
                     format!("Scratch: {}", inv.scratch()),
                 )
             }
