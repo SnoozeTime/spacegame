@@ -1,3 +1,5 @@
+use crate::assets::sprite::SpriteAsset;
+use crate::assets::{AssetManager, Handle};
 use crate::core::colors::{interpolate_between_three, RgbColor, RgbaColor};
 use crate::event::GameEvent;
 use crate::gameplay::trail::Trail;
@@ -8,11 +10,13 @@ use downcast_rs::__std::collections::HashSet;
 use hecs::World;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
-use luminance::pipeline::PipelineError;
+use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
+use luminance::pixel::NormUnsigned;
 use luminance::render_state::RenderState;
 use luminance::shader::{Program, Uniform};
 use luminance::shading_gate::ShadingGate;
 use luminance::tess::{Mode, Tess};
+use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
 use luminance_gl::GL33;
 use rand::{random, Rng};
@@ -162,10 +166,17 @@ impl EmitterSource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ParticleShape {
+    Quad,
+    Texture(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticleEmitter {
     #[serde(skip)]
     particles: ParticlePool,
     pub source: EmitterSource,
+    pub shape: ParticleShape,
 
     pub velocity_range: (f32, f32),
     pub angle_range: (f32, f32),
@@ -189,6 +200,7 @@ pub struct ParticleEmitter {
 impl ParticleEmitter {
     pub fn new(
         source: EmitterSource,
+        shape: ParticleShape,
         velocity_range: (f32, f32),
         angle_range: (f32, f32),
         scale_range: (f32, f32),
@@ -199,6 +211,7 @@ impl ParticleEmitter {
         Self {
             particles: ParticlePool::of_size(particle_number.ceil() as usize * (life as usize + 1)),
             source,
+            shape,
             velocity_range,
             angle_range,
             scale_range,
@@ -272,6 +285,7 @@ impl ParticleEmitter {
 
 const VS: &'static str = include_str!("particle-vs.glsl");
 const FS: &'static str = include_str!("particle-fs.glsl");
+const FS_TEXTURE: &'static str = include_str!("particle-texture-fs.glsl");
 
 pub fn new_shader<B>(surface: &mut B) -> Program<GL33, (), (), ParticleShaderInterface>
 where
@@ -280,6 +294,19 @@ where
     surface
         .new_shader_program::<(), (), ParticleShaderInterface>()
         .from_strings(VS, None, None, FS)
+        .expect("Program creation")
+        .ignore_warnings()
+}
+
+pub fn new_texture_shader<B>(
+    surface: &mut B,
+) -> Program<GL33, (), (), TextureParticleShaderInterface>
+where
+    B: GraphicsContext<Backend = GL33>,
+{
+    surface
+        .new_shader_program::<(), (), TextureParticleShaderInterface>()
+        .from_strings(VS, None, None, FS_TEXTURE)
         .expect("Program creation")
         .ignore_warnings()
 }
@@ -293,12 +320,25 @@ pub struct ParticleShaderInterface {
     pub color: Uniform<[f32; 4]>,
 }
 
+#[derive(UniformInterface)]
+pub struct TextureParticleShaderInterface {
+    pub projection: Uniform<[[f32; 4]; 4]>,
+    #[uniform(unbound)]
+    pub view: Uniform<[[f32; 4]; 4]>,
+    pub model: Uniform<[[f32; 4]; 4]>,
+    pub color: Uniform<[f32; 4]>,
+
+    /// Texture for the sprite.
+    tex: Uniform<TextureBinding<Dim2, NormUnsigned>>,
+}
+
 pub struct ParticleSystem<S>
 where
     S: GraphicsContext<Backend = GL33>,
 {
     tess: Tess<S::Backend, ()>,
     shader: Program<S::Backend, (), (), ParticleShaderInterface>,
+    texture_shader: Program<S::Backend, (), (), TextureParticleShaderInterface>,
 }
 
 impl<S> ParticleSystem<S>
@@ -315,6 +355,7 @@ where
         Self {
             tess,
             shader: new_shader(surface),
+            texture_shader: new_texture_shader(surface),
         }
     }
 
@@ -330,10 +371,13 @@ where
 
     pub fn render(
         &mut self,
+        pipeline: &Pipeline<S::Backend>,
         shd_gate: &mut ShadingGate<S::Backend>,
         projection: &glam::Mat4,
         view: &glam::Mat4,
         world: &World,
+
+        textures: &mut AssetManager<S, SpriteAsset<S>>,
     ) -> Result<(), PipelineError> {
         let tess = &self.tess;
         let render_st = RenderState::default()
@@ -350,31 +394,78 @@ where
                     dst: Factor::Zero,
                 },
             );
-        shd_gate.shade(&mut self.shader, |mut iface, uni, mut rdr_gate| {
-            for (_, emitter) in world.query::<&mut ParticleEmitter>().iter() {
-                iface.set(&uni.projection, projection.to_cols_array_2d());
-                iface.set(&uni.view, view.to_cols_array_2d());
+        for (_, emitter) in world.query::<&mut ParticleEmitter>().iter() {
+            match &emitter.shape {
+                ParticleShape::Quad => {
+                    shd_gate.shade(&mut self.shader, |mut iface, uni, mut rdr_gate| {
+                        iface.set(&uni.projection, projection.to_cols_array_2d());
+                        iface.set(&uni.view, view.to_cols_array_2d());
 
-                for p in &emitter.particles.particles {
-                    if !p.alive() {
-                        continue;
-                    }
+                        for p in &emitter.particles.particles {
+                            if !p.alive() {
+                                continue;
+                            }
 
-                    iface.set(&uni.color, p.color().to_normalized());
-                    iface.set(
-                        &uni.model,
-                        glam::Mat4::from_scale_rotation_translation(
-                            glam::vec3(p.scale, p.scale, 1.0),
-                            glam::Quat::identity(),
-                            p.position.extend(0.0),
-                        )
-                        .to_cols_array_2d(),
-                    );
+                            iface.set(&uni.color, p.color().to_normalized());
+                            iface.set(
+                                &uni.model,
+                                glam::Mat4::from_scale_rotation_translation(
+                                    glam::vec3(p.scale, p.scale, 1.0),
+                                    glam::Quat::identity(),
+                                    p.position.extend(0.0),
+                                )
+                                .to_cols_array_2d(),
+                            );
 
-                    rdr_gate.render(&render_st, |mut tess_gate| tess_gate.render(tess))?;
+                            rdr_gate.render(&render_st, |mut tess_gate| tess_gate.render(tess))?;
+                        }
+
+                        Ok(())
+                    })?;
+                }
+                ParticleShape::Texture(id) => {
+                    if let Some(tex) = textures.get_mut(&Handle(id.clone())) {
+                        let mut res = Ok(());
+                        let shader = &mut self.texture_shader;
+                        tex.execute_mut(|asset| {
+                            if let Some(tex) = asset.texture() {
+                                let bound_tex = pipeline.bind_texture(tex).unwrap();
+                                res = shd_gate.shade(shader, |mut iface, uni, mut rdr_gate| {
+                                    iface.set(&uni.projection, projection.to_cols_array_2d());
+                                    iface.set(&uni.view, view.to_cols_array_2d());
+                                    iface.set(&uni.tex, bound_tex.binding());
+                                    for p in &emitter.particles.particles {
+                                        if !p.alive() {
+                                            continue;
+                                        }
+
+                                        iface.set(&uni.color, p.color().to_normalized());
+                                        iface.set(
+                                            &uni.model,
+                                            glam::Mat4::from_scale_rotation_translation(
+                                                glam::vec3(p.scale, p.scale, 1.0),
+                                                glam::Quat::identity(),
+                                                p.position.extend(0.0),
+                                            )
+                                            .to_cols_array_2d(),
+                                        );
+
+                                        rdr_gate.render(&render_st, |mut tess_gate| {
+                                            tess_gate.render(tess)
+                                        })?;
+                                    }
+
+                                    Ok(())
+                                });
+                            }
+                        });
+
+                        res?;
+                    };
                 }
             }
-            Ok(())
-        })
+        }
+
+        Ok(())
     }
 }

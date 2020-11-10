@@ -84,10 +84,12 @@ where
                     )?;
 
                     self.particle_renderer.render(
+                        &pipeline,
                         &mut shd_gate,
                         &projection_matrix,
                         &view,
                         world,
+                        &mut *textures,
                     )?;
 
                     self.ui_renderer.render(&pipeline, &mut shd_gate)?;

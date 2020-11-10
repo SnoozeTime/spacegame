@@ -23,4 +23,5 @@ void main() {
     v_color = color;
     vec2 p = QUAD_POS[gl_VertexID];
     gl_Position = projection * view *  model  * vec4(p, 1.0, 1.0);
+    v_uv = p * .5 + .5; // transform the position of the vertex into UV space
 }

@@ -10,6 +10,9 @@
       ]
       ]
   },
+  "shape": {
+    "Texture": "fast_bullet.png"
+  },
   "velocity_range": [
     50.0,
     100.0
