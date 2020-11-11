@@ -1,0 +1,47 @@
+{
+  "enabled": true,
+  "source": "Point",
+  "velocity_range": [
+    0.0,
+    10.0
+  ],
+  "angle_range": [
+    1.0472,
+    2.26893
+  ],
+  "scale": {"Constant":[
+    5.01,
+    5.0
+  ]},
+  "scale_over_lifetime": {
+    "xs": [0.0, 0.5, 1.0],
+    "ys": [1.0, 0.5, 0.0]
+  },
+  "shape": {
+    "Texture": "flare7.png"
+  },
+  "particle_number": 1,
+  "colors": {
+
+    "xs": [0.0, 0.5, 1.0],
+    "ys": [
+      {
+        "r": 0.5529,
+        "g": 0.004,
+        "b": 0.004,
+        "a": 1.0
+      },{
+        "r": 0.5529,
+        "g": 0.004,
+        "b": 0.004,
+        "a": 0.5
+      },{
+        "r": 0.5529,
+        "g": 0.004,
+        "b": 0.004,
+        "a": 0.0
+      }
+    ]
+  },
+  "particle_life": 30
+}

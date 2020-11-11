@@ -1,5 +1,6 @@
 //! Draw path, lines and so on for debug purposes.
 
+use crate::config::GameEngineConfig;
 use crate::core::colors::RgbaColor;
 use crate::render::path::{Color, Position, Vertex};
 use crate::resources::Resources;
@@ -21,7 +22,18 @@ impl DebugQueue {
     }
 }
 
+fn show_gizmo(resources: &Resources) -> bool {
+    resources
+        .fetch::<GameEngineConfig>()
+        .map(|conf| conf.show_gizmos)
+        .unwrap_or(false)
+}
+
 pub fn stroke_circle(resources: &Resources, position: glam::Vec2, radius: f32, color: RgbaColor) {
+    if !show_gizmo(resources) {
+        return;
+    }
+
     match resources.fetch_mut::<DebugQueue>() {
         Some(mut debug_queue) => {
             let mut geometry: VertexBuffers<Point, u16> = VertexBuffers::new();
@@ -58,6 +70,10 @@ pub fn stroke_line(
     target: glam::Vec2,
     color: RgbaColor,
 ) {
+    if !show_gizmo(resources) {
+        return;
+    }
+
     match resources.fetch_mut::<DebugQueue>() {
         Some(mut debug_queue) => {
             let mut geometry: VertexBuffers<Point, u16> = VertexBuffers::new();

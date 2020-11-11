@@ -1,6 +1,15 @@
+use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 use std::path::Path;
+
+pub fn load_config<T, P: AsRef<Path>>(path: P) -> Result<T, Box<dyn Error>>
+where
+    T: DeserializeOwned,
+{
+    let content = std::fs::read_to_string(path)?;
+    serde_json::from_str(&content).map_err(|e| e.into())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {
@@ -28,4 +37,8 @@ impl PlayerConfig {
         let content = std::fs::read_to_string(path)?;
         serde_json::from_str(&content).map_err(|e| e.into())
     }
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct GameEngineConfig {
+    pub show_gizmos: bool,
 }

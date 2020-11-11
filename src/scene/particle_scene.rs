@@ -1,11 +1,9 @@
 //! Just a scene to experiment with particles.
 
 use crate::core::camera::{screen_to_world, ProjectionMatrix};
-use crate::core::colors::RgbColor;
 use crate::core::input::Input;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::transform::Transform;
-use crate::event::GameEvent;
 use crate::gameplay::Action;
 use crate::render::particle::ParticleEmitter;
 use crate::render::ui::gui::GuiContext;
@@ -55,7 +53,7 @@ impl Scene for ParticleScene {
     fn update(&mut self, _dt: Duration, world: &mut World, resources: &Resources) -> SceneResult {
         if self.reload {
             // remove entity, reload emitter from file and spawn the new emitter.
-            world.despawn(self.entity.unwrap());
+            let _ = world.despawn(self.entity.unwrap());
 
             let mut emitter: ParticleEmitter =
                 serde_json::from_str(&std::fs::read_to_string(&self.filename).unwrap()).unwrap();

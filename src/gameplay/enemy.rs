@@ -8,6 +8,8 @@ use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
 use crate::gameplay::steering::{avoid, halt, seek};
+use crate::gameplay::trail::Trail;
+use crate::render::particle::ParticleEmitter;
 use crate::render::path::debug;
 use crate::render::sprite::Sprite;
 use crate::resources::Resources;
@@ -15,6 +17,7 @@ use hecs::World;
 use log::{debug, trace};
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
+use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,6 +209,15 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 }
 
 pub fn spawn_enemy(world: &mut World, health: u32, position: glam::Vec2, enemy_type: EnemyType) {
+    let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+
+    let mut enemy_emitter: ParticleEmitter = serde_json::from_str(
+        &std::fs::read_to_string(PathBuf::from(base_path).join("particle/enemy_trail.json"))
+            .unwrap(),
+    )
+    .unwrap();
+    enemy_emitter.init_pool();
+
     world.spawn((
         DynamicBody {
             forces: vec![],
@@ -235,5 +247,9 @@ pub fn spawn_enemy(world: &mut World, health: u32, position: glam::Vec2, enemy_t
             speed: enemy_type.get_speed(),
             enemy_type,
         },
+        Trail {
+            should_display: true,
+        },
+        enemy_emitter,
     ));
 }

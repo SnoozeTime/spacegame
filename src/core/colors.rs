@@ -30,8 +30,6 @@ pub const GREEN: RgbaColor = RgbaColor {
 };
 
 use crate::core::curve::CurveNode;
-use bitflags::_core::ops::{Add, Mul};
-use image::Rgba;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
@@ -102,28 +100,6 @@ impl RgbaColor {
 
     pub fn to_normalized(self) -> [f32; 4] {
         [self.r, self.g, self.b, self.a]
-    }
-
-    pub fn lerp(&self, other: RgbaColor, t: f32) -> Self {
-        let r = self.r * (1.0 - t) + t * other.r;
-        let g = self.g * (1.0 - t) + t * other.g;
-        let b = self.b * (1.0 - t) + t * other.b;
-        let a = self.a * (1.0 - t) + t * other.a;
-
-        Self { r, g, b, a }
-    }
-}
-
-pub fn interpolate_between_three(
-    start: RgbaColor,
-    mid: RgbaColor,
-    end: RgbaColor,
-    t: f32,
-) -> RgbaColor {
-    if t < 0.5 {
-        start.lerp(mid, t * 2.0)
-    } else {
-        mid.lerp(end, (t - 0.5) * 2.0)
     }
 }
 

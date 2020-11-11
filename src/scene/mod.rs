@@ -1,4 +1,4 @@
-use crate::core::colors::{RgbColor, RgbaColor};
+use crate::core::colors::RgbaColor;
 use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
@@ -14,7 +14,7 @@ use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
 use crate::gameplay::player::{get_player, Player, Weapon};
 use crate::gameplay::trail::{update_trails, Trail};
 use crate::gameplay::{bullet, collision, enemy, player};
-use crate::render::particle::{EmitterSource, ParticleEmitter};
+use crate::render::particle::ParticleEmitter;
 use crate::render::sprite::Sprite;
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::Gui;
@@ -73,10 +73,12 @@ impl Scene for MainScene {
         generate_terrain(world, resources);
         let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(base_path).join("particle/trail.json")).unwrap(),
+            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/trail.json"))
+                .unwrap(),
         )
         .unwrap();
         emitter.init_pool();
+
         let player_components = (
             Transform {
                 translation: glam::Vec2::new(100.0, 100.0),

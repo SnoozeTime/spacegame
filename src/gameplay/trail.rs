@@ -1,8 +1,6 @@
-use crate::core::colors::RgbColor;
 use crate::core::transform::Transform;
 use crate::gameplay::physics::DynamicBody;
-use crate::render::particle::{EmitterSource, ParticleEmitter};
-use glam::Vec2;
+use crate::render::particle::ParticleEmitter;
 use hecs::World;
 
 pub struct Trail {

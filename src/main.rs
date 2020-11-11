@@ -7,7 +7,7 @@ use std::process::exit;
 
 use spacegame::game::{Game, GameBuilder};
 
-use spacegame::config::PlayerConfig;
+use spacegame::config::{load_config, GameEngineConfig, PlayerConfig};
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::Action;
 use spacegame::scene::main_menu::MainMenu;
@@ -32,9 +32,14 @@ fn main_loop(mut surface: GlfwSurface) {
 
     let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
     let player_config_path = PathBuf::from(base_path.clone()).join("config/player_controller.json");
-    let player_config = PlayerConfig::load(player_config_path).unwrap_or_else(|e| {
+    let player_config: PlayerConfig = load_config(&player_config_path).unwrap_or_else(|e| {
         log::info!("Will use default PlayerConfig because = {:?}", e);
         PlayerConfig::default()
+    });
+    let engine_config_path = PathBuf::from(base_path.clone()).join("config/engine.json");
+    let engine_config: GameEngineConfig = load_config(&engine_config_path).unwrap_or_else(|e| {
+        log::info!("Will use default PlayerConfig because = {:?}", e);
+        GameEngineConfig::default()
     });
 
     let mut game: Game<Action> = GameBuilder::new(&mut surface)
@@ -44,6 +49,7 @@ fn main_loop(mut surface: GlfwSurface) {
         // )))
         .for_scene(Box::new(MainMenu::default()))
         .with_resource(player_config)
+        .with_resource(engine_config)
         .with_resource(Inventory::default())
         .build();
 

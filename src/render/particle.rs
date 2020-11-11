@@ -1,15 +1,10 @@
 use crate::assets::sprite::SpriteAsset;
 use crate::assets::{AssetManager, Handle};
-use crate::core::colors::{interpolate_between_three, RgbColor, RgbaColor};
+use crate::core::colors::RgbaColor;
 use crate::core::curve::Curve;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
-use crate::gameplay::trail::Trail;
 use crate::resources::Resources;
-use bitflags::_core::iter::Enumerate;
-use bitflags::_core::slice::IterMut;
-use downcast_rs::__std::collections::HashSet;
-use glam::Vec2;
 use hecs::World;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
@@ -22,7 +17,7 @@ use luminance::tess::{Mode, Tess};
 use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
 use luminance_gl::GL33;
-use rand::{random, Rng};
+use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
 use std::time::Duration;
@@ -47,25 +42,6 @@ struct Particle {
 }
 
 impl Particle {
-    /// Create a new particle at the given position with the given velocity.
-    // fn new(
-    //     life: u32,
-    //     origin: glam::Vec2,
-    //     velocity: glam::Vec2,
-    //     colors: Curve<RgbaColor>,
-    //     scale: ParticleScale,
-    // ) -> Self {
-    //     let mut particle = Particle {
-    //         life,
-    //         initial_life: life,
-    //         position: glam::Vec2::zero(),
-    //         velocity: glam::Vec2::zero(),
-    //         colors,
-    //         scale: scale.clone(),
-    //     };
-    //     particle
-    // }
-
     fn respawn(
         &mut self,
         life: u32,
@@ -89,8 +65,7 @@ impl Particle {
         self.life > 0
     }
 
-    fn update(&mut self, gravity: f32, dt: f32) {
-        //self.velocity -= gravity * glam::Vec2::unit_y() * dt;
+    fn update(&mut self, dt: f32) {
         self.position += self.velocity * dt;
         self.life -= 1; // one frame.
     }
@@ -139,28 +114,10 @@ impl ParticlePool {
 
     /// Return the first available particle.
     fn get_available(&mut self) -> Option<&mut Particle> {
-        let mut particles = &mut self.particles;
+        let particles = &mut self.particles;
         self.free
             .pop()
             .map(move |idx| unsafe { particles.get_unchecked_mut(idx) })
-    }
-
-    fn particles_mut(&mut self) -> impl Iterator<Item = (usize, &mut Particle)> {
-        self.particles.iter_mut().enumerate()
-    }
-
-    fn len(&self) -> usize {
-        self.particles.len()
-    }
-
-    fn remove(&mut self, index: usize) {
-        self.particles.get_mut(index).unwrap().life = 0;
-
-        if !self.free.contains(&index) {
-            self.free.push(index);
-        } else {
-            error!("Tried to free the same particle twice");
-        }
     }
 }
 
@@ -295,7 +252,7 @@ impl ParticleEmitter {
         // update existing particles.
         for (idx, p) in self.particles.particles.iter_mut().enumerate() {
             if p.alive() {
-                p.update(9.8, dt);
+                p.update(dt);
             } else {
                 if !self.particles.free.contains(&idx) {
                     self.particles.free.push(idx);
