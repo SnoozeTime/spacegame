@@ -1,18 +1,37 @@
-#[allow(unused)]
-pub const PASTEL_RED: RgbColor = RgbColor::new(212, 80, 121);
-#[allow(unused)]
-pub const PASTEL_PURPLE: RgbColor = RgbColor::new(110, 87, 115);
-#[allow(unused)]
-pub const PASTEL_ORANGE: RgbColor = RgbColor::new(234, 144, 133);
-#[allow(unused)]
-pub const PASTEL_BEIGE: RgbColor = RgbColor::new(233, 225, 204);
-#[allow(unused)]
-pub const RED: RgbaColor = RgbaColor::new(255, 0, 0, 255);
-#[allow(unused)]
-pub const BLUE: RgbaColor = RgbaColor::new(0, 0, 255, 255);
-#[allow(unused)]
-pub const GREEN: RgbaColor = RgbaColor::new(0, 255, 0, 255);
+// #[allow(unused)]
+// pub const PASTEL_RED: RgbColor = RgbColor::new(212, 80, 121);
+// #[allow(unused)]
+// pub const PASTEL_PURPLE: RgbColor = RgbColor::new(110, 87, 115);
+// #[allow(unused)]
+// pub const PASTEL_ORANGE: RgbColor = RgbColor::new(234, 144, 133);
+// #[allow(unused)]
+// pub const PASTEL_BEIGE: RgbColor = RgbColor::new(233, 225, 204);
 
+#[allow(unused)]
+pub const RED: RgbaColor = RgbaColor {
+    r: 1.0,
+    g: 0.0,
+    b: 0.0,
+    a: 1.0,
+};
+#[allow(unused)]
+pub const BLUE: RgbaColor = RgbaColor {
+    r: 0.0,
+    g: 0.0,
+    b: 1.0,
+    a: 1.0,
+};
+#[allow(unused)]
+pub const GREEN: RgbaColor = RgbaColor {
+    r: 0.0,
+    g: 1.0,
+    b: 0.0,
+    a: 1.0,
+};
+
+use crate::core::curve::CurveNode;
+use bitflags::_core::ops::{Add, Mul};
+use image::Rgba;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
@@ -63,35 +82,35 @@ impl From<[f32; 4]> for RgbColor {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct RgbaColor {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
 }
 
 impl RgbaColor {
-    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self { r, g, b, a }
+    pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self {
+            r: (r as f32) / 255.0,
+            g: g as f32 / 255.0,
+            b: b as f32 / 255.0,
+            a: a as f32 / 255.0,
+        }
     }
 
     pub fn to_normalized(self) -> [f32; 4] {
-        [
-            self.r as f32 / 255.0,
-            self.g as f32 / 255.0,
-            self.b as f32 / 255.0,
-            self.a as f32 / 255.0,
-        ]
+        [self.r, self.g, self.b, self.a]
     }
 
     pub fn lerp(&self, other: RgbaColor, t: f32) -> Self {
-        let r = self.r as f32 * (1.0 - t) + t * other.r as f32;
-        let g = self.g as f32 * (1.0 - t) + t * other.g as f32;
-        let b = self.b as f32 * (1.0 - t) + t * other.b as f32;
-        let a = self.a as f32 * (1.0 - t) + t * other.a as f32;
+        let r = self.r * (1.0 - t) + t * other.r;
+        let g = self.g * (1.0 - t) + t * other.g;
+        let b = self.b * (1.0 - t) + t * other.b;
+        let a = self.a * (1.0 - t) + t * other.a;
 
-        Self::new(r as u8, g as u8, b as u8, a as u8)
+        Self { r, g, b, a }
     }
 }
 
@@ -105,5 +124,46 @@ pub fn interpolate_between_three(
         start.lerp(mid, t * 2.0)
     } else {
         mid.lerp(end, (t - 0.5) * 2.0)
+    }
+}
+
+impl CurveNode for RgbaColor {}
+
+impl std::ops::Mul<f32> for RgbaColor {
+    type Output = RgbaColor;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            r: self.r * rhs,
+            g: self.g * rhs,
+            b: self.b * rhs,
+            a: self.a * rhs,
+        }
+    }
+}
+
+impl std::ops::Add for RgbaColor {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            r: self.r + rhs.r,
+            g: self.g + rhs.g,
+            b: self.b + rhs.b,
+            a: self.a + rhs.a,
+        }
+    }
+}
+
+impl std::ops::Sub for RgbaColor {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            r: self.r - rhs.r,
+            g: self.g - rhs.g,
+            b: self.b - rhs.b,
+            a: self.a - rhs.a,
+        }
     }
 }

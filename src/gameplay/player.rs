@@ -5,6 +5,7 @@ use crate::core::input::{Axis, Input};
 use crate::core::transform::Transform;
 use crate::gameplay::bullet::BulletType;
 use crate::gameplay::physics::DynamicBody;
+use crate::gameplay::trail::Trail;
 use crate::gameplay::{steering, Action};
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
@@ -88,8 +89,8 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
 
     let mut bullets = vec![];
 
-    for (_e, (transform, player, dynamic)) in world
-        .query::<(&mut Transform, &mut Player, &mut DynamicBody)>()
+    for (_e, (transform, player, dynamic, trail)) in world
+        .query::<(&mut Transform, &mut Player, &mut DynamicBody, &mut Trail)>()
         .iter()
     {
         let (delta_x, delta_y, delta_z) = (
@@ -98,6 +99,7 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
             input.get_axis(z_axis()),
         );
         let dir = glam::Mat2::from_angle(transform.rotation) * glam::Vec2::unit_y();
+        trail.should_display = delta_y.max(0.0) > 0.0;
 
         // DESIRED VELOCITY IF FORWARD TO THE MOUSE CURSOR
         let target = screen_to_world(input.mouse_position(), projection_matrix, world);

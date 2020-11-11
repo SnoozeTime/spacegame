@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod colors;
+pub mod curve;
 pub mod input;
 pub mod noise;
 pub mod random;

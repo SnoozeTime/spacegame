@@ -107,7 +107,9 @@ impl Scene for MainScene {
             },
             Health::new(5, Timer::of_seconds(1.0)),
             Shield::new(3.0, 5.0, 1.0),
-            Trail,
+            Trail {
+                should_display: true,
+            },
             emitter, // ParticleEmitter::new(EmitterSource::Point(glam::Vec2::new(100.0, 100.0)),
                      // )
         );

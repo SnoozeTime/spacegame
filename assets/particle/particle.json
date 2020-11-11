@@ -1,17 +1,18 @@
 {
+  "enabled": true,
   "source": {
     "Line":[[
-      0.0,
+      100.0,
       0.0
     ],
       [
-        1900.0,
+        100.0,
         0.0
       ]
       ]
   },
   "shape": {
-    "Texture": "fast_bullet.png"
+    "Texture": "flare7.png"
   },
   "velocity_range": [
     50.0,
@@ -23,7 +24,7 @@
   ],
   "scale_range": [
     1.0,
-    5.0
+    15.0
   ],
   "particle_number": 0.1,
   "colors": [{

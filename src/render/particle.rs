@@ -1,12 +1,15 @@
 use crate::assets::sprite::SpriteAsset;
 use crate::assets::{AssetManager, Handle};
 use crate::core::colors::{interpolate_between_three, RgbColor, RgbaColor};
+use crate::core::curve::Curve;
+use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::trail::Trail;
 use crate::resources::Resources;
 use bitflags::_core::iter::Enumerate;
 use bitflags::_core::slice::IterMut;
 use downcast_rs::__std::collections::HashSet;
+use glam::Vec2;
 use hecs::World;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
@@ -24,48 +27,61 @@ use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
 use std::time::Duration;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ParticleScale {
+    Constant(glam::Vec2),
+    Random(glam::Vec2, glam::Vec2),
+}
+
+#[derive(Debug, Clone, Default)]
 struct Particle {
     life: u32,
     initial_life: u32,
     position: glam::Vec2,
     velocity: glam::Vec2,
-    start_color: RgbaColor,
-    mid_color: RgbaColor,
-    end_color: RgbaColor,
-    scale: f32,
+    colors: Curve<RgbaColor>,
+    scale: glam::Vec2,
+    scale_over_lifetime: Option<Curve<f32>>,
+
+    rotation: f32,
 }
 
 impl Particle {
     /// Create a new particle at the given position with the given velocity.
-    fn new(
+    // fn new(
+    //     life: u32,
+    //     origin: glam::Vec2,
+    //     velocity: glam::Vec2,
+    //     colors: Curve<RgbaColor>,
+    //     scale: ParticleScale,
+    // ) -> Self {
+    //     let mut particle = Particle {
+    //         life,
+    //         initial_life: life,
+    //         position: glam::Vec2::zero(),
+    //         velocity: glam::Vec2::zero(),
+    //         colors,
+    //         scale: scale.clone(),
+    //     };
+    //     particle
+    // }
+
+    fn respawn(
+        &mut self,
         life: u32,
         origin: glam::Vec2,
         velocity: glam::Vec2,
-        start_color: RgbaColor,
-        mid_color: RgbaColor,
-        end_color: RgbaColor,
-    ) -> Self {
-        let mut particle = Particle {
-            life,
-            initial_life: life,
-            position: glam::Vec2::zero(),
-            velocity: glam::Vec2::zero(),
-            start_color,
-            mid_color,
-            end_color,
-            scale: 1.0,
-        };
-        particle.respawn(life, origin, velocity, 1.0);
-        particle
-    }
-
-    fn respawn(&mut self, life: u32, origin: glam::Vec2, velocity: glam::Vec2, scale: f32) {
+        scale: glam::Vec2,
+        scale_over_lifetime: Option<Curve<f32>>,
+        rotation: f32,
+    ) {
         self.life = life;
         self.position = origin;
         self.velocity = velocity;
         self.scale = scale;
+        self.scale_over_lifetime = scale_over_lifetime;
         self.initial_life = life;
+        self.rotation = rotation;
     }
 
     /// return true if the particle is still alive
@@ -79,9 +95,21 @@ impl Particle {
         self.life -= 1; // one frame.
     }
 
+    fn t(&self) -> f32 {
+        1.0 - self.life as f32 / self.initial_life as f32
+    }
+
     fn color(&self) -> RgbaColor {
-        let t = 1.0 - self.life as f32 / self.initial_life as f32;
-        interpolate_between_three(self.start_color, self.mid_color, self.end_color, t)
+        let t = self.t();
+        self.colors.y(t)
+    }
+
+    fn scale(&self) -> glam::Vec2 {
+        if let Some(curve) = &self.scale_over_lifetime {
+            self.scale * curve.y(self.t())
+        } else {
+            self.scale
+        }
     }
 }
 
@@ -104,18 +132,7 @@ impl ParticlePool {
     /// Initiate a bunch of dead particles.
     fn of_size(nb: usize) -> Self {
         Self {
-            particles: (0..nb)
-                .map(|_| {
-                    Particle::new(
-                        0,
-                        glam::Vec2::zero(),
-                        glam::Vec2::zero(),
-                        RgbaColor::new(255, 0, 0, 255),
-                        RgbaColor::new(255, 0, 0, 255),
-                        RgbaColor::new(255, 0, 0, 0),
-                    )
-                })
-                .collect(),
+            particles: (0..nb).map(|_| Particle::default()).collect(),
             free: (0..nb).collect(),
         }
     }
@@ -150,17 +167,21 @@ impl ParticlePool {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EmitterSource {
     /// Spawn particle from this point
-    Point(glam::Vec2),
+    Point,
 
     /// Spawn particle randomly on this line
+    /// Line relative to emitter's transform, so first point will be transform + v1, next point will be
+    /// transform + v2
     Line(glam::Vec2, glam::Vec2),
 }
 
 impl EmitterSource {
-    fn spawn_position<R: Rng>(&self, rand: &mut R) -> glam::Vec2 {
+    fn spawn_position<R: Rng>(&self, emitter_position: glam::Vec2, rand: &mut R) -> glam::Vec2 {
         match self {
-            Self::Point(p) => *p,
-            Self::Line(p1, p2) => p1.lerp(*p2, rand.gen_range(0.0, 1.0f32)),
+            Self::Point => emitter_position,
+            Self::Line(p1, p2) => {
+                (emitter_position - *p1).lerp(emitter_position + *p2, rand.gen_range(0.0, 1.0f32))
+            }
         }
     }
 }
@@ -173,6 +194,8 @@ pub enum ParticleShape {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParticleEmitter {
+    enabled: bool,
+
     #[serde(skip)]
     particles: ParticlePool,
     pub source: EmitterSource,
@@ -180,7 +203,9 @@ pub struct ParticleEmitter {
 
     pub velocity_range: (f32, f32),
     pub angle_range: (f32, f32),
-    pub scale_range: (f32, f32),
+
+    pub scale: ParticleScale,
+    pub scale_over_lifetime: Option<Curve<f32>>,
 
     /// Particle per frame to emit.
     particle_number: f32,
@@ -190,36 +215,24 @@ pub struct ParticleEmitter {
     nb_accumulator: f32,
 
     /// Color of the particle
-    pub colors: (RgbaColor, RgbaColor, RgbaColor),
+    pub colors: Curve<RgbaColor>,
 
     /// How long does the particle (in frames)
     #[serde(default)]
     particle_life: u32,
+
+    /// Offset applied to a particle position on spawn.
+    #[serde(default)]
+    pub position_offset: glam::Vec2,
 }
 
 impl ParticleEmitter {
-    pub fn new(
-        source: EmitterSource,
-        shape: ParticleShape,
-        velocity_range: (f32, f32),
-        angle_range: (f32, f32),
-        scale_range: (f32, f32),
-        particle_number: f32,
-        colors: (RgbaColor, RgbaColor, RgbaColor),
-        life: u32,
-    ) -> Self {
-        Self {
-            particles: ParticlePool::of_size(particle_number.ceil() as usize * (life as usize + 1)),
-            source,
-            shape,
-            velocity_range,
-            angle_range,
-            scale_range,
-            particle_number,
-            nb_accumulator: 0.0,
-            colors,
-            particle_life: life,
-        }
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    pub fn disable(&mut self) {
+        self.enabled = false;
     }
 
     /// Necessary when getting the emitter from a file.
@@ -231,7 +244,7 @@ impl ParticleEmitter {
 
     /// Update the position and velocity of all particles. If a particle is dead, respawn it :)
     /// Return true if should despawn the particle emitter.
-    fn update(&mut self, dt: f32) -> bool {
+    fn update(&mut self, position: glam::Vec2, dt: f32) -> bool {
         let mut rng = rand::thread_rng();
 
         // emit particles.
@@ -244,25 +257,36 @@ impl ParticleEmitter {
 
         let entire_nb = self.nb_accumulator.floor() as u32;
         if entire_nb > 0 {
-            for _ in 0..entire_nb {
-                if let Some(particle) = self.particles.get_available() {
-                    trace!("Emit particle");
+            if self.enabled {
+                for _ in 0..entire_nb {
+                    if let Some(particle) = self.particles.get_available() {
+                        trace!("Emit particle");
 
-                    let rotation = glam::Mat2::from_angle(
-                        rng.gen_range(self.angle_range.0, self.angle_range.1),
-                    );
-                    let speed = rng.gen_range(self.velocity_range.0, self.velocity_range.1);
-                    let scale = rng.gen_range(self.scale_range.0, self.scale_range.1);
-                    particle.respawn(
-                        self.particle_life,
-                        self.source.spawn_position(&mut rng),
-                        rotation * (speed * glam::Vec2::unit_x()),
-                        scale,
-                    );
-                    particle.start_color = self.colors.0;
-                    particle.mid_color = self.colors.1;
-                    particle.end_color = self.colors.2;
-                    trace!("{:?}", particle);
+                        let angle = rng.gen_range(self.angle_range.0, self.angle_range.1);
+                        let rotation = glam::Mat2::from_angle(angle);
+                        let speed = rng.gen_range(self.velocity_range.0, self.velocity_range.1);
+
+                        // PARTICLE SCALE. -> initial scale.
+                        let scale = match self.scale {
+                            ParticleScale::Constant(s) => s,
+                            ParticleScale::Random(low, high) => {
+                                let x = rng.gen_range(low.x(), high.x());
+                                let y = rng.gen_range(low.y(), high.y());
+                                glam::vec2(x, y)
+                            }
+                        };
+
+                        particle.respawn(
+                            self.particle_life,
+                            self.source.spawn_position(position, &mut rng) + self.position_offset,
+                            rotation * (speed * glam::Vec2::unit_x()),
+                            scale,
+                            self.scale_over_lifetime.clone(),
+                            angle,
+                        );
+                        particle.colors = self.colors.clone();
+                        trace!("{:?}", particle);
+                    }
                 }
             }
             self.nb_accumulator -= self.nb_accumulator.floor();
@@ -362,8 +386,8 @@ where
     pub fn update(&mut self, world: &World, dt: Duration, resources: &Resources) {
         let mut chan = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
 
-        for (e, emitter) in world.query::<&mut ParticleEmitter>().iter() {
-            if !emitter.update(dt.as_secs_f32()) {
+        for (e, (t, emitter)) in world.query::<(&Transform, &mut ParticleEmitter)>().iter() {
+            if !emitter.update(t.translation, dt.as_secs_f32()) {
                 chan.single_write(GameEvent::Delete(e));
             }
         }
@@ -382,18 +406,11 @@ where
         let tess = &self.tess;
         let render_st = RenderState::default()
             .set_depth_test(None)
-            .set_blending_separate(
-                Blending {
-                    equation: Equation::Additive,
-                    src: Factor::SrcAlpha,
-                    dst: Factor::SrcAlphaComplement,
-                },
-                Blending {
-                    equation: Equation::Additive,
-                    src: Factor::One,
-                    dst: Factor::Zero,
-                },
-            );
+            .set_blending(Blending {
+                equation: Equation::Additive,
+                src: Factor::One,
+                dst: Factor::SrcAlphaComplement,
+            });
         for (_, emitter) in world.query::<&mut ParticleEmitter>().iter() {
             match &emitter.shape {
                 ParticleShape::Quad => {
@@ -410,8 +427,8 @@ where
                             iface.set(
                                 &uni.model,
                                 glam::Mat4::from_scale_rotation_translation(
-                                    glam::vec3(p.scale, p.scale, 1.0),
-                                    glam::Quat::identity(),
+                                    p.scale().extend(1.0),
+                                    glam::Quat::from_rotation_z(p.rotation),
                                     p.position.extend(0.0),
                                 )
                                 .to_cols_array_2d(),
@@ -443,8 +460,8 @@ where
                                         iface.set(
                                             &uni.model,
                                             glam::Mat4::from_scale_rotation_translation(
-                                                glam::vec3(p.scale, p.scale, 1.0),
-                                                glam::Quat::identity(),
+                                                p.scale().extend(1.0),
+                                                glam::Quat::from_rotation_z(p.rotation),
                                                 p.position.extend(0.0),
                                             )
                                             .to_cols_array_2d(),
@@ -461,7 +478,10 @@ where
                         });
 
                         res?;
-                    };
+                    } else {
+                        debug!("Texture is not loaded {}", id);
+                        textures.load(&id);
+                    }
                 }
             }
         }
