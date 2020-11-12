@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
 /// Transform of an element to place it on the screen
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub struct Transform {
     /// Translation along x-y
     pub translation: Vec2,

@@ -60,7 +60,13 @@ impl Scene for ParticleScene {
             emitter.init_pool();
 
             self.particle_emitter = emitter;
-            self.entity = Some(world.spawn((self.particle_emitter.clone(),)));
+            let t = Transform {
+                translation: Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
+                rotation: 0.0,
+                scale: Vec2::one(),
+                dirty: false,
+            };
+            self.entity = Some(world.spawn((self.particle_emitter.clone(), t)));
 
             self.reload = false;
         }

@@ -3,6 +3,7 @@ use crate::core::scene::{Scene, SceneResult};
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
+use crate::scene::loading::LoadingScene;
 use crate::scene::MainScene;
 use bitflags::_core::time::Duration;
 use hecs::World;
@@ -15,7 +16,7 @@ pub struct MainMenu {
 impl Scene for MainMenu {
     fn update(&mut self, _dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
         if self.does_start {
-            SceneResult::ReplaceScene(Box::new(MainScene::new()))
+            SceneResult::ReplaceScene(Box::new(LoadingScene::new(vec!["base_enemy".to_string()])))
         } else {
             SceneResult::Noop
         }

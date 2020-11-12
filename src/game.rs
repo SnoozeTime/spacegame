@@ -263,13 +263,7 @@ where
             }
 
             // Either clean up or load new resources.
-            {
-                let mut sprite_manager = self
-                    .resources
-                    .fetch_mut::<AssetManager<GlfwSurface, SpriteAsset<GlfwSurface>>>()
-                    .unwrap();
-                sprite_manager.upload_all(self.surface);
-            }
+            crate::assets::update_asset_managers(self.surface, &self.resources);
 
             // Now, if need to switch scenes, do it.
             if let Some(res) = scene_result {

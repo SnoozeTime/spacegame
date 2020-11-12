@@ -1,17 +1,20 @@
 use crate::core::timer::Timer;
+use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::enemy::Enemy;
 use crate::gameplay::player::Player;
+use crate::render::particle::ParticleEmitter;
 use crate::render::sprite::Blink;
 use crate::resources::Resources;
 use log::{debug, trace};
 use serde_derive::{Deserialize, Serialize};
 use shrev::{EventChannel, ReaderId};
+use std::path::PathBuf;
 use std::time::Duration;
 
 /// Health/Hull is the health points of an entity. When those reach 0, then the entity dies.
 /// It does not refill over time, so the player will need to refill it with some money.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Health {
     /// Maximum amount of health.
     pub max: u32,
@@ -41,7 +44,7 @@ impl Health {
 
 /// Shield will be reduced at first when the player is hit. It will replenish when the player hasn't
 /// been hit for some time.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Shield {
     /// max amount of shield
     pub max: f32,
@@ -69,13 +72,27 @@ impl Shield {
 
 pub struct HealthSystem {
     rdr_id: ReaderId<GameEvent>,
+
+    /// TODO put somewhere else.
+    explosion: ParticleEmitter,
 }
 
 impl HealthSystem {
     pub fn new(resources: &mut Resources) -> Self {
+        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let mut emitter: ParticleEmitter = serde_json::from_str(
+            &std::fs::read_to_string(PathBuf::from(base_path).join("particle/explosion.json"))
+                .unwrap(),
+        )
+        .unwrap();
+        emitter.init_pool();
+
         let mut chan = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
         let rdr_id = chan.register_reader();
-        Self { rdr_id }
+        Self {
+            rdr_id,
+            explosion: emitter,
+        }
     }
 
     pub fn update(&mut self, world: &mut hecs::World, resources: &Resources, dt: Duration) {
@@ -88,6 +105,8 @@ impl HealthSystem {
         for ev in chan.read(&mut self.rdr_id) {
             if let GameEvent::Hit(e) = ev {
                 debug!("Process HIT event for {:?}", e);
+
+                let mut explosion = false;
 
                 let mut insert_blink = false;
                 {
@@ -121,6 +140,7 @@ impl HealthSystem {
                             if health.is_dead() {
                                 debug!("{:?} is dead ({:?}", e, *health);
                                 Self::add_death_events(&mut death_events, world, *e, is_enemy);
+                                explosion = true;
                             } else {
                                 // start invulnerability frames.
                                 health.hittable = false;
@@ -131,8 +151,15 @@ impl HealthSystem {
                         } else {
                             // no shield, no health,  you're dead boy.
                             Self::add_death_events(&mut death_events, world, *e, is_enemy);
+                            explosion = true;
                         }
                     }
+                }
+
+                if explosion {
+                    let transform = { world.get::<Transform>(*e).unwrap().translation }; // no sense if no transform..
+
+                    self.make_explosion(world, transform);
                 }
 
                 if insert_blink {
@@ -199,7 +226,19 @@ impl HealthSystem {
         }
 
         if is_enemy {
-            death_events.push(GameEvent::EnemyDied);
+            death_events.push(GameEvent::EnemyDied(entity));
         }
+    }
+
+    fn make_explosion(&self, world: &mut hecs::World, pos: glam::Vec2) {
+        world.spawn((
+            Transform {
+                translation: pos,
+                rotation: 0.0,
+                scale: glam::Vec2::one(),
+                dirty: false,
+            },
+            self.explosion.clone(),
+        ));
     }
 }

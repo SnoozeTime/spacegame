@@ -13,4 +13,8 @@ impl WindowDim {
         self.width = width;
         self.height = height;
     }
+
+    pub fn to_vec2(&self) -> glam::Vec2 {
+        glam::vec2(self.width as f32, self.height as f32)
+    }
 }

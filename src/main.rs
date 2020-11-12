@@ -44,8 +44,8 @@ fn main_loop(mut surface: GlfwSurface) {
 
     let mut game: Game<Action> = GameBuilder::new(&mut surface)
         // .for_scene(Box::new(ParticleScene::new(
-        //     PathBuf::from(base_path).join("particle/trail.json"),
-        //     true,
+        //     PathBuf::from(base_path).join("particle/particle.json"),
+        //     false,
         // )))
         .for_scene(Box::new(MainMenu::default()))
         .with_resource(player_config)

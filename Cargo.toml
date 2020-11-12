@@ -40,6 +40,8 @@ thiserror = "1.0.21"
 # path tessellation
 lyon = "0.16.2"
 
+typetag = "0.1"
+
 [dependencies.glam]
 version = "0.9.5"
 features = ["serde"]

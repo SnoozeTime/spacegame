@@ -11,6 +11,7 @@ pub mod health;
 pub mod inventory;
 pub mod level;
 pub mod physics;
+pub mod pickup;
 pub mod player;
 pub mod steering;
 pub mod trail;
@@ -24,6 +25,7 @@ pub enum Action {
     Shoot,
     RotateLeft,
     RotateRight,
+    Pickup,
 }
 
 impl InputAction for Action {
@@ -40,6 +42,7 @@ impl InputAction for Action {
             Key::Space => Some(Action::Shoot),
             Key::Q => Some(Action::RotateLeft),
             Key::E => Some(Action::RotateRight),
+            Key::F => Some(Action::Pickup),
             _ => None,
         }
     }

@@ -3,6 +3,7 @@ use crate::event::GameEvent;
 use crate::gameplay::bullet::Bullet;
 use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
+use crate::gameplay::pickup::is_pickup;
 use crate::resources::Resources;
 use glam::Vec2;
 use hecs::{Entity, World};
@@ -191,6 +192,7 @@ bitflags! {
         const ENEMY_BULLET = 0b00001000;
         const ASTEROID = 0b00010000;
         const MISSILE = 0b00100000;
+        const PICKUP = 0b01000000;
     }
 }
 
@@ -237,6 +239,22 @@ pub fn find_collisions(world: &World) -> Vec<(Entity, Entity)> {
     collision_pairs
 }
 
+pub fn aabb_intersection(
+    transform1: &Transform,
+    bb1: &BoundingBox,
+    transform2: &Transform,
+    bb2: &BoundingBox,
+) -> bool {
+    transform1.translation.x() - bb1.half_extend.x()
+        < transform2.translation.x() + bb2.half_extend.x()
+        && transform1.translation.x() + bb1.half_extend.x()
+            > transform2.translation.x() - bb2.half_extend.x()
+        && transform1.translation.y() - bb1.half_extend.y()
+            < transform2.translation.y() + bb2.half_extend.y()
+        && transform1.translation.y() + bb1.half_extend.y()
+            > transform2.translation.y() - bb2.half_extend.y()
+}
+
 pub fn process_collisions(
     world: &mut World,
     collision_pairs: Vec<(Entity, Entity)>,
@@ -275,6 +293,23 @@ pub fn process_collisions(
             events.push(GameEvent::Hit(e2));
         }
 
+        // // process pickups.
+        // // ---------------------------------------
+        // {
+        //     if let Some((pickup_entity, _player)) =
+        //         match (is_pickup(world, e1), is_pickup(world, e2)) {
+        //             (true, _) => Some((e1, e2)),
+        //             (_, true) => Some((e2, e1)),
+        //             (_, _) => None,
+        //         }
+        //     {
+        //         info!("PLAYER HAS PICKED UP SOMETHING");
+        //         events.push(GameEvent::Delete(pickup_entity));
+        //     }
+        // }
+
+        // Apply forces for dynamic bodies.
+        // --------------------------------------------
         let e1_query = world.query_one::<(&Transform, &mut DynamicBody)>(e1);
         let e2_query = world.query_one::<(&Transform, &mut DynamicBody)>(e2);
 

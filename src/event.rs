@@ -4,5 +4,5 @@ pub enum GameEvent {
     Hit(hecs::Entity),
     GameOver,
     TextUpdated,
-    EnemyDied,
+    EnemyDied(hecs::Entity),
 }

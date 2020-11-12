@@ -1,3 +1,4 @@
+use crate::assets::prefab::{PrefabManager, PrefabSyncLoader};
 use crate::assets::sprite::SpriteAsset;
 use crate::resources::Resources;
 use downcast_rs::__std::path::PathBuf;
@@ -9,38 +10,42 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
+pub mod prefab;
 pub mod sprite;
 
-pub fn create_asset_managers<S>(surface: &mut S, resources: &mut Resources)
+pub fn create_asset_managers<S>(_surface: &mut S, resources: &mut Resources)
 where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
     let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
 
     let mut sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
-        sprite::SpriteSyncLoader::new(PathBuf::from(base_path).join("assets/sprites")),
+        sprite::SpriteSyncLoader::new(PathBuf::from(&base_path).join("assets/sprites")),
     ));
 
-    for n in &[
-        "Enemy2.png",
-        "Enemy3.png",
-        "round_bullet.png",
-        "fast_bullet.png",
-        "round_bullet_2.png",
-        "Proto-ship.png",
-        "P-blue-a.png",
-        "EnemyBoss2.png",
-        "starfield_2048.png",
-        "starfield_729.png",
-        "starfield_625.png",
-        "background.png",
-    ] {
-        sprite_manager.load(n);
-    }
-
-    sprite_manager.upload_all(surface);
+    let mut prefab_loader: PrefabManager<S> = AssetManager::from_loader(Box::new(
+        prefab::PrefabSyncLoader::new(PathBuf::from(&base_path).join("assets/prefab")),
+    ));
 
     resources.insert(sprite_manager);
+    resources.insert(prefab_loader);
+}
+
+pub fn update_asset_managers<S>(surface: &mut S, resources: &Resources)
+where
+    S: GraphicsContext<Backend = GL33> + 'static,
+{
+    {
+        let mut sprite_manager = resources
+            .fetch_mut::<AssetManager<S, SpriteAsset<S>>>()
+            .unwrap();
+        sprite_manager.upload_all(surface);
+    }
+
+    {
+        let mut prefab_loader = resources.fetch_mut::<PrefabManager<S>>().unwrap();
+        prefab_loader.upload_all(surface);
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

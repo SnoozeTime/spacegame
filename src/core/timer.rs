@@ -23,6 +23,10 @@ impl Timer {
         }
     }
 
+    pub fn remaining(&self) -> f32 {
+        self.deadline - self.elapsed
+    }
+
     pub fn start(&mut self) {
         self.enabled = true;
     }

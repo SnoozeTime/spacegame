@@ -1,3 +1,4 @@
+use crate::assets::prefab::Prefab;
 use crate::core::colors;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
@@ -9,6 +10,7 @@ use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
 use crate::gameplay::steering::{avoid, halt, seek};
 use crate::gameplay::trail::Trail;
+use crate::prefab::enemies::EnemyPrefab;
 use crate::render::particle::ParticleEmitter;
 use crate::render::path::debug;
 use crate::render::sprite::Sprite;
@@ -24,6 +26,15 @@ use std::time::Duration;
 pub struct Enemy {
     enemy_type: EnemyType,
     speed: f32,
+}
+
+impl Default for Enemy {
+    fn default() -> Self {
+        Self {
+            enemy_type: EnemyType::FollowPlayer(Timer::of_seconds(4.0)),
+            speed: 10.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,7 +63,7 @@ impl Default for Satellite {
 impl EnemyType {
     fn get_sprite(&self) -> String {
         match *self {
-            EnemyType::Satellite(_) => "sat.png",
+            EnemyType::Satellite(_) => "EnemyBoss.png",
             EnemyType::FollowPlayer(_) => "Enemy2.png",
         }
         .to_string()
@@ -208,7 +219,12 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
     trace!("Finished update_enemies")
 }
 
-pub fn spawn_enemy(world: &mut World, health: u32, position: glam::Vec2, enemy_type: EnemyType) {
+pub fn spawn_enemy(
+    world: &mut World,
+    health: u32,
+    position: glam::Vec2,
+    enemy_type: EnemyType,
+) -> hecs::Entity {
     let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
 
     let mut enemy_emitter: ParticleEmitter = serde_json::from_str(
@@ -245,11 +261,48 @@ pub fn spawn_enemy(world: &mut World, health: u32, position: glam::Vec2, enemy_t
         Health::new(health, Timer::of_seconds(0.5)),
         Enemy {
             speed: enemy_type.get_speed(),
-            enemy_type,
+            enemy_type: enemy_type.clone(),
         },
         Trail {
             should_display: true,
         },
-        enemy_emitter,
-    ));
+        enemy_emitter.clone(),
+    ))
+    //
+    // let enemy_prefab = EnemyPrefab {
+    //     dynamic_body: DynamicBody {
+    //         forces: vec![],
+    //         velocity: Default::default(),
+    //         max_velocity: 100.0,
+    //         mass: 1.0,
+    //     },
+    //     transform: Transform {
+    //         translation: position,
+    //         rotation: 3.14,
+    //         scale: enemy_type.get_scale(),
+    //         dirty: false,
+    //     },
+    //     sprite: Sprite {
+    //         id: enemy_type.get_sprite(),
+    //     },
+    //     bounding_box: BoundingBox {
+    //         half_extend: enemy_type.get_scale() / 2.0,
+    //         collision_layer: CollisionLayer::ENEMY,
+    //         collision_mask: CollisionLayer::PLAYER_BULLET
+    //             | CollisionLayer::PLAYER
+    //             | CollisionLayer::ASTEROID
+    //             | CollisionLayer::MISSILE,
+    //     },
+    //     health: Some(Health::new(health, Timer::of_seconds(0.5))),
+    //     shield: None,
+    //     enemy: Enemy {
+    //         speed: enemy_type.get_speed(),
+    //         enemy_type,
+    //     },
+    //     trail: Some(enemy_emitter),
+    // };
+    //
+    // let prefab = &enemy_prefab as &dyn Prefab;
+    // let str = serde_json::to_string_pretty(&prefab).unwrap();
+    // std::fs::write("prefab.json", str);
 }

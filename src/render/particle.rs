@@ -119,6 +119,10 @@ impl ParticlePool {
             .pop()
             .map(move |idx| unsafe { particles.get_unchecked_mut(idx) })
     }
+
+    fn all_dead(&self) -> bool {
+        self.particles.len() == self.free.len()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -181,6 +185,10 @@ pub struct ParticleEmitter {
     /// Offset applied to a particle position on spawn.
     #[serde(default)]
     pub position_offset: glam::Vec2,
+
+    /// If true, only spawn stuff once
+    #[serde(default)]
+    pub burst: bool,
 }
 
 impl ParticleEmitter {
@@ -194,9 +202,12 @@ impl ParticleEmitter {
 
     /// Necessary when getting the emitter from a file.
     pub fn init_pool(&mut self) {
-        self.particles = ParticlePool::of_size(
-            self.particle_number.ceil() as usize * (self.particle_life as usize + 1),
-        );
+        let frame_needed = if self.burst {
+            1
+        } else {
+            self.particle_life as usize + 1
+        };
+        self.particles = ParticlePool::of_size(self.particle_number.ceil() as usize * frame_needed);
     }
 
     /// Update the position and velocity of all particles. If a particle is dead, respawn it :)
@@ -257,6 +268,14 @@ impl ParticleEmitter {
                 if !self.particles.free.contains(&idx) {
                     self.particles.free.push(idx);
                 }
+            }
+        }
+
+        if self.burst {
+            self.disable();
+
+            if self.particles.all_dead() {
+                return false;
             }
         }
 
@@ -342,12 +361,13 @@ where
 
     pub fn update(&mut self, world: &World, dt: Duration, resources: &Resources) {
         let mut chan = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
-
+        let mut remove_events = vec![];
         for (e, (t, emitter)) in world.query::<(&Transform, &mut ParticleEmitter)>().iter() {
             if !emitter.update(t.translation, dt.as_secs_f32()) {
                 chan.single_write(GameEvent::Delete(e));
             }
         }
+        chan.drain_vec_write(&mut remove_events);
     }
 
     pub fn render(
