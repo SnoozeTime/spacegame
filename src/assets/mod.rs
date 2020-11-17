@@ -1,12 +1,12 @@
-use crate::assets::prefab::{PrefabManager, PrefabSyncLoader};
+use crate::assets::prefab::PrefabManager;
 use crate::assets::sprite::SpriteAsset;
 use crate::resources::Resources;
-use downcast_rs::__std::path::PathBuf;
 use log::debug;
 use luminance::context::GraphicsContext;
 use luminance_gl::GL33;
 use std::collections::hash_map::Keys;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
@@ -19,11 +19,11 @@ where
 {
     let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
 
-    let mut sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
+    let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
         sprite::SpriteSyncLoader::new(PathBuf::from(&base_path).join("assets/sprites")),
     ));
 
-    let mut prefab_loader: PrefabManager<S> = AssetManager::from_loader(Box::new(
+    let prefab_loader: PrefabManager<S> = AssetManager::from_loader(Box::new(
         prefab::PrefabSyncLoader::new(PathBuf::from(&base_path).join("assets/prefab")),
     ));
 

@@ -1,4 +1,5 @@
 use crate::event::GameEvent;
+use crate::render::ui::gui::GuiContext;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
 use hecs::World;
@@ -127,6 +128,7 @@ pub trait Scene {
         _dt: Duration,
         _world: &mut World,
         _resources: &Resources,
+        _gui_context: &GuiContext,
     ) -> Option<Gui> {
         None
     }

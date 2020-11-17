@@ -1,10 +1,9 @@
 use crate::assets::prefab::PrefabManager;
-use crate::assets::{Asset, Handle};
+use crate::assets::Handle;
 use crate::core::scene::{Scene, SceneResult};
 use crate::resources::Resources;
 use crate::scene::MainScene;
 use bitflags::_core::time::Duration;
-use downcast_rs::__std::collections::HashMap;
 use hecs::World;
 use luminance_glfw::GlfwSurface;
 

@@ -94,7 +94,7 @@ where
     S: GraphicsContext<Backend = GL33>,
 {
     texture: Texture<S::Backend, Dim2, NormR8UI>,
-    tess: Option<Tess<S::Backend, (), (), Instance>>,
+    pub(crate) tess: Option<Tess<S::Backend, (), (), Instance>>,
     render_state: RenderState,
     shader: Program<S::Backend, VertexSemantics, (), ShaderInterface>,
 }
@@ -140,6 +140,9 @@ where
         let window_dim = resources.fetch::<WindowDim>().unwrap();
         let width = window_dim.width as f32;
         let height = window_dim.height as f32;
+
+        //
+        // glyph_brush.pixel_bounds()
 
         for (text, position) in text_data {
             // screen position is top-left origin

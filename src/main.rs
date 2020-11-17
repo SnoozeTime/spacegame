@@ -10,7 +10,9 @@ use spacegame::game::{Game, GameBuilder};
 use spacegame::config::{load_config, GameEngineConfig, PlayerConfig};
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::Action;
+#[allow(unused_imports)]
 use spacegame::scene::main_menu::MainMenu;
+#[allow(unused_imports)]
 use spacegame::scene::particle_scene::ParticleScene;
 use spacegame::DIMENSIONS;
 

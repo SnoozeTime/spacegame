@@ -20,6 +20,7 @@ use luminance_gl::GL33;
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
+use std::path::Path;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -213,6 +214,13 @@ impl Default for ParticleEmitter {
 }
 
 impl ParticleEmitter {
+    pub fn load_from_path<P: AsRef<Path>>(p: P) -> Result<Self, anyhow::Error> {
+        let content = std::fs::read_to_string(p)?;
+        let mut emitter: Self = serde_json::from_str(&content)?;
+        emitter.init_pool();
+        Ok(emitter)
+    }
+
     pub fn enable(&mut self) {
         self.enabled = true;
     }

@@ -1,26 +1,19 @@
-use crate::assets::prefab::Prefab;
 use crate::core::colors;
-use crate::core::random::RandomGenerator;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
-use crate::gameplay::collision::{BoundingBox, CollisionLayer, CollisionWorld};
-use crate::gameplay::health::{Health, HitDetails};
+use crate::gameplay::collision::CollisionWorld;
+use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
 use crate::gameplay::steering::{avoid, halt, seek};
-use crate::gameplay::trail::Trail;
-use crate::prefab::enemies::EnemyPrefab;
-use crate::render::particle::ParticleEmitter;
 use crate::render::path::debug;
-use crate::render::sprite::Sprite;
 use crate::resources::Resources;
 use hecs::World;
 use log::{debug, trace};
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
-use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,7 +115,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
     {
         // Basic movement.
         if let Some(player_position) = maybe_player {
-            let mut dir = player_position - t.translation;
+            let dir = player_position - t.translation;
 
             let steering = if (t.translation - player_position).length() > 200.0 {
                 seek(
@@ -167,25 +160,22 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 
             match enemy.enemy_type {
                 EnemyType::Boss1(ref mut boss1) => {
-                    if let Some(player_position) = maybe_player {
-                        if boss1.should_shoot() {
-                            boss1.shoot_timer.tick(dt);
-                            if boss1.shoot_timer.finished() {
-                                boss1.shoot_timer.reset();
+                    if boss1.should_shoot() {
+                        boss1.shoot_timer.tick(dt);
+                        if boss1.shoot_timer.finished() {
+                            boss1.shoot_timer.reset();
 
-                                // shoot.
-                                let mut dir = player_position - t.translation;
-                                let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
-                                bullets.push(to_spawn);
+                            // shoot.
+                            let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
+                            bullets.push(to_spawn);
 
-                                boss1.current_shot += 1;
-                            }
-                        } else {
-                            // if here, boss1 needs to wait before it is able to shoot again.
-                            boss1.salve_timer.tick(dt);
-                            if boss1.salve_timer.finished() {
-                                boss1.prepare_to_shoot();
-                            }
+                            boss1.current_shot += 1;
+                        }
+                    } else {
+                        // if here, boss1 needs to wait before it is able to shoot again.
+                        boss1.salve_timer.tick(dt);
+                        if boss1.salve_timer.finished() {
+                            boss1.prepare_to_shoot();
                         }
                     }
                 }

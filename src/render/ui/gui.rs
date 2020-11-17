@@ -1,19 +1,28 @@
 use crate::core::colors::RgbaColor;
 use crate::core::window::WindowDim;
-use crate::render::ui::Gui;
+use crate::render::ui::text::Text;
+use crate::render::ui::{text, Button, DrawData, Panel, FONT_DATA};
 use glfw::{Action, MouseButton, WindowEvent};
+use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
 use serde_derive::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct GuiContext {
     pub(crate) window_dim: WindowDim,
     pub(crate) mouse_pos: glam::Vec2,
     pub(crate) mouse_clicked: Vec<MouseButton>,
     pub(crate) style: Style,
+
+    pub(crate) fonts: Rc<RefCell<GlyphBrush<'static, text::Instance>>>,
 }
 
 impl GuiContext {
     pub fn new(window_dim: WindowDim) -> Self {
+        let fonts = GlyphBrushBuilder::using_font_bytes(FONT_DATA).build();
+
         Self {
+            fonts: Rc::new(RefCell::new(fonts)),
             window_dim,
             mouse_pos: glam::Vec2::zero(),
             mouse_clicked: vec![],
@@ -42,7 +51,82 @@ impl GuiContext {
             self.mouse_pos,
             self.mouse_clicked.clone(),
             self.style,
+            Rc::clone(&self.fonts),
         )
+    }
+}
+
+pub struct Gui {
+    pub(crate) draw_data: Vec<DrawData>,
+    pub(crate) window_dim: WindowDim,
+    pub(crate) mouse_pos: glam::Vec2,
+    pub(crate) mouse_clicked: Vec<MouseButton>,
+    pub(crate) style: Style,
+    pub(crate) fonts: Rc<RefCell<GlyphBrush<'static, text::Instance>>>,
+}
+
+impl Gui {
+    pub fn new(
+        window_dim: WindowDim,
+        mouse_pos: glam::Vec2,
+        mouse_clicked: Vec<MouseButton>,
+        style: Style,
+        fonts: Rc<RefCell<GlyphBrush<'static, text::Instance>>>,
+    ) -> Self {
+        Self {
+            draw_data: vec![],
+            window_dim,
+            mouse_clicked,
+            mouse_pos,
+            style,
+            fonts,
+        }
+    }
+    pub fn panel(&mut self, pos: glam::Vec2, dimensions: glam::Vec2, color: RgbaColor) {
+        let (vertices, indices) = Panel {
+            anchor: pos,
+            dimensions,
+            color,
+        }
+        .vertices(self.window_dim);
+        self.draw_data.push(DrawData::Vertices(vertices, indices));
+    }
+
+    pub fn label(&mut self, pos: glam::Vec2, text: String) {
+        self.draw_data.push(DrawData::Text(
+            Text {
+                content: text,
+                font_size: self.style.font_size,
+                color: self.style.text_color,
+                align: (HorizontalAlign::Left, VerticalAlign::Top),
+            },
+            pos,
+        ));
+    }
+    pub fn colored_label(&mut self, pos: glam::Vec2, text: String, color: RgbaColor) {
+        self.draw_data.push(DrawData::Text(
+            Text {
+                content: text,
+                font_size: self.style.font_size,
+                color,
+                align: (HorizontalAlign::Left, VerticalAlign::Top),
+            },
+            pos,
+        ));
+    }
+
+    pub fn button(
+        &mut self,
+        pos: glam::Vec2,
+        dimensions: Option<glam::Vec2>,
+        text: String,
+    ) -> bool {
+        let mut btn = Button::new(text, pos);
+        if let Some(dim) = dimensions {
+            btn = btn.dimensions(dim);
+        }
+
+        btn.build(self)
     }
 }
 

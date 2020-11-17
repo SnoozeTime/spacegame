@@ -1,17 +1,13 @@
-use crate::assets::prefab::PrefabManager;
-use crate::assets::Handle;
 use crate::core::noise::perlin::Perlin;
 use crate::core::random::RandomGenerator;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::enemy::{EnemyType, Satellite};
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::pickup::spawn_pickup;
 use crate::render::sprite::Sprite;
 use crate::resources::Resources;
 use hecs::Entity;
-use luminance_glfw::GlfwSurface;
 use rand::seq::SliceRandom;
 use serde_derive::{Deserialize, Serialize};
 use std::time::Duration;
@@ -301,7 +297,7 @@ fn spawn_pickups(
     no_asteroid: &Vec<glam::Vec2>,
     nb_pickup: usize,
 ) -> Vec<hecs::Entity> {
-    let mut positions = pick_positions(random, no_asteroid, nb_pickup);
+    let positions = pick_positions(random, no_asteroid, nb_pickup);
     positions.iter().map(|p| spawn_pickup(world, *p)).collect()
 }
 

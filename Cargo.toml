@@ -41,6 +41,7 @@ thiserror = "1.0.21"
 lyon = "0.16.2"
 
 typetag = "0.1"
+anyhow = "1.0.34"
 
 [dependencies.glam]
 version = "0.9.5"

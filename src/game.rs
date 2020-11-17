@@ -1,5 +1,3 @@
-use crate::assets::sprite::SpriteAsset;
-use crate::assets::AssetManager;
 use crate::core::camera::{Camera, ProjectionMatrix};
 use crate::core::input::{Input, InputAction};
 use crate::core::random::{RandomGenerator, Seed};
@@ -31,6 +29,7 @@ pub struct GameBuilder<'a, A> {
     resources: Resources,
     phantom: PhantomData<A>,
     seed: Option<Seed>,
+    gui_context: GuiContext,
 }
 
 impl<'a, A> GameBuilder<'a, A>
@@ -47,9 +46,6 @@ where
         let input: Input<A> = Input::new();
         resources.insert(input);
 
-        // for GUI.
-        resources.insert(GuiContext::new(WindowDim::new(WIDTH, HEIGHT)));
-
         // and some asset manager;
         crate::assets::create_asset_managers(surface, &mut resources);
 
@@ -60,6 +56,7 @@ where
         resources.insert(DebugQueue::default());
 
         Self {
+            gui_context: GuiContext::new(WindowDim::new(WIDTH, HEIGHT)),
             surface,
             scene: None,
             resources,
@@ -86,7 +83,7 @@ where
     }
 
     pub fn build(mut self) -> Game<'a, A> {
-        let renderer = Renderer::new(self.surface);
+        let renderer = Renderer::new(self.surface, &self.gui_context);
 
         let mut world = hecs::World::new();
 
@@ -129,6 +126,7 @@ where
             rdr_id,
             garbage_collector,
             phantom: self.phantom,
+            gui_context: self.gui_context,
         }
     }
 }
@@ -163,6 +161,8 @@ pub struct Game<'a, A> {
     /// Clean up the dead entities.
     garbage_collector: GarbageCollector,
 
+    gui_context: GuiContext,
+
     phantom: PhantomData<A>,
 }
 
@@ -183,16 +183,15 @@ where
             self.surface.window.glfw.poll_events();
             {
                 let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
-                let mut gui_context = self.resources.fetch_mut::<GuiContext>().unwrap();
                 input.prepare();
-                gui_context.reset_inputs();
+                self.gui_context.reset_inputs();
                 for (_, event) in self.surface.events_rx.try_iter() {
                     match event {
                         WindowEvent::Close
                         | WindowEvent::Key(Key::Escape, _, Action::Release, _) => break 'app,
                         WindowEvent::FramebufferSize(_, _) => resize = true,
                         ev => {
-                            gui_context.process_event(ev.clone());
+                            self.gui_context.process_event(ev.clone());
                             input.process_event(ev)
                         }
                     }
@@ -211,9 +210,15 @@ where
                     }
                 }
 
-                if let Some(gui) = scene.prepare_gui(dt, &mut self.world, &self.resources) {
-                    self.renderer.prepare_ui(self.surface, gui, &self.resources);
-                }
+                let maybe_gui =
+                    scene.prepare_gui(dt, &mut self.world, &self.resources, &mut self.gui_context);
+
+                self.renderer.prepare_ui(
+                    self.surface,
+                    maybe_gui,
+                    &self.resources,
+                    &mut *self.gui_context.fonts.borrow_mut(),
+                );
 
                 Some(scene_res)
             } else {
@@ -242,9 +247,7 @@ where
 
                 let mut dim = self.resources.fetch_mut::<WindowDim>().unwrap();
                 dim.resize(new_size[0], new_size[1]);
-
-                let mut gui_context = self.resources.fetch_mut::<GuiContext>().unwrap();
-                gui_context.window_dim = *dim;
+                self.gui_context.window_dim = *dim;
             }
 
             let render =

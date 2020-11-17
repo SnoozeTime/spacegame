@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 use spacegame::assets::prefab::Prefab;
 use spacegame::core::timer::Timer;
 use spacegame::core::transform::Transform;

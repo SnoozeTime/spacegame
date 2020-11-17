@@ -6,7 +6,7 @@
 // pub const PASTEL_ORANGE: RgbColor = RgbColor::new(234, 144, 133);
 // #[allow(unused)]
 // pub const PASTEL_BEIGE: RgbColor = RgbColor::new(233, 225, 204);
-
+use anyhow::anyhow;
 #[allow(unused)]
 pub const RED: RgbaColor = RgbaColor {
     r: 1.0,
@@ -89,6 +89,23 @@ pub struct RgbaColor {
 }
 
 impl RgbaColor {
+    pub fn from_hex(hex_code: &str) -> Result<Self, anyhow::Error> {
+        if hex_code.len() != 8 {
+            return Err(anyhow!("Hex code for RGBA should have a length of 8."));
+        }
+        let rhex = &hex_code[0..2];
+        let ghex = &hex_code[2..4];
+        let bhex = &hex_code[4..6];
+        let ahex = &hex_code[6..8];
+
+        let r = u8::from_str_radix(rhex, 16)?;
+        let g = u8::from_str_radix(ghex, 16)?;
+        let b = u8::from_str_radix(bhex, 16)?;
+        let a = u8::from_str_radix(ahex, 16)?;
+
+        Ok(Self::new(r, g, b, a))
+    }
+
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self {
             r: (r as f32) / 255.0,

@@ -13,7 +13,9 @@ pub trait Prefab: std::fmt::Debug {
     fn spawn(&self, world: &mut hecs::World) -> hecs::Entity;
     fn spawn_with_transform(&self, world: &mut hecs::World, transform: Transform) -> hecs::Entity {
         let e = self.spawn(world);
-        world.insert_one(e, transform);
+        world
+            .insert_one(e, transform)
+            .expect("Cannot add Transform to entity");
         e
     }
 

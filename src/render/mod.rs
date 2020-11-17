@@ -4,8 +4,9 @@ use crate::core::camera::ProjectionMatrix;
 use crate::render::particle::ParticleSystem;
 use crate::render::path::PathRenderer;
 use crate::render::sprite::SpriteRenderer;
-use crate::render::ui::{Gui, UiRenderer};
+use crate::render::ui::{text, Gui, GuiContext, UiRenderer};
 use crate::resources::Resources;
+use glyph_brush::GlyphBrush;
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
 use luminance::pipeline::{PipelineError, PipelineState, Render};
@@ -37,10 +38,10 @@ impl<S> Renderer<S>
 where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
-    pub fn new(surface: &mut S) -> Renderer<S> {
+    pub fn new(surface: &mut S, gui_context: &GuiContext) -> Renderer<S> {
         let sprite_renderer = sprite::SpriteRenderer::new(surface);
         let particle_renderer = ParticleSystem::new(surface);
-        let ui_renderer = UiRenderer::new(surface);
+        let ui_renderer = UiRenderer::new(surface, gui_context);
         let path_renderer = PathRenderer::new(surface);
         Self {
             sprite_renderer,
@@ -50,8 +51,14 @@ where
         }
     }
 
-    pub fn prepare_ui(&mut self, surface: &mut S, gui: Gui, resources: &Resources) {
-        self.ui_renderer.prepare(surface, gui, resources);
+    pub fn prepare_ui(
+        &mut self,
+        surface: &mut S,
+        gui: Option<Gui>,
+        resources: &Resources,
+        fonts: &mut GlyphBrush<'static, text::Instance>,
+    ) {
+        self.ui_renderer.prepare(surface, gui, resources, fonts);
         self.path_renderer.prepare(surface, resources);
     }
 

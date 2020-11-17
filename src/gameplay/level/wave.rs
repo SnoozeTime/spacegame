@@ -1,7 +1,6 @@
-use crate::assets::prefab::{Prefab, PrefabManager};
+use crate::assets::prefab::PrefabManager;
 use crate::assets::Handle;
 use crate::core::random::RandomGenerator;
-use crate::prefab::enemies::EnemyPrefab;
 use crate::resources::Resources;
 use hecs::Entity;
 use luminance_glfw::GlfwSurface;
@@ -76,7 +75,7 @@ impl Wave {
             .enemies
             .iter()
             .enumerate()
-            .filter(|(idx, &e)| e == entity)
+            .filter(|(_, &e)| e == entity)
             .map(|(i, _)| i)
             .next();
 

@@ -88,9 +88,9 @@ impl Scene for ParticleScene {
         &mut self,
         _dt: Duration,
         _world: &mut World,
-        resources: &Resources,
+        _resources: &Resources,
+        gui_context: &GuiContext,
     ) -> Option<Gui> {
-        let gui_context = resources.fetch::<GuiContext>().unwrap();
         let mut gui = gui_context.new_frame();
         if gui.button(glam::vec2(10.0, 10.0), None, "Reload".to_string()) {
             self.reload = true;

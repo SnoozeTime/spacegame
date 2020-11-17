@@ -1,25 +1,19 @@
 use crate::assets::prefab::PrefabManager;
-use crate::assets::{AssetManager, Handle};
+use crate::assets::Handle;
 use crate::core::colors::RgbaColor;
-use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
-use crate::core::timer::Timer;
-use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{Bullet, Missile};
 use crate::gameplay::camera::update_camera;
-use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::enemy::{EnemyType, Satellite};
 use crate::gameplay::health::{Health, HealthSystem, Shield};
 use crate::gameplay::inventory::Inventory;
-use crate::gameplay::level::{generate_terrain, Stage, StageDescription};
-use crate::gameplay::physics::{DynamicBody, PhysicConfig, PhysicSystem};
-use crate::gameplay::pickup::{process_pickups, spawn_pickup};
-use crate::gameplay::player::{get_player, Player, Weapon};
-use crate::gameplay::trail::{update_trails, Trail};
+use crate::gameplay::level::{Stage, StageDescription};
+use crate::gameplay::physics::{PhysicConfig, PhysicSystem};
+use crate::gameplay::pickup::process_pickups;
+use crate::gameplay::player::get_player;
+use crate::gameplay::trail::update_trails;
 use crate::gameplay::{bullet, collision, enemy, player};
 use crate::render::particle::ParticleEmitter;
-use crate::render::sprite::Sprite;
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
@@ -27,8 +21,6 @@ use crate::scene::main_menu::MainMenu;
 use hecs::World;
 use log::info;
 use luminance_glfw::GlfwSurface;
-use rand::seq::SliceRandom;
-use shrev::EventChannel;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -162,9 +154,8 @@ impl Scene for MainScene {
         _dt: Duration,
         world: &mut World,
         resources: &Resources,
+        gui_context: &GuiContext,
     ) -> Option<Gui> {
-        let gui_context = resources.fetch::<GuiContext>().unwrap();
-
         let mut gui = gui_context.new_frame();
 
         if !self.game_over {

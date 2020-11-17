@@ -3,8 +3,6 @@ use crate::event::GameEvent;
 use crate::gameplay::bullet::Bullet;
 use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
-use crate::gameplay::pickup::is_pickup;
-use crate::render::ui::VertexSemantics::Color;
 use crate::resources::Resources;
 use glam::Vec2;
 use hecs::{Entity, World};
@@ -275,32 +273,6 @@ pub fn process_collisions(
     let mut events = vec![];
     for (e1, e2) in collision_pairs {
         debug!("Will process collision between {:?} and {:?}", e1, e2);
-        // If an entity is a bullet, let's destroy it.
-        // if let Ok(mut b) = world.get_mut::<Bullet>(e1) {
-        //     // if bullet is not alive, let's not process the rest.
-        //     if !b.alive {
-        //         continue;
-        //     }
-        //     b.alive = false;
-        //
-        //     events.push(GameEvent::Delete(e1));
-        // }
-        // if let Ok(mut b) = world.get_mut::<Bullet>(e2) {
-        //     // if bullet is not alive, let's not process the rest.
-        //     if !b.alive {
-        //         continue;
-        //     }
-        //     b.alive = false;
-        //     events.push(GameEvent::Delete(e2));
-        // }
-        //
-        // // If an entity has health, let's register a hit
-        // if world.get::<Health>(e1).is_ok() {
-        //     events.push(GameEvent::Hit(e1));
-        // }
-        // if world.get::<Health>(e2).is_ok() {
-        //     events.push(GameEvent::Hit(e2));
-        // }
 
         // bullet to health.
         // -------------------
