@@ -1,0 +1,63 @@
+{
+  "EnemyPrefab": {
+    "dynamic_body": {
+      "forces": [],
+      "velocity": [
+        0.0,
+        0.0
+      ],
+      "max_velocity": 0.0,
+      "mass": 1.0
+    },
+    "transform": {
+      "translation": [
+        0.0,
+        0.0
+      ],
+      "scale": [
+        40.0,
+        40.0
+      ],
+      "rotation": 0.0,
+      "dirty": false
+    },
+    "sprite": {
+      "id": "Proto-ship.png"
+    },
+    "bounding_box": {
+      "half_extend": [
+        20.0,
+        20.0
+      ],
+      "collision_layer": {
+        "bits": 2
+      },
+      "collision_mask": null
+    },
+    "health": {
+      "max": 3.0,
+      "current": 3.0,
+      "hittable": true,
+      "invulnerability_timer": {
+        "deadline": 1.0,
+        "elapsed": 0.0,
+        "enabled": false
+      }
+    },
+    "shield": null,
+    "enemy": {
+      "enemy_type": {
+        "Satellite": {
+          "shoot_timer": {
+            "deadline": 3.0,
+            "elapsed": 0.0,
+            "enabled": false
+          },
+          "shoot_distance": 500.0
+        }
+      },
+      "speed": 0.0
+    },
+    "trail": null
+  }
+}

@@ -191,6 +191,27 @@ pub struct ParticleEmitter {
     pub burst: bool,
 }
 
+impl Default for ParticleEmitter {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            particles: Default::default(),
+            source: EmitterSource::Point,
+            shape: ParticleShape::Quad,
+            velocity_range: (0.0, 10.0),
+            angle_range: (0.0, 2.0 * std::f32::consts::PI),
+            scale: ParticleScale::Constant(glam::vec2(5.0, 5.0)),
+            scale_over_lifetime: None,
+            particle_number: 1.0,
+            nb_accumulator: 0.0,
+            colors: Default::default(),
+            particle_life: 10,
+            position_offset: Default::default(),
+            burst: false,
+        }
+    }
+}
+
 impl ParticleEmitter {
     pub fn enable(&mut self) {
         self.enabled = true;

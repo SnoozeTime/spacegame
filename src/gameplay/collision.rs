@@ -4,6 +4,7 @@ use crate::gameplay::bullet::Bullet;
 use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::pickup::is_pickup;
+use crate::render::ui::VertexSemantics::Color;
 use crate::resources::Resources;
 use glam::Vec2;
 use hecs::{Entity, World};
@@ -63,7 +64,7 @@ impl CollisionWorld {
 
             // enlarge the bounding box with our own.
             let enlarged = BoundingBox {
-                collision_mask: CollisionLayer::NOTHING,
+                collision_mask: None,
                 collision_layer: CollisionLayer::NOTHING,
                 half_extend: bb.half_extend + offset * glam::Vec2::one(),
             };
@@ -81,7 +82,17 @@ impl CollisionWorld {
 pub struct BoundingBox {
     pub half_extend: Vec2,
     pub collision_layer: CollisionLayer,
-    pub collision_mask: CollisionLayer,
+    pub collision_mask: Option<CollisionLayer>,
+}
+
+impl Default for BoundingBox {
+    fn default() -> Self {
+        Self {
+            half_extend: Default::default(),
+            collision_layer: CollisionLayer::NOTHING,
+            collision_mask: None,
+        }
+    }
 }
 
 const EPSILON: f32 = 0.0001;
@@ -103,18 +114,16 @@ impl Ray {
 
 impl BoundingBox {
     fn can_collide(&self, other: &BoundingBox) -> bool {
-        trace!(
-            "My collision layer {:?} & other collision mask {:?} = {:?}",
+        match (
             self.collision_layer,
             other.collision_mask,
-            self.collision_layer & other.collision_mask
-        );
-        trace!(
-            "(self.collision_layer & other.collision_layer).bits = {:?}",
-            (self.collision_layer & other.collision_mask).bits
-        );
-        (self.collision_layer & other.collision_mask).bits != 0
-            || (self.collision_mask & other.collision_layer).bits != 0
+            other.collision_layer,
+            self.collision_mask,
+        ) {
+            (layer, Some(mask), _, _) => (layer & mask).bits != 0,
+            (_, _, layer, Some(mask)) => (layer & mask).bits != 0,
+            _ => false,
+        }
     }
 
     /// Check if ray intersects the AABB. If yes, it will return the time of intersection and point
@@ -267,46 +276,53 @@ pub fn process_collisions(
     for (e1, e2) in collision_pairs {
         debug!("Will process collision between {:?} and {:?}", e1, e2);
         // If an entity is a bullet, let's destroy it.
-        if let Ok(mut b) = world.get_mut::<Bullet>(e1) {
-            // if bullet is not alive, let's not process the rest.
-            if !b.alive {
-                continue;
-            }
-            b.alive = false;
-
-            events.push(GameEvent::Delete(e1));
-        }
-        if let Ok(mut b) = world.get_mut::<Bullet>(e2) {
-            // if bullet is not alive, let's not process the rest.
-            if !b.alive {
-                continue;
-            }
-            b.alive = false;
-            events.push(GameEvent::Delete(e2));
-        }
-
-        // If an entity has health, let's register a hit
-        if world.get::<Health>(e1).is_ok() {
-            events.push(GameEvent::Hit(e1));
-        }
-        if world.get::<Health>(e2).is_ok() {
-            events.push(GameEvent::Hit(e2));
-        }
-
-        // // process pickups.
-        // // ---------------------------------------
-        // {
-        //     if let Some((pickup_entity, _player)) =
-        //         match (is_pickup(world, e1), is_pickup(world, e2)) {
-        //             (true, _) => Some((e1, e2)),
-        //             (_, true) => Some((e2, e1)),
-        //             (_, _) => None,
-        //         }
-        //     {
-        //         info!("PLAYER HAS PICKED UP SOMETHING");
-        //         events.push(GameEvent::Delete(pickup_entity));
+        // if let Ok(mut b) = world.get_mut::<Bullet>(e1) {
+        //     // if bullet is not alive, let's not process the rest.
+        //     if !b.alive {
+        //         continue;
         //     }
+        //     b.alive = false;
+        //
+        //     events.push(GameEvent::Delete(e1));
         // }
+        // if let Ok(mut b) = world.get_mut::<Bullet>(e2) {
+        //     // if bullet is not alive, let's not process the rest.
+        //     if !b.alive {
+        //         continue;
+        //     }
+        //     b.alive = false;
+        //     events.push(GameEvent::Delete(e2));
+        // }
+        //
+        // // If an entity has health, let's register a hit
+        // if world.get::<Health>(e1).is_ok() {
+        //     events.push(GameEvent::Hit(e1));
+        // }
+        // if world.get::<Health>(e2).is_ok() {
+        //     events.push(GameEvent::Hit(e2));
+        // }
+
+        // bullet to health.
+        // -------------------
+        let e1_health = world.get::<Health>(e1).is_ok();
+        let e2_health = world.get::<Health>(e2).is_ok();
+        let e1_bullet = world.get::<Bullet>(e1).is_ok();
+        let e2_bullet = world.get::<Bullet>(e2).is_ok();
+        match (e1_health, e2_bullet, e2_health, e1_bullet) {
+            (true, true, _, _) => events.append(&mut process_bullet_collision(world, e1, e2)),
+            (_, _, true, true) => events.append(&mut process_bullet_collision(world, e2, e1)),
+            (false, true, _, _) => {
+                if let Some(ev) = delete_bullet(world, e2) {
+                    events.push(ev)
+                }
+            }
+            (_, _, _, true) => {
+                if let Some(ev) = delete_bullet(world, e1) {
+                    events.push(ev)
+                }
+            }
+            _ => (),
+        }
 
         // Apply forces for dynamic bodies.
         // --------------------------------------------
@@ -333,4 +349,34 @@ pub fn process_collisions(
     }
 
     trace!("Finished process_collisions");
+}
+
+fn process_bullet_collision(
+    world: &mut World,
+    health_entity: hecs::Entity,
+    bullet_entity: hecs::Entity,
+) -> Vec<GameEvent> {
+    let mut events = vec![];
+
+    if let Ok(mut b) = world.get_mut::<Bullet>(bullet_entity) {
+        // if bullet is not alive, let's not process the rest.
+        if b.alive {
+            b.alive = false;
+            events.push(GameEvent::Delete(bullet_entity));
+            events.push(GameEvent::Hit(health_entity, b.details));
+        }
+    }
+
+    events
+}
+
+fn delete_bullet(world: &mut World, bullet_entity: hecs::Entity) -> Option<GameEvent> {
+    let mut b = world.get_mut::<Bullet>(bullet_entity).unwrap();
+    // if bullet is not alive, let's not process the rest.
+    if !b.alive {
+        None
+    } else {
+        b.alive = false;
+        Some(GameEvent::Delete(bullet_entity))
+    }
 }

@@ -22,6 +22,17 @@ pub struct DynamicBody {
     //TODO Max force
 }
 
+impl Default for DynamicBody {
+    fn default() -> Self {
+        Self {
+            forces: vec![],
+            velocity: Default::default(),
+            max_velocity: 0.0,
+            mass: 0.0,
+        }
+    }
+}
+
 impl DynamicBody {
     pub fn add_force(&mut self, force: glam::Vec2) {
         if force.length_squared() > 0.0 {

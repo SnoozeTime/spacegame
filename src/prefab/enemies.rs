@@ -12,14 +12,14 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnemyPrefab {
-    pub(crate) dynamic_body: DynamicBody,
-    pub(crate) transform: Transform,
-    pub(crate) sprite: Sprite,
-    pub(crate) bounding_box: BoundingBox,
-    pub(crate) health: Option<Health>,
-    pub(crate) shield: Option<Shield>,
-    pub(crate) enemy: Enemy,
-    pub(crate) trail: Option<ParticleEmitter>,
+    pub dynamic_body: DynamicBody,
+    pub transform: Transform,
+    pub sprite: Sprite,
+    pub bounding_box: BoundingBox,
+    pub health: Option<Health>,
+    pub shield: Option<Shield>,
+    pub enemy: Enemy,
+    pub trail: Option<ParticleEmitter>,
 }
 
 #[typetag::serde]
@@ -37,7 +37,8 @@ impl Prefab for EnemyPrefab {
             components.add(s);
         }
         components.add(self.enemy.clone());
-        if let Some(particles) = self.trail.clone() {
+        if let Some(mut particles) = self.trail.clone() {
+            particles.init_pool();
             components.add(particles);
             components.add(Trail {
                 should_display: true,
@@ -61,7 +62,7 @@ impl Default for EnemyPrefab {
             bounding_box: BoundingBox {
                 half_extend: Default::default(),
                 collision_layer: CollisionLayer::NOTHING,
-                collision_mask: CollisionLayer::NOTHING,
+                collision_mask: None,
             },
             health: None,
             shield: None,

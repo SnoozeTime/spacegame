@@ -39,6 +39,10 @@ impl Timer {
         self.elapsed = 0.0;
     }
 
+    pub fn set_deadline(&mut self, deadline: f32) {
+        self.deadline = deadline;
+    }
+
     /// Update the timer
     pub fn tick(&mut self, dt: Duration) {
         self.elapsed += dt.as_secs_f32();

@@ -1,0 +1,69 @@
+{
+  "EnemyPrefab": {
+    "dynamic_body": {
+      "forces": [],
+      "velocity": [
+        0.0,
+        0.0
+      ],
+      "max_velocity": 500.0,
+      "mass": 10.0
+    },
+    "transform": {
+      "translation": [
+        0.0,
+        0.0
+      ],
+      "scale": [
+        100.0,
+        100.0
+      ],
+      "rotation": 0.0,
+      "dirty": false
+    },
+    "sprite": {
+      "id": "EnemyBoss.png"
+    },
+    "bounding_box": {
+      "half_extend": [
+        50.0,
+        50.0
+      ],
+      "collision_layer": {
+        "bits": 2
+      },
+      "collision_mask": null
+    },
+    "health": {
+      "max": 10.0,
+      "current": 10.0,
+      "hittable": true,
+      "invulnerability_timer": {
+        "deadline": 1.0,
+        "elapsed": 0.0,
+        "enabled": false
+      }
+    },
+    "shield": null,
+    "enemy": {
+      "enemy_type": {
+        "Boss1": {
+          "shoot_timer": {
+            "deadline": 0.3,
+            "elapsed": 0.0,
+            "enabled": false
+          },
+          "nb_shot": 20,
+          "current_shot": 0,
+          "salve_timer": {
+            "deadline": 5.0,
+            "elapsed": 0.0,
+            "enabled": false
+          }
+        }
+      },
+      "speed": 5.0
+    },
+    "trail": null
+  }
+}

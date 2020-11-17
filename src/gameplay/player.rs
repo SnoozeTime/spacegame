@@ -4,6 +4,7 @@ use crate::core::camera::screen_to_world;
 use crate::core::input::{Axis, Input};
 use crate::core::transform::Transform;
 use crate::gameplay::bullet::BulletType;
+use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::trail::Trail;
 use crate::gameplay::{steering, Action};
@@ -138,7 +139,7 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
     }
 
     bullets.iter().for_each(|(p, d, b)| {
-        bullet::spawn_player_bullet(world, *p, *d, *b);
+        bullet::spawn_player_bullet(world, *p, *d, *b, HitDetails { hit_points: 1.0 });
     });
 
     trace!("finished update_player");

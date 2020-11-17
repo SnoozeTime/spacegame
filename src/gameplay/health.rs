@@ -17,18 +17,29 @@ use std::time::Duration;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Health {
     /// Maximum amount of health.
-    pub max: u32,
+    pub max: f32,
 
     /// Current amount of health.
-    pub current: u32,
+    pub current: f32,
 
     /// true if can hit the component.
     hittable: bool,
     invulnerability_timer: Timer,
 }
 
+impl Default for Health {
+    fn default() -> Self {
+        Self {
+            max: 1.0,
+            current: 1.0,
+            hittable: true,
+            invulnerability_timer: Timer::of_seconds(1.0),
+        }
+    }
+}
+
 impl Health {
-    pub fn new(health: u32, timer: Timer) -> Self {
+    pub fn new(health: f32, timer: Timer) -> Self {
         Self {
             max: health,
             current: health,
@@ -38,7 +49,7 @@ impl Health {
     }
 
     fn is_dead(&self) -> bool {
-        self.current == 0
+        self.current == 0.0
     }
 }
 
@@ -68,6 +79,11 @@ impl Shield {
             replenish_rate,
         }
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct HitDetails {
+    pub hit_points: f32,
 }
 
 pub struct HealthSystem {
@@ -103,8 +119,10 @@ impl HealthSystem {
         // FIRST, PROCESS ALL EVENTS TO SEE IF ANYBODY GOT HIT
         // ----------------------------------------------------
         for ev in chan.read(&mut self.rdr_id) {
-            if let GameEvent::Hit(e) = ev {
+            if let GameEvent::Hit(e, hit_details) = ev {
                 debug!("Process HIT event for {:?}", e);
+
+                let mut hit_points = hit_details.hit_points;
 
                 let mut explosion = false;
 
@@ -115,28 +133,29 @@ impl HealthSystem {
 
                     let is_enemy = world.get::<Enemy>(*e).is_ok();
 
-                    let has_shield = if let Ok(mut shield) = shield {
+                    if let Ok(mut shield) = shield {
                         // reset shield timer. Shield cannot recharge until elapsed.
                         shield.timer_until_replenish.reset();
                         shield.timer_until_replenish.start();
-                        if shield.current == 0.0 {
-                            false
-                        } else {
-                            shield.current = (shield.current - 1.0).max(0.0);
-                            true
+                        if shield.current != 0.0 {
+                            if shield.current > hit_points {
+                                shield.current -= hit_points;
+                                hit_points = 0.0;
+                            } else {
+                                hit_points -= shield.current;
+                                shield.current = 0.0;
+                            }
                         }
-                    } else {
-                        false
-                    };
+                    }
 
                     // if no shield, then we can hit the health.
-                    if !has_shield {
+                    if hit_points > 0.0 {
                         if let Ok(mut health) = health {
                             if !health.hittable {
                                 continue;
                             }
 
-                            health.current -= 1;
+                            health.current -= hit_points;
                             if health.is_dead() {
                                 debug!("{:?} is dead ({:?}", e, *health);
                                 Self::add_death_events(&mut death_events, world, *e, is_enemy);
@@ -158,7 +177,6 @@ impl HealthSystem {
 
                 if explosion {
                     let transform = { world.get::<Transform>(*e).unwrap().translation }; // no sense if no transform..
-
                     self.make_explosion(world, transform);
                 }
 

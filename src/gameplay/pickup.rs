@@ -15,7 +15,7 @@ pub struct Pickup {
     pub item: Items,
 }
 
-pub fn spawn_pickup(world: &mut hecs::World, pos: glam::Vec2) {
+pub fn spawn_pickup(world: &mut hecs::World, pos: glam::Vec2) -> hecs::Entity {
     world.spawn((
         Transform {
             translation: pos,
@@ -32,9 +32,9 @@ pub fn spawn_pickup(world: &mut hecs::World, pos: glam::Vec2) {
         BoundingBox {
             half_extend: glam::vec2(10.0, 10.0),
             collision_layer: CollisionLayer::PICKUP,
-            collision_mask: CollisionLayer::NOTHING,
+            collision_mask: None,
         },
-    ));
+    ))
 }
 
 pub fn is_pickup(world: &hecs::World, entity: hecs::Entity) -> bool {

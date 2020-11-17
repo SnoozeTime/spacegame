@@ -3,7 +3,7 @@ use crate::core::transform::Transform;
 use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::health::Health;
+use crate::gameplay::health::{Health, HitDetails};
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::steering::seek;
 use crate::render::sprite::Sprite;
@@ -42,6 +42,7 @@ pub struct Bullet {
     pub direction: glam::Vec2,
     pub speed: f32,
     pub alive: bool,
+    pub details: HitDetails,
 }
 
 /// Missile is a physical bullet
@@ -111,6 +112,7 @@ pub fn spawn_player_bullet(
     initial_position: glam::Vec2,
     direction: glam::Vec2,
     bullet_type: BulletType,
+    hit_details: HitDetails,
 ) -> hecs::Entity {
     let angle = -direction.angle_between(glam::Vec2::unit_y());
 
@@ -119,6 +121,7 @@ pub fn spawn_player_bullet(
             direction,
             speed: 20.0,
             alive: true,
+            details: hit_details,
         },
         Sprite {
             id: bullet_type.get_sprite_name(),
@@ -132,7 +135,7 @@ pub fn spawn_player_bullet(
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
             collision_layer: CollisionLayer::PLAYER_BULLET,
-            collision_mask: CollisionLayer::ENEMY | CollisionLayer::ASTEROID,
+            collision_mask: Some(CollisionLayer::ENEMY | CollisionLayer::ASTEROID),
         },
     ))
 }
@@ -142,6 +145,7 @@ pub fn spawn_enemy_bullet(
     initial_position: glam::Vec2,
     direction: glam::Vec2,
     bullet_type: BulletType,
+    hit_details: HitDetails,
 ) -> hecs::Entity {
     let angle = -direction.angle_between(glam::Vec2::unit_y());
     world.spawn((
@@ -149,6 +153,7 @@ pub fn spawn_enemy_bullet(
             direction,
             speed: 15.0,
             alive: true,
+            details: hit_details,
         },
         Sprite {
             id: bullet_type.get_sprite_name(),
@@ -162,7 +167,7 @@ pub fn spawn_enemy_bullet(
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
             collision_layer: CollisionLayer::ENEMY_BULLET,
-            collision_mask: CollisionLayer::PLAYER | CollisionLayer::ASTEROID,
+            collision_mask: Some(CollisionLayer::PLAYER | CollisionLayer::ASTEROID),
         },
     ))
 }
@@ -190,20 +195,22 @@ pub fn spawn_missile(
         },
         DynamicBody {
             forces: vec![],
-            velocity: direction * 100.0,
+            velocity: direction * 80.0,
             max_velocity: 500.0,
             mass: 0.5,
         },
-        Health::new(1, Timer::of_seconds(1.0)),
+        Health::new(1.0, Timer::of_seconds(1.0)),
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
             collision_layer: CollisionLayer::MISSILE,
-            collision_mask: CollisionLayer::PLAYER
-                | CollisionLayer::ASTEROID
-                | CollisionLayer::ENEMY
-                | CollisionLayer::MISSILE
-                | CollisionLayer::PLAYER_BULLET
-                | CollisionLayer::ENEMY_BULLET,
+            collision_mask: Some(
+                CollisionLayer::PLAYER
+                    | CollisionLayer::ASTEROID
+                    | CollisionLayer::ENEMY
+                    | CollisionLayer::MISSILE
+                    | CollisionLayer::PLAYER_BULLET
+                    | CollisionLayer::ENEMY_BULLET,
+            ),
         },
     ))
 }

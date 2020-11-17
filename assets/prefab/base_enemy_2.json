@@ -22,7 +22,7 @@
       "dirty": false
     },
     "sprite": {
-      "id": "Enemy1.png"
+      "id": "Enemy2.png"
     },
     "bounding_box": {
       "half_extend": [
@@ -50,13 +50,12 @@
     "enemy": {
       "enemy_type": {
         "FollowPlayer": {
-            "deadline": 3.0,
+            "deadline": 1.5,
             "elapsed": 0.0,
             "enabled": true
-
         }
       },
-      "speed": 3.0
+      "speed": 4.0
     },
     "trail": {
       "enabled": true,
@@ -74,7 +73,7 @@
       ],
       "scale": {
         "Constant": [
-          5.0,
+          5.01,
           5.0
         ]
       },

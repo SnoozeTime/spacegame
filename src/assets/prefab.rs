@@ -9,11 +9,22 @@ use std::path::{Path, PathBuf};
 pub type PrefabManager<S> = AssetManager<S, Box<dyn Prefab>>;
 
 #[typetag::serde]
-pub trait Prefab {
+pub trait Prefab: std::fmt::Debug {
     fn spawn(&self, world: &mut hecs::World) -> hecs::Entity;
     fn spawn_with_transform(&self, world: &mut hecs::World, transform: Transform) -> hecs::Entity {
         let e = self.spawn(world);
         world.insert_one(e, transform);
+        e
+    }
+
+    /// set the position only if the transform is already there
+    fn spawn_at_pos(&self, world: &mut hecs::World, pos: glam::Vec2) -> hecs::Entity {
+        let e = self.spawn(world);
+
+        if let Ok(mut t) = world.get_mut::<Transform>(e) {
+            t.translation = pos;
+        }
+
         e
     }
 }
@@ -61,7 +72,10 @@ where
             Ok(asset_str) => {
                 let res: Result<Box<dyn Prefab>, _> = serde_json::from_str(&asset_str);
                 match res {
-                    Ok(val) => asset.set_loaded(val),
+                    Ok(val) => {
+                        info!("Finished loading {}", asset_name);
+                        asset.set_loaded(val)
+                    }
                     Err(e) => {
                         error!("Error while converting prefab from json = {:?}", e);
                         asset.set_error(e.into())

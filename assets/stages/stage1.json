@@ -1,0 +1,13 @@
+{
+  "waves": [
+    {
+      "to_instantiate": ["boss1"]
+    },
+    {
+      "to_instantiate": ["satellite"]
+    },
+    {
+      "to_instantiate": ["base_enemy", "base_enemy", "base_enemy", "base_enemy", "base_enemy", "base_enemy", "base_enemy"]
+    }
+  ]
+}

@@ -135,27 +135,30 @@ impl<T> Asset<T> {
     }
 
     /// Execute a function only if the asset is loaded.
-    pub fn execute<F>(&self, mut f: F)
+    pub fn execute<F, Ret>(&self, mut f: F) -> Option<Ret>
     where
-        F: FnMut(&T),
+        F: FnMut(&T) -> Ret,
     {
         let asset = &*self.asset.lock().unwrap();
         if let LoadingStatus::Ready(ref inner) = asset {
-            f(inner);
+            Some(f(inner))
+        } else {
+            None
         }
     }
 
     /// Execute a function only if the asset is loaded.
-    pub fn execute_mut<F>(&self, mut f: F)
+    pub fn execute_mut<F, Ret>(&self, mut f: F) -> Option<Ret>
     where
-        F: FnMut(&mut T),
+        F: FnMut(&mut T) -> Ret,
     {
         let asset = &mut *self.asset.lock().unwrap();
         if let LoadingStatus::Ready(ref mut inner) = asset {
             debug!("Asset is ready");
-            f(inner);
+            Some(f(inner))
         } else {
             debug!("Asset is not ready");
+            None
         }
     }
 }

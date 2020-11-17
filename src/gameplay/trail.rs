@@ -3,6 +3,7 @@ use crate::gameplay::physics::DynamicBody;
 use crate::render::particle::ParticleEmitter;
 use hecs::World;
 
+#[derive(Debug)]
 pub struct Trail {
     pub should_display: bool,
 }
@@ -13,10 +14,10 @@ pub fn update_trails(world: &mut World) {
         .iter()
     {
         if trail.should_display {
-            emitter.angle_range = (
-                std::f32::consts::FRAC_PI_2 - transform.rotation - 0.1,
-                std::f32::consts::FRAC_PI_2 - transform.rotation + 0.1,
-            );
+            // emitter.angle_range = (
+            //     std::f32::consts::FRAC_PI_2 - transform.rotation - 0.1,
+            //     std::f32::consts::FRAC_PI_2 - transform.rotation + 0.1,
+            // );
 
             let dir = glam::Mat2::from_angle(transform.rotation) * glam::Vec2::unit_y();
             emitter.position_offset = -dir * transform.scale.y() / 2.0;

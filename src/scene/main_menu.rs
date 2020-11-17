@@ -16,7 +16,13 @@ pub struct MainMenu {
 impl Scene for MainMenu {
     fn update(&mut self, _dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
         if self.does_start {
-            SceneResult::ReplaceScene(Box::new(LoadingScene::new(vec!["base_enemy".to_string()])))
+            SceneResult::ReplaceScene(Box::new(LoadingScene::new(vec![
+                "base_enemy".to_string(),
+                "base_enemy_2".to_string(),
+                "boss1".to_string(),
+                "satellite".to_string(),
+                "player".to_string(),
+            ])))
         } else {
             SceneResult::Noop
         }

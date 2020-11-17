@@ -20,7 +20,7 @@ const VS: &'static str = include_str!("texture-vs.glsl");
 const FS: &'static str = include_str!("texture-fs.glsl");
 
 /// Let's make it easy for now...
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Sprite {
     pub id: String,
 }
