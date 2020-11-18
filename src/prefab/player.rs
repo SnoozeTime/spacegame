@@ -3,7 +3,7 @@ use crate::core::transform::Transform;
 use crate::gameplay::collision::BoundingBox;
 use crate::gameplay::health::{Health, Shield};
 use crate::gameplay::physics::DynamicBody;
-use crate::gameplay::player::{Player, Weapon};
+use crate::gameplay::player::{Player, Stats, Weapon};
 use crate::gameplay::trail::Trail;
 use crate::render::particle::ParticleEmitter;
 use crate::render::sprite::Sprite;
@@ -19,6 +19,7 @@ pub struct PlayerPrefab {
     pub health: Health,
     pub shield: Option<Shield>,
     pub trail: ParticleEmitter,
+    pub stats: Stats,
 }
 
 #[typetag::serde]
@@ -41,6 +42,7 @@ impl Prefab for PlayerPrefab {
         });
         components.add(Player {
             weapon: Weapon::Simple,
+            stats: self.stats.clone(),
             direction: glam::vec2(0.0, 1.0),
         });
 

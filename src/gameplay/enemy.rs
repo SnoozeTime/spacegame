@@ -1,9 +1,9 @@
-use crate::core::colors;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
+use crate::core::{audio, colors};
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
-use crate::gameplay::collision::CollisionWorld;
+use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
 use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
@@ -20,6 +20,7 @@ use std::time::Duration;
 pub struct Enemy {
     pub enemy_type: EnemyType,
     pub speed: f32,
+    pub scratch_drop: (u32, u32),
 }
 
 impl Default for Enemy {
@@ -27,6 +28,7 @@ impl Default for Enemy {
         Self {
             enemy_type: EnemyType::FollowPlayer(Timer::of_seconds(4.0)),
             speed: 10.0,
+            scratch_drop: (10, 50),
         }
     }
 }
@@ -168,6 +170,9 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                             // shoot.
                             let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
                             bullets.push(to_spawn);
+                            ev_channel.single_write(GameEvent::PlaySound(
+                                "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+                            ));
 
                             boss1.current_shot += 1;
                         }
@@ -201,6 +206,9 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                         if shoot_timer.finished() {
                             shoot_timer.reset();
                             let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
+                            ev_channel.single_write(GameEvent::PlaySound(
+                                "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+                            ));
                             bullets.push(to_spawn);
                         }
                     }
@@ -214,11 +222,26 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 
     for (pos, dir, bullet) in bullets {
         debug!("Will spawn bullet at position ={:?}", pos);
-        spawn_enemy_bullet(world, pos, dir, bullet, HitDetails { hit_points: 1.0 });
+        spawn_enemy_bullet(
+            world,
+            pos,
+            dir,
+            bullet,
+            HitDetails {
+                hit_points: 1.0,
+                is_crit: false,
+            },
+        );
     }
 
     for (pos, dir, entity) in missiles {
-        spawn_missile(world, pos, dir, entity);
+        spawn_missile(
+            world,
+            pos,
+            dir,
+            entity,
+            CollisionLayer::PLAYER | CollisionLayer::PLAYER_BULLET,
+        );
     }
 
     ev_channel.drain_vec_write(&mut to_remove);

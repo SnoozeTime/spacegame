@@ -1,3 +1,4 @@
+use crate::core::colors::RgbaColor;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::core::window::WindowDim;
@@ -6,7 +7,7 @@ use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::gameplay::health::{Health, HitDetails};
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::steering::seek;
-use crate::render::sprite::Sprite;
+use crate::render::sprite::{Sprite, Tint};
 use crate::resources::Resources;
 use hecs::{Entity, World};
 use log::trace;
@@ -51,8 +52,13 @@ pub struct Missile {
     pub home_to_entity: Option<Entity>,
 }
 
-pub fn process_missiles(world: &World, _resources: &Resources) {
-    for (_e, (t, missile, body)) in world
+pub fn process_missiles(world: &World, resources: &Resources) {
+    let mut to_despawn = vec![];
+    let window_dim = resources.fetch::<WindowDim>().unwrap();
+
+    let max_width = 2.0 * window_dim.width as f32;
+    let max_height = 2.0 * window_dim.height as f32;
+    for (e, (t, missile, body)) in world
         .query::<(&mut Transform, &mut Missile, &mut DynamicBody)>()
         .iter()
     {
@@ -73,8 +79,27 @@ pub fn process_missiles(world: &World, _resources: &Resources) {
                 let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
                 let angle_to_perform = (target_pos.translation - t.translation).angle_between(dir);
                 t.rotation -= 0.05 * angle_to_perform;
+            } else {
+                // no more entity, will just continue straight.
+                body.add_force(body.velocity.normalize() * body.max_velocity);
             }
+        } else {
+            // no entity,  just go straight.
+            body.add_force(body.velocity.normalize() * body.max_velocity);
         }
+
+        if t.translation.x() > max_width
+            || t.translation.x() < -max_width
+            || t.translation.y() > max_height
+            || t.translation.y() < -max_height
+        {
+            to_despawn.push(GameEvent::Delete(e));
+        }
+    }
+
+    {
+        let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
+        channel.drain_vec_write(&mut to_despawn)
     }
 }
 
@@ -116,7 +141,7 @@ pub fn spawn_player_bullet(
 ) -> hecs::Entity {
     let angle = -direction.angle_between(glam::Vec2::unit_y());
 
-    world.spawn((
+    let e = world.spawn((
         Bullet {
             direction,
             speed: 20.0,
@@ -137,7 +162,20 @@ pub fn spawn_player_bullet(
             collision_layer: CollisionLayer::PLAYER_BULLET,
             collision_mask: Some(CollisionLayer::ENEMY | CollisionLayer::ASTEROID),
         },
-    ))
+    ));
+
+    if hit_details.is_crit {
+        world
+            .insert_one(
+                e,
+                Tint {
+                    color: RgbaColor::new(255, 0, 0, 255),
+                },
+            )
+            .expect("cannot insert blink to bullet...")
+    }
+
+    e
 }
 
 pub fn spawn_enemy_bullet(
@@ -151,7 +189,7 @@ pub fn spawn_enemy_bullet(
     world.spawn((
         Bullet {
             direction,
-            speed: 15.0,
+            speed: 10.0,
             alive: true,
             details: hit_details,
         },
@@ -177,6 +215,7 @@ pub fn spawn_missile(
     initial_position: glam::Vec2,
     direction: glam::Vec2,
     target: Entity,
+    mask: CollisionLayer,
 ) -> hecs::Entity {
     let angle = -direction.angle_between(glam::Vec2::unit_y());
     world.spawn((
@@ -198,19 +237,13 @@ pub fn spawn_missile(
             velocity: direction * 80.0,
             max_velocity: 500.0,
             mass: 0.5,
+            max_force: 200.0,
         },
         Health::new(1.0, Timer::of_seconds(1.0)),
         BoundingBox {
-            half_extend: glam::vec2(3.5, 3.5),
+            half_extend: glam::vec2(7.0, 7.0),
             collision_layer: CollisionLayer::MISSILE,
-            collision_mask: Some(
-                CollisionLayer::PLAYER
-                    | CollisionLayer::ASTEROID
-                    | CollisionLayer::ENEMY
-                    | CollisionLayer::MISSILE
-                    | CollisionLayer::PLAYER_BULLET
-                    | CollisionLayer::ENEMY_BULLET,
-            ),
+            collision_mask: Some(mask | CollisionLayer::ASTEROID | CollisionLayer::MISSILE),
         },
     ))
 }

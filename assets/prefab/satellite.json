@@ -7,7 +7,8 @@
         0.0
       ],
       "max_velocity": 0.0,
-      "mass": 1.0
+      "mass": 1.0,
+      "max_force": 500.0
     },
     "transform": {
       "translation": [
@@ -53,10 +54,11 @@
             "elapsed": 0.0,
             "enabled": false
           },
-          "shoot_distance": 500.0
+          "shoot_distance": 800.0
         }
       },
-      "speed": 0.0
+      "speed": 0.0,
+      "scratch_drop": [10, 50]
     },
     "trail": null
   }

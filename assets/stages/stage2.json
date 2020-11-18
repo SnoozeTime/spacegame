@@ -1,0 +1,8 @@
+{
+  "nb_pickups": 3,
+  "waves": [
+    {
+      "to_instantiate": ["base_enemy"]
+    }
+  ]
+}

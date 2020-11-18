@@ -1,3 +1,4 @@
+use crate::core::audio::AudioSystem;
 use crate::core::camera::{Camera, ProjectionMatrix};
 use crate::core::input::{Input, InputAction};
 use crate::core::random::{RandomGenerator, Seed};
@@ -27,6 +28,7 @@ pub struct GameBuilder<'a, A> {
     surface: &'a mut GlfwSurface,
     scene: Option<Box<dyn Scene>>,
     resources: Resources,
+    audio_system: AudioSystem,
     phantom: PhantomData<A>,
     seed: Option<Seed>,
     gui_context: GuiContext,
@@ -55,6 +57,9 @@ where
         resources.insert(CollisionWorld::default());
         resources.insert(DebugQueue::default());
 
+        // audio system.
+        let audio_system = AudioSystem::new(&resources, 15).expect("Cannot create audio system");
+
         Self {
             gui_context: GuiContext::new(WindowDim::new(WIDTH, HEIGHT)),
             surface,
@@ -62,6 +67,7 @@ where
             resources,
             phantom: PhantomData::default(),
             seed: None,
+            audio_system,
         }
     }
 
@@ -122,6 +128,7 @@ where
             renderer,
             scene_stack,
             world,
+            audio_system: self.audio_system,
             resources: self.resources,
             rdr_id,
             garbage_collector,
@@ -148,6 +155,9 @@ pub struct Game<'a, A> {
 
     /// All the scenes. Current scene will be used in the main loop.
     scene_stack: SceneStack,
+
+    /// Play music and sound effects
+    audio_system: AudioSystem,
 
     /// Resources (assets, inputs...)
     resources: Resources,
@@ -206,7 +216,7 @@ where
                 {
                     let chan = self.resources.fetch::<EventChannel<GameEvent>>().unwrap();
                     for ev in chan.read(&mut self.rdr_id) {
-                        scene.process_event(*ev, &self.resources);
+                        scene.process_event(&mut self.world, ev.clone(), &self.resources);
                     }
                 }
 
@@ -258,6 +268,9 @@ where
             } else {
                 break 'app;
             }
+
+            // Play music :)
+            self.audio_system.process(&self.resources);
 
             // Update collision world for collision queries.
             {

@@ -56,6 +56,7 @@ impl Default for EnemyPrefab {
                 velocity: Default::default(),
                 max_velocity: 0.0,
                 mass: 0.0,
+                max_force: 500.0,
             },
             transform: Transform::default(),
             sprite: Sprite { id: String::new() },

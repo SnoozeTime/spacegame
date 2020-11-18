@@ -1,8 +1,10 @@
+use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
-use crate::gameplay::bullet::Bullet;
-use crate::gameplay::health::Health;
+use crate::gameplay::bullet::{Bullet, Missile};
+use crate::gameplay::health::{Health, HitDetails};
 use crate::gameplay::physics::DynamicBody;
+use crate::render::path::debug;
 use crate::resources::Resources;
 use glam::Vec2;
 use hecs::{Entity, World};
@@ -203,7 +205,7 @@ bitflags! {
     }
 }
 
-pub fn find_collisions(world: &World) -> Vec<(Entity, Entity)> {
+pub fn find_collisions(world: &World, resources: &Resources) -> Vec<(Entity, Entity)> {
     trace!("find_collisions");
     let mut query = world.query::<(&Transform, &BoundingBox)>();
     let candidates: Vec<(Entity, (&Transform, &BoundingBox))> = query.iter().collect();
@@ -236,6 +238,20 @@ pub fn find_collisions(world: &World) -> Vec<(Entity, Entity)> {
                 && transform1.translation.y() + bb1.half_extend.y()
                     > transform2.translation.y() - bb2.half_extend.y()
             {
+                // if collision, let's draw the quads :)
+                debug::stroke_quad(
+                    resources,
+                    transform1.translation - bb1.half_extend,
+                    bb1.half_extend * 2.0,
+                    RgbaColor::new(255, 0, 0, 255),
+                );
+                debug::stroke_quad(
+                    resources,
+                    transform2.translation - bb2.half_extend,
+                    bb2.half_extend * 2.0,
+                    RgbaColor::new(0, 255, 0, 255),
+                );
+
                 collision_pairs.push((e1, e2));
             }
         }
@@ -272,45 +288,77 @@ pub fn process_collisions(
     let mut ev_channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
     let mut events = vec![];
     for (e1, e2) in collision_pairs {
-        debug!("Will process collision between {:?} and {:?}", e1, e2);
+        if e1 == e2 {
+            continue;
+        }
+        info!("Will process collision between {:?} and {:?}", e1, e2);
 
         // bullet to health.
         // -------------------
-        let e1_health = world.get::<Health>(e1).is_ok();
-        let e2_health = world.get::<Health>(e2).is_ok();
-        let e1_bullet = world.get::<Bullet>(e1).is_ok();
-        let e2_bullet = world.get::<Bullet>(e2).is_ok();
-        match (e1_health, e2_bullet, e2_health, e1_bullet) {
-            (true, true, _, _) => events.append(&mut process_bullet_collision(world, e1, e2)),
-            (_, _, true, true) => events.append(&mut process_bullet_collision(world, e2, e1)),
-            (false, true, _, _) => {
-                if let Some(ev) = delete_bullet(world, e2) {
-                    events.push(ev)
+        {
+            let e1_health = world.get::<Health>(e1).is_ok();
+            let e2_health = world.get::<Health>(e2).is_ok();
+            let e1_bullet = world.get::<Bullet>(e1).is_ok();
+            let e2_bullet = world.get::<Bullet>(e2).is_ok();
+            match (e1_health, e2_bullet, e2_health, e1_bullet) {
+                (true, true, _, _) => events.append(&mut process_bullet_collision(world, e1, e2)),
+                (_, _, true, true) => events.append(&mut process_bullet_collision(world, e2, e1)),
+                (false, true, _, _) => {
+                    if let Some(ev) = delete_bullet(world, e2) {
+                        events.push(ev)
+                    }
                 }
-            }
-            (_, _, _, true) => {
-                if let Some(ev) = delete_bullet(world, e1) {
-                    events.push(ev)
+                (_, _, _, true) => {
+                    if let Some(ev) = delete_bullet(world, e1) {
+                        events.push(ev)
+                    }
                 }
+                _ => (),
             }
-            _ => (),
+        }
+
+        // Missile to health
+        // -------------------
+        let missile_vs_missile;
+        {
+            let e1_health = world.get::<Health>(e1).is_ok();
+            let e2_health = world.get::<Health>(e2).is_ok();
+            let e1_missile = world.get::<Missile>(e1).is_ok();
+            let e2_missile = world.get::<Missile>(e2).is_ok();
+            missile_vs_missile = e1_missile && e2_missile;
+            match (e1_health, e2_missile, e2_health, e1_missile) {
+                (_, true, _, true) => {
+                    events.push(GameEvent::Delete(e2));
+                    events.push(GameEvent::Delete(e1));
+                }
+                (true, true, _, _) => events.append(&mut process_missile_collision(world, e1, e2)),
+                (_, _, true, true) => events.append(&mut process_missile_collision(world, e2, e1)),
+                (false, true, _, _) => events.push(GameEvent::Delete(e2)),
+                (_, _, _, true) => events.push(GameEvent::Delete(e1)),
+                _ => (),
+            }
+        }
+
+        if missile_vs_missile {
+            continue;
         }
 
         // Apply forces for dynamic bodies.
         // --------------------------------------------
-        let e1_query = world.query_one::<(&Transform, &mut DynamicBody)>(e1);
-        let e2_query = world.query_one::<(&Transform, &mut DynamicBody)>(e2);
+        let mut e1_query = world
+            .query_one::<(&Transform, &mut DynamicBody)>(e1)
+            .expect("Entity should exist");
+        let mut e2_query = world
+            .query_one::<(&Transform, &mut DynamicBody)>(e2)
+            .expect("Entity should exist");
 
-        match (e1_query, e2_query) {
-            (Ok(mut e1_query), Ok(mut e2_query)) => match (e1_query.get(), e2_query.get()) {
-                (Some((t1, b1)), Some((t2, b2))) => {
-                    let dir = (t1.translation - t2.translation).normalize();
-                    // BIM!
-                    b2.add_force(dir * 10.0 * -b2.max_velocity);
-                    b1.add_force(dir * 10.0 * b1.max_velocity);
-                }
-                _ => (),
-            },
+        match (e1_query.get(), e2_query.get()) {
+            (Some((t1, b1)), Some((t2, b2))) => {
+                let dir = (t1.translation - t2.translation).normalize();
+                // BIM!
+                b2.add_force(dir * 10.0 * -b2.max_velocity);
+                b1.add_force(dir * 10.0 * b1.max_velocity);
+            }
             _ => (),
         }
     }
@@ -337,6 +385,27 @@ fn process_bullet_collision(
             events.push(GameEvent::Delete(bullet_entity));
             events.push(GameEvent::Hit(health_entity, b.details));
         }
+    }
+
+    events
+}
+
+fn process_missile_collision(
+    world: &mut World,
+    health_entity: hecs::Entity,
+    missile_entity: hecs::Entity,
+) -> Vec<GameEvent> {
+    let mut events = vec![];
+
+    if let Ok(mut _b) = world.get_mut::<Missile>(missile_entity) {
+        events.push(GameEvent::Delete(missile_entity));
+        events.push(GameEvent::Hit(
+            health_entity,
+            HitDetails {
+                hit_points: 1.0,
+                is_crit: false,
+            },
+        ));
     }
 
     events

@@ -7,7 +7,8 @@
         0.0
       ],
       "max_velocity": 100.0,
-      "mass": 1.0
+      "mass": 1.0,
+      "max_force": 500.0
     },
     "transform": {
       "translation": [
@@ -55,7 +56,8 @@
             "enabled": true
         }
       },
-      "speed": 4.0
+      "speed": 4.0,
+      "scratch_drop": [10, 50]
     },
     "trail": {
       "enabled": true,

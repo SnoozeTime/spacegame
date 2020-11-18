@@ -19,7 +19,9 @@ pub struct DynamicBody {
 
     /// mass of the body. is used to compute velocity from forces (ma = F)
     pub mass: f32,
-    //TODO Max force
+
+    /// maximum amount of force to apply to the body (e.g 500)
+    pub max_force: f32,
 }
 
 impl Default for DynamicBody {
@@ -29,6 +31,7 @@ impl Default for DynamicBody {
             velocity: Default::default(),
             max_velocity: 0.0,
             mass: 0.0,
+            max_force: 500.0,
         }
     }
 }
@@ -41,12 +44,12 @@ impl DynamicBody {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PhysicConfig {
     pub damping: f32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PhysicSystem {
     config: PhysicConfig,
 }
@@ -57,13 +60,16 @@ impl PhysicSystem {
     }
 
     pub fn update(&self, world: &mut World, dt: Duration, resources: &Resources) {
-        for (_, (transform, body)) in world.query::<(&mut Transform, &mut DynamicBody)>().iter() {
+        for (_e, (transform, body)) in world.query::<(&mut Transform, &mut DynamicBody)>().iter() {
             // acceleration is sum of all forces divided by the mass
-            let acc = body
+            let mut sum_force = body
                 .forces
                 .drain(..)
-                .rfold(glam::Vec2::zero(), |a, b| a + b)
-                / body.mass;
+                .rfold(glam::Vec2::zero(), |a, b| a + b);
+            if sum_force.length() > body.max_force {
+                sum_force = sum_force.normalize() * body.max_force;
+            }
+            let acc = sum_force / body.mass;
 
             // integrate.
             body.velocity += dt.as_secs_f32() * acc;

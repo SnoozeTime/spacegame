@@ -20,6 +20,11 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    /// Remove all scratch. Happens at the end of each stage.
+    pub fn drain_scratch(&mut self) {
+        self.scratch = 0;
+    }
+
     /// Add some money.
     /// Can never fail.
     pub fn add_scratch(&mut self, amt: u32) {

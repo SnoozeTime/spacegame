@@ -1,3 +1,4 @@
+use crate::assets::audio::Audio;
 use crate::assets::prefab::PrefabManager;
 use crate::assets::sprite::SpriteAsset;
 use crate::resources::Resources;
@@ -10,6 +11,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
+pub mod audio;
 pub mod prefab;
 pub mod sprite;
 
@@ -27,8 +29,12 @@ where
         prefab::PrefabSyncLoader::new(PathBuf::from(&base_path).join("assets/prefab")),
     ));
 
+    let audio_loader: AssetManager<S, Audio> = AssetManager::from_loader(Box::new(
+        audio::AudioSyncLoader::new(PathBuf::from(&base_path).join("assets")),
+    ));
     resources.insert(sprite_manager);
     resources.insert(prefab_loader);
+    resources.insert(audio_loader);
 }
 
 pub fn update_asset_managers<S>(surface: &mut S, resources: &Resources)
@@ -45,6 +51,10 @@ where
     {
         let mut prefab_loader = resources.fetch_mut::<PrefabManager<S>>().unwrap();
         prefab_loader.upload_all(surface);
+    }
+    {
+        let mut audio_loader = resources.fetch_mut::<AssetManager<S, Audio>>().unwrap();
+        audio_loader.upload_all(surface);
     }
 }
 

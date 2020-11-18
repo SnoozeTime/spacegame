@@ -64,6 +64,55 @@ pub fn stroke_circle(resources: &Resources, position: glam::Vec2, radius: f32, c
     }
 }
 
+pub fn stroke_quad(
+    resources: &Resources,
+    position: glam::Vec2,
+    dimensions: glam::Vec2,
+    color: RgbaColor,
+) {
+    if !show_gizmo(resources) {
+        return;
+    }
+
+    match resources.fetch_mut::<DebugQueue>() {
+        Some(mut debug_queue) => {
+            let mut geometry: VertexBuffers<Point, u16> = VertexBuffers::new();
+            let color = color.to_normalized();
+
+            let p1 = position;
+            let p2 = position + glam::Vec2::unit_x() * dimensions.x();
+            let p3 = position
+                + glam::Vec2::unit_x() * dimensions.x()
+                + glam::Vec2::unit_y() * dimensions.y();
+            let p4 = position + glam::Vec2::unit_y() * dimensions.y();
+            if let Err(e) = basic_shapes::stroke_quad(
+                Point::new(p1.x(), p1.y()),
+                Point::new(p2.x(), p2.y()),
+                Point::new(p3.x(), p3.y()),
+                Point::new(p4.x(), p4.y()),
+                &StrokeOptions::default(),
+                &mut simple_builder(&mut geometry),
+            ) {
+                error!("Error during stroke_line = {:?}", e);
+                return;
+            }
+
+            debug_queue.0.push((
+                geometry
+                    .vertices
+                    .iter()
+                    .map(|p| Vertex {
+                        position: Position::new([p.x, p.y]),
+                        color: Color::new(color),
+                    })
+                    .collect::<Vec<_>>(),
+                geometry.indices,
+            ));
+        }
+        None => error!("No DebugQueue in resources"),
+    }
+}
+
 pub fn stroke_line(
     resources: &Resources,
     position: glam::Vec2,

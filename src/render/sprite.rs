@@ -11,6 +11,7 @@ use luminance_derive::UniformInterface;
 use luminance_gl::gl33::GL33;
 
 use crate::assets::{sprite::SpriteAsset, AssetManager, Handle};
+use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
 use luminance::shading_gate::ShadingGate;
 use serde_derive::{Deserialize, Serialize};
@@ -31,6 +32,10 @@ pub struct Blink {
     pub amplitude: f32,
 }
 
+pub struct Tint {
+    pub color: RgbaColor,
+}
+
 #[derive(UniformInterface)]
 pub struct ShaderUniform {
     /// PROJECTION matrix in MVP
@@ -46,6 +51,8 @@ pub struct ShaderUniform {
     /// true if should blink.
     should_blink: Uniform<bool>,
     blink_color: Uniform<[f32; 4]>,
+    should_tint: Uniform<bool>,
+    tint_color: Uniform<[f32; 4]>,
     time: Uniform<f32>,
     amplitude: Uniform<f32>,
 }
@@ -139,6 +146,13 @@ where
                                 iface.set(&uni.amplitude, blink.amplitude);
                             } else {
                                 iface.set(&uni.should_blink, false);
+                            }
+
+                            if let Ok(tint) = world.get::<Tint>(e) {
+                                iface.set(&uni.should_tint, true);
+                                iface.set(&uni.tint_color, tint.color.to_normalized());
+                            } else {
+                                iface.set(&uni.should_tint, false);
                             }
 
                             let bound_tex = pipeline.bind_texture(tex);

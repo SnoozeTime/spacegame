@@ -1,3 +1,4 @@
+use crate::core::audio;
 use crate::core::colors::RgbaColor;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::transform::Transform;
@@ -6,18 +7,19 @@ use crate::render::ui::gui::{GuiContext, HorizontalAlign, VerticalAlign};
 use crate::render::ui::{Button, Gui};
 use crate::resources::Resources;
 use crate::scene::loading::LoadingScene;
+use crate::scene::MainScene;
 use bitflags::_core::time::Duration;
 use hecs::World;
 use std::path::PathBuf;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MainMenu {
     does_start: bool,
     emitter_entity: Option<hecs::Entity>,
 }
 
 impl Scene for MainMenu {
-    fn on_create(&mut self, world: &mut hecs::World, _resources: &mut Resources) {
+    fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         //generate_terrain(world, resources);
         let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
         let emitter = ParticleEmitter::load_from_path(
@@ -26,17 +28,31 @@ impl Scene for MainMenu {
         .unwrap();
 
         self.emitter_entity = Some(world.spawn((emitter, Transform::default())));
+
+        audio::play_background_music(resources, "music/spacelifeNo14.ogg");
+    }
+
+    fn on_destroy(&mut self, world: &mut hecs::World) {
+        if let Some(e) = self.emitter_entity {
+            if let Err(e) = world.despawn(e) {
+                error!("Error despawning menu particle = {:?}", e);
+            }
+        }
     }
 
     fn update(&mut self, _dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
         if self.does_start {
-            SceneResult::ReplaceScene(Box::new(LoadingScene::new(vec![
-                "base_enemy".to_string(),
-                "base_enemy_2".to_string(),
-                "boss1".to_string(),
-                "satellite".to_string(),
-                "player".to_string(),
-            ])))
+            SceneResult::ReplaceScene(Box::new(LoadingScene::new(
+                vec![
+                    "base_enemy".to_string(),
+                    "base_enemy_2".to_string(),
+                    "boss1".to_string(),
+                    "satellite".to_string(),
+                    "player".to_string(),
+                ],
+                vec![],
+                MainScene::new(),
+            )))
         } else {
             SceneResult::Noop
         }
@@ -76,14 +92,6 @@ impl Scene for MainMenu {
         }
 
         Some(gui)
-    }
-
-    fn on_destroy(&mut self, world: &mut hecs::World) {
-        if let Some(e) = self.emitter_entity {
-            if let Err(e) = world.despawn(e) {
-                error!("Error despawning menu particle = {:?}", e);
-            }
-        }
     }
 }
 

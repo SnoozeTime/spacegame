@@ -49,7 +49,7 @@ impl Health {
     }
 
     fn is_dead(&self) -> bool {
-        self.current == 0.0
+        self.current <= 0.0
     }
 }
 
@@ -84,6 +84,7 @@ impl Shield {
 #[derive(Debug, Copy, Clone)]
 pub struct HitDetails {
     pub hit_points: f32,
+    pub is_crit: bool,
 }
 
 pub struct HealthSystem {
@@ -131,7 +132,11 @@ impl HealthSystem {
                     let health = world.get_mut::<Health>(*e);
                     let shield = world.get_mut::<Shield>(*e);
 
-                    let is_enemy = world.get::<Enemy>(*e).is_ok();
+                    let enemy_drop = if let Ok(enemy) = world.get::<Enemy>(*e) {
+                        Some(enemy.scratch_drop)
+                    } else {
+                        None
+                    };
 
                     if let Ok(mut shield) = shield {
                         // reset shield timer. Shield cannot recharge until elapsed.
@@ -158,7 +163,7 @@ impl HealthSystem {
                             health.current -= hit_points;
                             if health.is_dead() {
                                 debug!("{:?} is dead ({:?}", e, *health);
-                                Self::add_death_events(&mut death_events, world, *e, is_enemy);
+                                Self::add_death_events(&mut death_events, world, *e, enemy_drop);
                                 explosion = true;
                             } else {
                                 // start invulnerability frames.
@@ -169,7 +174,7 @@ impl HealthSystem {
                             }
                         } else {
                             // no shield, no health,  you're dead boy.
-                            Self::add_death_events(&mut death_events, world, *e, is_enemy);
+                            Self::add_death_events(&mut death_events, world, *e, enemy_drop);
                             explosion = true;
                         }
                     }
@@ -234,7 +239,7 @@ impl HealthSystem {
         death_events: &mut Vec<GameEvent>,
         world: &hecs::World,
         entity: hecs::Entity,
-        is_enemy: bool,
+        is_enemy: Option<(u32, u32)>,
     ) {
         // no shield, no health,  you're dead boy.
         if world.get::<Player>(entity).is_ok() {
@@ -243,8 +248,8 @@ impl HealthSystem {
             death_events.push(GameEvent::Delete(entity));
         }
 
-        if is_enemy {
-            death_events.push(GameEvent::EnemyDied(entity));
+        if let Some(scratch_drop) = is_enemy {
+            death_events.push(GameEvent::EnemyDied(entity, scratch_drop));
         }
     }
 

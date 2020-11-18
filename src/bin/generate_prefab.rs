@@ -7,7 +7,7 @@ use spacegame::gameplay::collision::{BoundingBox, CollisionLayer};
 use spacegame::gameplay::enemy::{Boss1, Enemy, EnemyType, Satellite};
 use spacegame::gameplay::health::Health;
 use spacegame::gameplay::physics::DynamicBody;
-use spacegame::gameplay::player::Player;
+use spacegame::gameplay::player::{Player, Stats};
 use spacegame::prefab::enemies::EnemyPrefab;
 use spacegame::prefab::player::PlayerPrefab;
 use spacegame::render::particle::ParticleEmitter;
@@ -29,6 +29,7 @@ fn gen_player() {
                 velocity: glam::Vec2::zero(),
                 max_velocity: 500.0,
                 mass: 1.0,
+                max_force: 500.0,
             },
             transform: Transform {
                 translation: glam::Vec2::new(100.0, 100.0),
@@ -47,6 +48,12 @@ fn gen_player() {
             health: Health::new(3.0, Timer::of_seconds(3.0)),
             shield: None,
             trail: emitter,
+            stats: Stats {
+                dmg: 1.0,
+                crit_percent: 50,
+                crit_multiplier: 1.5,
+                missile_percent: 0,
+            },
         };
 
         let prefab = &player_prefab as &dyn Prefab;
@@ -66,6 +73,7 @@ fn main() {
                 velocity: glam::Vec2::zero(),
                 max_velocity: 0.0,
                 mass: 1.0,
+                max_force: 500.0,
             },
             transform: Transform {
                 translation: Default::default(),
@@ -86,9 +94,10 @@ fn main() {
             enemy: Enemy {
                 enemy_type: EnemyType::Satellite(Satellite {
                     shoot_timer: Timer::of_seconds(3.0),
-                    shoot_distance: 500.0,
+                    shoot_distance: 800.0,
                 }),
                 speed: 0.0,
+                scratch_drop: (0, 40),
             },
             trail: None,
         };
@@ -108,6 +117,7 @@ fn main() {
                 velocity: glam::Vec2::zero(),
                 max_velocity: 500.0,
                 mass: 10.0,
+                max_force: 500.0,
             },
             transform: Transform {
                 translation: Default::default(),
@@ -133,6 +143,7 @@ fn main() {
                     salve_timer: Timer::of_seconds(5.0),
                 }),
                 speed: 5.0,
+                scratch_drop: (0, 100),
             },
             trail: None,
         };

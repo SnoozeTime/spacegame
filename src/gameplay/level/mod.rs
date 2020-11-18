@@ -17,13 +17,20 @@ const NB_BLOCKS_Y: u32 = 50;
 
 pub mod random_events;
 pub mod wave;
+use crate::event::GameEvent;
+use shrev::EventChannel;
 use wave::{Wave, WaveDescription};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StageDescription {
     pub waves: Vec<WaveDescription>,
+    pub nb_pickups: usize,
+
+    #[serde(default)]
+    next_stage: Option<String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Stage {
     background: hecs::Entity,
     /// Asteroid entities.
@@ -36,8 +43,10 @@ pub struct Stage {
     current_wave: Option<usize>,
     next_wave: Option<usize>,
     timer_between_waves: Timer,
+    timer_between_stages: Timer,
 
     finished: bool,
+    next_stage: Option<String>,
 }
 
 impl Stage {
@@ -71,7 +80,7 @@ impl Stage {
 
         // 3. Stuff that the player can pick up for bonuses.
         // -------------------------------------------------
-        let pickups = spawn_pickups(world, &mut *random, &no_asteroids, 3);
+        let pickups = spawn_pickups(world, &mut *random, &no_asteroids, stage_desc.nb_pickups);
         let waves: Vec<Wave> = stage_desc.waves.drain(..).map(|w| w.into()).collect();
         assert!(waves.len() > 0);
 
@@ -84,7 +93,10 @@ impl Stage {
             no_asteroids,
             current_wave: None,
             next_wave: Some(0),
-            timer_between_waves: Timer::of_seconds(3.0),
+            timer_between_waves: Timer::of_seconds(5.0),
+            timer_between_stages: Timer::of_seconds(10.0),
+
+            next_stage: stage_desc.next_stage,
         }
     }
 
@@ -97,32 +109,38 @@ impl Stage {
     }
 
     pub fn update(&mut self, world: &mut hecs::World, resources: &Resources, dt: Duration) {
-        if self.finished {
-            return;
-        }
-
-        match self.current_wave {
-            None => {
+        match (self.current_wave, self.next_wave) {
+            (None, None) => {
+                let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
+                if let Some(next_stage) = self.next_stage.as_ref() {
+                    // In this case, the stage is over !
+                    self.finished = true;
+                    self.timer_between_stages.tick(dt);
+                    if self.timer_between_stages.finished() {
+                        channel.single_write(GameEvent::NextStage(next_stage.clone()));
+                    }
+                } else {
+                    // no more stages, the game is finished !
+                    channel.single_write(GameEvent::YouWin);
+                }
+            }
+            (None, Some(next_wave)) => {
+                // Tick the timer between waves.
                 self.timer_between_waves.tick(dt);
                 if self.timer_between_waves.finished() {
                     self.timer_between_waves.stop();
                     self.timer_between_waves.reset();
 
                     // NOW START next wave if there is any.
-                    if let Some(next_wave) = self.next_wave {
-                        let wave = self.waves.get_mut(next_wave).unwrap();
-                        wave.init(world, resources, &self.no_asteroids);
-                        self.current_wave = Some(next_wave);
-                    } else {
-                        // Bye bye :)
-                        self.finished = true;
-                    }
+                    let wave = self.waves.get_mut(next_wave).unwrap();
+                    wave.init(world, resources, &self.no_asteroids);
+                    self.current_wave = Some(next_wave);
                 }
             }
-            Some(idx) => {
+            (Some(idx), _) => {
+                // just check if the current wave is over. If yes, then prepare for next wave or finish the stage
                 let wave = self.waves.get(idx).unwrap();
                 if wave.is_finished() {
-                    println!("FINISHED");
                     self.current_wave = None;
                     self.next_wave = if self.waves.len() > idx + 1 {
                         Some(idx + 1)
@@ -243,6 +261,7 @@ pub fn generate_terrain(
                 velocity: Default::default(),
                 max_velocity: 500.0,
                 mass: 5.0,
+                max_force: 500.0,
             },
             BoundingBox {
                 collision_layer: CollisionLayer::ASTEROID,
@@ -252,7 +271,7 @@ pub fn generate_terrain(
                         | CollisionLayer::PLAYER_BULLET
                         | CollisionLayer::ENEMY_BULLET,
                 ),
-                half_extend: glam::vec2(16.0, 16.0),
+                half_extend: glam::vec2(32.0, 32.0),
             },
         )));
     }
@@ -274,6 +293,7 @@ pub fn generate_terrain(
                 velocity: Default::default(),
                 max_velocity: 500.0,
                 mass: 5.0,
+                max_force: 500.0,
             },
             BoundingBox {
                 collision_layer: CollisionLayer::ASTEROID,
@@ -283,7 +303,7 @@ pub fn generate_terrain(
                         | CollisionLayer::PLAYER_BULLET
                         | CollisionLayer::ENEMY_BULLET,
                 ),
-                half_extend: glam::vec2(16.0, 16.0),
+                half_extend: glam::vec2(32.0, 32.0),
             },
         )));
     }
@@ -298,7 +318,10 @@ fn spawn_pickups(
     nb_pickup: usize,
 ) -> Vec<hecs::Entity> {
     let positions = pick_positions(random, no_asteroid, nb_pickup);
-    positions.iter().map(|p| spawn_pickup(world, *p)).collect()
+    positions
+        .iter()
+        .map(|p| spawn_pickup(world, *p, random))
+        .collect()
 }
 
 fn pick_positions(

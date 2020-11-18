@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod camera;
 pub mod colors;
 pub mod curve;

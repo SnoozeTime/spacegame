@@ -1,13 +1,9 @@
 {
+  "nb_pickups": 7,
   "waves": [
     {
-      "to_instantiate": ["boss1"]
-    },
-    {
-      "to_instantiate": ["satellite"]
-    },
-    {
-      "to_instantiate": ["base_enemy", "base_enemy", "base_enemy", "base_enemy", "base_enemy", "base_enemy", "base_enemy"]
+      "to_instantiate": ["base_enemy"]
     }
-  ]
+  ],
+  "next_stage": "stage2.json"
 }

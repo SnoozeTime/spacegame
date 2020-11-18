@@ -1,9 +1,13 @@
 use super::bullet;
 use crate::config::PlayerConfig;
+use crate::core::audio;
 use crate::core::camera::screen_to_world;
 use crate::core::input::{Axis, Input};
+use crate::core::random::RandomGenerator;
 use crate::core::transform::Transform;
-use crate::gameplay::bullet::BulletType;
+use crate::gameplay::bullet::spawn_missile;
+use crate::gameplay::collision::CollisionLayer;
+use crate::gameplay::enemy::Enemy;
 use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::trail::Trail;
@@ -14,44 +18,85 @@ use bitflags::_core::time::Duration;
 use hecs::{Entity, World};
 #[allow(unused_imports)]
 use log::{info, trace};
+use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Weapon {
     Simple,
-    Multiple,
 }
-
-impl Weapon {
-    pub fn shoot(
-        &self,
-        initial_pos: glam::Vec2,
-        direction: glam::Vec2,
-    ) -> Vec<(glam::Vec2, glam::Vec2, BulletType)> {
-        match *self {
-            Weapon::Simple => vec![(initial_pos, direction, bullet::BulletType::Twin)],
-            Weapon::Multiple => vec![
-                (initial_pos, direction, bullet::BulletType::Fast),
-                (
-                    initial_pos,
-                    glam::Mat2::from_angle(3.14 / 4.0) * direction,
-                    bullet::BulletType::Fast,
-                ),
-                (
-                    initial_pos,
-                    glam::Mat2::from_angle(-3.14 / 4.0) * direction,
-                    bullet::BulletType::Fast,
-                ),
-            ],
-        }
-    }
-}
+//
+// impl Weapon {
+//     pub fn shoot(
+//         &self,
+//         initial_pos: glam::Vec2,
+//         direction: glam::Vec2,
+//     ) -> Vec<(glam::Vec2, glam::Vec2, BulletType, HitDetails)> {
+//         match *self {
+//             Weapon::Simple => vec![(initial_pos, direction, bullet::BulletType::Twin)],
+//             Weapon::Multiple => vec![
+//                 (initial_pos, direction, bullet::BulletType::Fast),
+//                 (
+//                     initial_pos,
+//                     glam::Mat2::from_angle(3.14 / 4.0) * direction,
+//                     bullet::BulletType::Fast,
+//                 ),
+//                 (
+//                     initial_pos,
+//                     glam::Mat2::from_angle(-3.14 / 4.0) * direction,
+//                     bullet::BulletType::Fast,
+//                 ),
+//             ],
+//         }
+//     }
+// }
 
 /// Tag to tell the ECS that the entity is a player.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
     pub weapon: Weapon,
     pub direction: glam::Vec2,
+    pub stats: Stats,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Stats {
+    /// dmg per bullet.
+    pub dmg: f32,
+    /// between 0 and 100.
+    pub crit_percent: u32,
+    /// dmg multiplier (>1)
+    pub crit_multiplier: f32,
+    /// % change to shoot a missile when shooting
+    pub missile_percent: u32,
+}
+
+impl Default for Stats {
+    fn default() -> Self {
+        Self {
+            dmg: 1.0,
+            crit_percent: 5,
+            crit_multiplier: 1.2,
+            missile_percent: 0,
+        }
+    }
+}
+
+impl Stats {
+    fn is_crit<R: Rng>(&self, rand: &mut R) -> bool {
+        let pick: u32 = rand.gen_range(0, 101);
+        pick <= self.crit_percent
+    }
+
+    fn dmg(&self, is_crit: bool) -> f32 {
+        let multiplier = if is_crit { self.crit_multiplier } else { 1.0 };
+        multiplier * self.dmg
+    }
+
+    fn should_shoot_missile<R: Rng>(&self, rand: &mut R) -> bool {
+        let pick: u32 = rand.gen_range(0, 101);
+        pick <= self.missile_percent
+    }
 }
 
 /// Will return the player entity if it exists.
@@ -83,12 +128,20 @@ fn z_axis() -> Axis<Action> {
 pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
     // only one player for now.
     let input = resources.fetch::<Input<Action>>().unwrap();
+    let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
     let player_controller_conf = resources.fetch::<PlayerConfig>().unwrap();
 
     let projection_matrix =
         glam::Mat4::orthographic_rh_gl(0.0, WIDTH as f32, 0.0, HEIGHT as f32, -1.0, 10.0);
 
     let mut bullets = vec![];
+    let mut missiles = vec![];
+
+    let enemies = world
+        .query::<(&Transform, &Enemy)>()
+        .iter()
+        .map(|(e, (t, _))| (e, *t))
+        .collect::<Vec<_>>();
 
     for (_e, (transform, player, dynamic, trail)) in world
         .query::<(&mut Transform, &mut Player, &mut DynamicBody, &mut Trail)>()
@@ -134,12 +187,42 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
             let initial_pos = transform.translation
                 + glam::Mat2::from_angle(transform.rotation)
                     * glam::vec2(0.0, transform.scale.y() / 2.0);
-            bullets = player.weapon.shoot(initial_pos, dir);
+
+            // calculate damages.
+            let is_crit = player.stats.is_crit(random.rng());
+            let dmg = player.stats.dmg(is_crit);
+
+            if player.stats.should_shoot_missile(random.rng()) {
+                if let Some(enemy) = enemies.first() {
+                    missiles.push((initial_pos, dir, enemy.0));
+                }
+            }
+
+            audio::play_sound(resources, "sounds/scifi_kit/Laser/Laser_09.wav");
+            bullets = vec![(
+                initial_pos,
+                dir,
+                bullet::BulletType::Twin,
+                HitDetails {
+                    hit_points: dmg,
+                    is_crit,
+                },
+            )];
         }
     }
 
-    bullets.iter().for_each(|(p, d, b)| {
-        bullet::spawn_player_bullet(world, *p, *d, *b, HitDetails { hit_points: 1.0 });
+    bullets.iter().for_each(|(p, d, b, details)| {
+        bullet::spawn_player_bullet(world, *p, *d, *b, *details);
+    });
+
+    missiles.iter().for_each(|(p, d, e)| {
+        spawn_missile(
+            world,
+            *p,
+            *d,
+            *e,
+            CollisionLayer::ENEMY | CollisionLayer::ENEMY_BULLET,
+        );
     });
 
     trace!("finished update_player");

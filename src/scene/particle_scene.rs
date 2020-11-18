@@ -15,6 +15,7 @@ use glam::Vec2;
 use hecs::{Entity, World};
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct ParticleScene {
     entity: Option<Entity>,
     particle_emitter: ParticleEmitter,

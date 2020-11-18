@@ -1,13 +1,17 @@
 use crate::core::input::Input;
+use crate::core::random::RandomGenerator;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::collision::{aabb_intersection, BoundingBox, CollisionLayer};
+use crate::gameplay::health::Shield;
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::Player;
 use crate::gameplay::Action;
 use crate::render::sprite::Sprite;
 use crate::resources::Resources;
+use rand::distributions::{Distribution, Standard};
+use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
 
@@ -15,7 +19,12 @@ pub struct Pickup {
     pub item: Items,
 }
 
-pub fn spawn_pickup(world: &mut hecs::World, pos: glam::Vec2) -> hecs::Entity {
+pub fn spawn_pickup(
+    world: &mut hecs::World,
+    pos: glam::Vec2,
+    random: &mut RandomGenerator,
+) -> hecs::Entity {
+    let item: Items = random.rng().gen();
     world.spawn((
         Transform {
             translation: pos,
@@ -26,9 +35,7 @@ pub fn spawn_pickup(world: &mut hecs::World, pos: glam::Vec2) -> hecs::Entity {
         Sprite {
             id: "capsule.png".to_string(),
         },
-        Pickup {
-            item: Items::SpeedBonus,
-        },
+        Pickup { item },
         BoundingBox {
             half_extend: glam::vec2(10.0, 10.0),
             collision_layer: CollisionLayer::PICKUP,
@@ -60,6 +67,7 @@ pub fn process_pickups(world: &mut hecs::World, resources: &Resources) {
             {
                 if let Ok(()) = inventory.remove_scratch(50) {
                     to_delete.push(GameEvent::Delete(e));
+                    to_delete.push(GameEvent::InfoText(pickup.item.info_text()));
                     picked_up.push(pickup.item);
                 }
             }
@@ -95,8 +103,17 @@ pub fn aabb_intersection2(
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Items {
-    // Speed +30%
+    //
+    /// Speed +30%
     SpeedBonus,
+    /// Crit chance +5%
+    CritChance,
+    /// Crit dmg +0.05 (5%)
+    CritDmg,
+    /// Shield +1
+    ShieldUp,
+    /// Shoot random Missiles when firing
+    Missile,
 }
 
 impl Items {
@@ -106,6 +123,56 @@ impl Items {
                 let mut dynamic_body = world.get_mut::<DynamicBody>(player).unwrap();
                 dynamic_body.velocity *= 1.3;
             }
+            Items::CritChance => {
+                let mut player = world.get_mut::<Player>(player).unwrap();
+                player.stats.crit_percent += 5;
+            }
+            Items::CritDmg => {
+                let mut player = world.get_mut::<Player>(player).unwrap();
+                player.stats.crit_multiplier += 0.05;
+            }
+            Items::ShieldUp => {
+                let mut should_add_shield = false;
+                if let Ok(mut shield) = world.get_mut::<Shield>(player) {
+                    shield.current += 1.0;
+                    shield.max += 1.0;
+                } else {
+                    should_add_shield = true;
+                }
+
+                if should_add_shield {
+                    world
+                        .insert_one(player, Shield::new(1.0, 5.0, 0.05))
+                        .expect("Cannot add shield component");
+                }
+            }
+            Items::Missile => {
+                let mut player = world.get_mut::<Player>(player).unwrap();
+                player.stats.missile_percent += 5;
+            }
+        }
+    }
+
+    pub fn info_text(&self) -> String {
+        match self {
+            Items::SpeedBonus => "Speed +30%",
+            Items::CritChance => "Crit Chance +5%",
+            Items::CritDmg => "Crit Damage +5%",
+            Items::ShieldUp => "Shield Up",
+            Items::Missile => "Missile Spray",
+        }
+        .to_string()
+    }
+}
+
+impl Distribution<Items> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Items {
+        match rng.gen_range(0, 5) {
+            0 => Items::SpeedBonus,
+            1 => Items::CritChance,
+            2 => Items::CritDmg,
+            3 => Items::Missile,
+            _ => Items::ShieldUp,
         }
     }
 }

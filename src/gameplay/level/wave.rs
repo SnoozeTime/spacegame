@@ -7,7 +7,7 @@ use luminance_glfw::GlfwSurface;
 use rand::seq::SliceRandom;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WaveDescription {
     /// List of stuff to instantiate in the wave
     to_instantiate: Vec<String>,
@@ -23,6 +23,7 @@ impl From<WaveDescription> for Wave {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Wave {
     wave_desc: WaveDescription,
     pub enemies: Vec<hecs::Entity>,
@@ -30,17 +31,6 @@ pub struct Wave {
 }
 
 impl Wave {
-    pub fn new() -> Self {
-        let wave_desc = WaveDescription {
-            to_instantiate: vec!["base_enemy".to_string()],
-        };
-        Self {
-            wave_desc,
-            enemies: vec![],
-            init: false,
-        }
-    }
-
     pub fn init(
         &mut self,
         world: &mut hecs::World,

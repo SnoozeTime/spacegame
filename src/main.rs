@@ -10,6 +10,7 @@ use spacegame::game::{Game, GameBuilder};
 use spacegame::config::{load_config, GameEngineConfig, PlayerConfig};
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::Action;
+use spacegame::scene::loading::LoadingScene;
 #[allow(unused_imports)]
 use spacegame::scene::main_menu::MainMenu;
 #[allow(unused_imports)]
@@ -49,7 +50,17 @@ fn main_loop(mut surface: GlfwSurface) {
         //     PathBuf::from(base_path).join("particle/particle.json"),
         //     false,
         // )))
-        .for_scene(Box::new(MainMenu::default()))
+        // .for_scene(Box::new(MainMenu::default()))
+        .for_scene(Box::new(LoadingScene::new(
+            vec![],
+            vec![
+                "music/spacelifeNo14.ogg".to_string(),
+                "music/Finding-Flora.wav".to_string(),
+                "sounds/scifi_kit/Laser/Laser_09.wav".to_string(),
+                "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+            ],
+            MainMenu::default(),
+        )))
         .with_resource(player_config)
         .with_resource(engine_config)
         .with_resource(Inventory::default())
