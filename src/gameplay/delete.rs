@@ -22,6 +22,7 @@ impl GarbageCollector {
         for ev in chan.read(&mut self.rdr_id) {
             if let GameEvent::Delete(e) = ev {
                 log::debug!("Will delete {:?}", e);
+
                 // remove from world
                 if let Err(e) = world.despawn(*e) {
                     info!("Entity was already deleted (or does not exist?) = {}", e);

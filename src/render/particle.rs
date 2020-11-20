@@ -486,7 +486,7 @@ where
                         res?;
                     } else {
                         debug!("Texture is not loaded {}", id);
-                        textures.load(&id);
+                        textures.load(id.clone());
                     }
                 }
             }

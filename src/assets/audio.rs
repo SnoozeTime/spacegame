@@ -29,11 +29,11 @@ impl AudioSyncLoader {
     }
 }
 
-impl<S> Loader<S, Audio> for AudioSyncLoader
+impl<S> Loader<S, Audio, String> for AudioSyncLoader
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    fn load(&mut self, asset_name: &str) -> Asset<Audio> {
+    fn load(&mut self, asset_name: String) -> Asset<Audio> {
         let mut asset = Asset::new();
         let path = self.base_path.join(asset_name);
         info!("Will load audio at {:?}", path);

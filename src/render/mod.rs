@@ -1,6 +1,8 @@
+use crate::assets::shader::ShaderManager;
 use crate::assets::sprite::SpriteAsset;
 use crate::assets::AssetManager;
 use crate::core::camera::ProjectionMatrix;
+use crate::render::mesh::MeshRenderer;
 use crate::render::particle::ParticleSystem;
 use crate::render::path::PathRenderer;
 use crate::render::sprite::SpriteRenderer;
@@ -15,6 +17,7 @@ use luminance_gl::GL33;
 use std::time::Duration;
 
 pub mod background;
+pub mod mesh;
 pub mod particle;
 pub mod path;
 pub mod sprite;
@@ -26,6 +29,7 @@ where
 {
     /// Render sprites on screen.
     sprite_renderer: SpriteRenderer<S>,
+    mesh_renderer: MeshRenderer<S>,
     /// particles :)
     particle_renderer: ParticleSystem<S>,
 
@@ -43,8 +47,10 @@ where
         let particle_renderer = ParticleSystem::new(surface);
         let ui_renderer = UiRenderer::new(surface, gui_context);
         let path_renderer = PathRenderer::new(surface);
+        let mesh_renderer = MeshRenderer::new(surface);
         Self {
             sprite_renderer,
+            mesh_renderer,
             particle_renderer,
             ui_renderer,
             path_renderer,
@@ -75,6 +81,7 @@ where
         let mut textures = resources
             .fetch_mut::<AssetManager<S, SpriteAsset<S>>>()
             .unwrap();
+        let mut shaders = resources.fetch_mut::<ShaderManager<S>>().unwrap();
         surface
             .new_pipeline_gate()
             .pipeline(
@@ -88,6 +95,15 @@ where
                         &view,
                         &world,
                         &mut *textures,
+                    )?;
+
+                    self.mesh_renderer.render(
+                        &pipeline,
+                        &mut shd_gate,
+                        &projection_matrix,
+                        &view,
+                        &world,
+                        &mut *shaders,
                     )?;
 
                     self.particle_renderer.render(

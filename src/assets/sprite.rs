@@ -1,5 +1,6 @@
 use super::{Asset, Loader};
 
+use crate::assets::AssetError;
 use downcast_rs::__std::path::PathBuf;
 use image::ImageError;
 use log::{error, info};
@@ -103,14 +104,14 @@ impl SpriteSyncLoader {
     }
 }
 
-impl<S> Loader<S, SpriteAsset<S>> for SpriteSyncLoader
+impl<S> Loader<S, SpriteAsset<S>, String> for SpriteSyncLoader
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    fn load(&mut self, asset_name: &str) -> Asset<SpriteAsset<S>> {
+    fn load(&mut self, asset_name: String) -> Asset<SpriteAsset<S>> {
         let mut asset = Asset::new();
-        let asset_path = self.base_path.join(asset_name);
-        let metadata = self.load_metadata(asset_name);
+        let asset_path = self.base_path.join(&asset_name);
+        let metadata = self.load_metadata(&asset_name);
         let sampler = metadata.sampler.to_sampler();
 
         match load_texels(asset_path) {
@@ -125,17 +126,18 @@ where
         asset
     }
 
-    fn upload_to_gpu(&self, ctx: &mut S, inner: &mut SpriteAsset<S>) {
+    fn upload_to_gpu(&self, ctx: &mut S, inner: &mut SpriteAsset<S>) -> Result<(), AssetError> {
         let tex = if let SpriteAsset::Loading(w, h, data, sampler) = inner {
-            let mut tex = Texture::new(ctx, [*w, *h], 0, sampler.clone())
-                .expect("luminance texture creation");
-            tex.upload_raw(GenMipmaps::No, data).unwrap();
+            let mut tex = Texture::new(ctx, [*w, *h], 0, sampler.clone())?;
+            tex.upload_raw(GenMipmaps::No, data)?;
             tex
         } else {
             panic!("Expecting Loading variant.")
         };
 
         *inner = SpriteAsset::Uploaded(tex);
+
+        Ok(())
     }
 }
 

@@ -46,6 +46,19 @@ anyhow = "1.0.34"
 # Sound
 rodio = "0.13.0"
 
+# hash for assets' ID
+md5 = "0.7.0"
+base64 = "0.13.0"
+
+# hot reload for assets
+notify = "5.0.0-pre.4"
+
 [dependencies.glam]
 version = "0.9.5"
 features = ["serde"]
+
+
+[features]
+default = ["hot-reload"]
+# If activated, the assets will be reloaded from the asset folders whenever changed.
+hot-reload = []

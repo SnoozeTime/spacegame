@@ -61,13 +61,13 @@ impl PrefabSyncLoader {
     }
 }
 
-impl<S> Loader<S, Box<dyn Prefab>> for PrefabSyncLoader
+impl<S> Loader<S, Box<dyn Prefab>, String> for PrefabSyncLoader
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    fn load(&mut self, asset_name: &str) -> Asset<Box<dyn Prefab>> {
+    fn load(&mut self, asset_name: String) -> Asset<Box<dyn Prefab>> {
         let mut asset = Asset::new();
-        let asset_path = self.base_path.join(asset_name).with_extension("json");
+        let asset_path = self.base_path.join(&asset_name).with_extension("json");
         info!("Will load at path = {}", asset_path.display());
 
         match std::fs::read_to_string(asset_path) {

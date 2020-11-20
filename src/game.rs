@@ -1,3 +1,5 @@
+#[cfg(feature = "hot-reload")]
+use crate::assets::HotReloader;
 use crate::core::audio::AudioSystem;
 use crate::core::camera::{Camera, ProjectionMatrix};
 use crate::core::input::{Input, InputAction};
@@ -134,6 +136,8 @@ where
             garbage_collector,
             phantom: self.phantom,
             gui_context: self.gui_context,
+            #[cfg(feature = "hot-reload")]
+            hot_reloader: HotReloader::new(),
         }
     }
 }
@@ -174,6 +178,9 @@ pub struct Game<'a, A> {
     gui_context: GuiContext,
 
     phantom: PhantomData<A>,
+
+    #[cfg(feature = "hot-reload")]
+    hot_reloader: HotReloader<GlfwSurface>,
 }
 
 impl<'a, A> Game<'a, A>
@@ -280,6 +287,8 @@ where
 
             // Either clean up or load new resources.
             crate::assets::update_asset_managers(self.surface, &self.resources);
+            #[cfg(feature = "hot-reload")]
+            self.hot_reloader.update(&self.resources);
 
             // Now, if need to switch scenes, do it.
             if let Some(res) = scene_result {

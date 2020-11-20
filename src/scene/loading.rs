@@ -41,7 +41,7 @@ where
         self.prefab_handles = self
             .prefabs_to_load
             .iter()
-            .map(|name| prefab_manager.load(name.as_str()))
+            .map(|name| prefab_manager.load(name.clone()))
             .collect();
 
         let mut audio_manager = resources
@@ -50,7 +50,7 @@ where
         self.audio_handles = self
             .audio_to_load
             .iter()
-            .map(|name| audio_manager.load(name.as_str()))
+            .map(|name| audio_manager.load(name.clone()))
             .collect();
     }
 

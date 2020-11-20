@@ -1,18 +1,24 @@
 use crate::assets::audio::Audio;
 use crate::assets::prefab::PrefabManager;
+use crate::assets::shader::ShaderManager;
 use crate::assets::sprite::SpriteAsset;
 use crate::resources::Resources;
+use bitflags::_core::marker::PhantomData;
 use log::debug;
 use luminance::context::GraphicsContext;
 use luminance_gl::GL33;
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::hash_map::Keys;
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 pub mod audio;
 pub mod prefab;
+pub mod shader;
 pub mod sprite;
 
 pub fn create_asset_managers<S>(_surface: &mut S, resources: &mut Resources)
@@ -32,9 +38,14 @@ where
     let audio_loader: AssetManager<S, Audio> = AssetManager::from_loader(Box::new(
         audio::AudioSyncLoader::new(PathBuf::from(&base_path).join("assets")),
     ));
+
+    let shader_loader: ShaderManager<S> = AssetManager::from_loader(Box::new(
+        shader::ShaderLoader::new(PathBuf::from(&base_path).join("assets/shaders")),
+    ));
     resources.insert(sprite_manager);
     resources.insert(prefab_loader);
     resources.insert(audio_loader);
+    resources.insert(shader_loader);
 }
 
 pub fn update_asset_managers<S>(surface: &mut S, resources: &Resources)
@@ -56,10 +67,15 @@ where
         let mut audio_loader = resources.fetch_mut::<AssetManager<S, Audio>>().unwrap();
         audio_loader.upload_all(surface);
     }
+
+    {
+        let mut shader_loader = resources.fetch_mut::<ShaderManager<S>>().unwrap();
+        shader_loader.upload_all(surface);
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct Handle(pub String);
+pub struct Handle<H = String>(pub H);
 
 #[derive(Debug, Error)]
 pub enum AssetError {
@@ -71,6 +87,12 @@ pub enum AssetError {
 
     #[error(transparent)]
     JsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    ShaderError(#[from] luminance::shader::ProgramError),
+
+    #[error(transparent)]
+    TextureError(#[from] luminance::texture::TextureError),
 }
 
 pub struct Asset<T> {
@@ -201,31 +223,40 @@ impl<T: Default, E> LoadingStatus<T, E> {
     }
 }
 
-pub struct AssetManager<S, T: Default>
+pub struct AssetManager<S, T: Default, H = String>
 where
     S: GraphicsContext<Backend = GL33>,
+    H: Clone,
 {
     // might want to use a LRU instead...
-    store: HashMap<Handle, Asset<T>>,
-    loader: Box<dyn Loader<S, T>>,
+    store: HashMap<Handle<H>, Asset<T>>,
+    loader: Box<dyn Loader<S, T, H>>,
 }
 
-impl<S, T: Default> AssetManager<S, T>
+impl<S, T: Default, H> AssetManager<S, T, H>
 where
     S: GraphicsContext<Backend = GL33>,
+    H: Clone + Eq + PartialEq + Hash,
 {
-    pub fn from_loader(loader: Box<dyn Loader<S, T>>) -> Self {
+    pub fn from_loader(loader: Box<dyn Loader<S, T, H>>) -> Self {
         Self {
             store: HashMap::new(),
             loader,
         }
     }
 
-    pub fn load(&mut self, asset_name: &str) -> Handle {
-        let handle = Handle(asset_name.to_owned());
+    pub fn load(&mut self, asset_name: H) -> Handle<H> {
+        let handle = Handle(asset_name.clone());
         if self.store.contains_key(&handle) {
             return handle;
         }
+        let asset = self.loader.load(asset_name);
+        self.store.insert(handle.clone(), asset);
+        handle
+    }
+
+    pub fn reload(&mut self, asset_name: H) -> Handle<H> {
+        let handle = Handle(asset_name.clone());
         let asset = self.loader.load(asset_name);
         self.store.insert(handle.clone(), asset);
         handle
@@ -235,30 +266,42 @@ where
         // once every now and then, check the resources ready to be uploaded by the current thread.
         for asset in self.store.values() {
             let asset = &mut *asset.asset.lock().unwrap();
+
+            let mut has_error = Ok(());
+            let mut to_process = false;
             if let LoadingStatus::Loaded(ref mut t) = asset {
+                to_process = true;
                 // UPLOAD
-                self.loader.upload_to_gpu(ctx, t);
+                has_error = self.loader.upload_to_gpu(ctx, t);
             }
-            asset.move_to_read();
+
+            if to_process {
+                if let Err(e) = has_error {
+                    error!("Error when uploading to GPU = {:?}", e);
+                    *asset = LoadingStatus::Error(e);
+                } else {
+                    asset.move_to_read();
+                }
+            }
         }
     }
 
-    pub fn get(&self, handle: &Handle) -> Option<&Asset<T>> {
+    pub fn get(&self, handle: &Handle<H>) -> Option<&Asset<T>> {
         self.store.get(handle)
     }
 
-    pub fn get_mut(&mut self, handle: &Handle) -> Option<&mut Asset<T>> {
+    pub fn get_mut(&mut self, handle: &Handle<H>) -> Option<&mut Asset<T>> {
         self.store.get_mut(handle)
     }
 
-    pub fn is_loaded(&self, handle: &Handle) -> bool {
+    pub fn is_loaded(&self, handle: &Handle<H>) -> bool {
         self.store
             .get(handle)
             .map(|asset| asset.is_loaded())
             .unwrap_or(false)
     }
 
-    pub fn is_error(&self, handle: &Handle) -> bool {
+    pub fn is_error(&self, handle: &Handle<H>) -> bool {
         self.store
             .get(handle)
             .map(|asset| asset.is_error())
@@ -266,17 +309,92 @@ where
     }
 
     /// Return the assets that are currently managed
-    pub fn keys(&self) -> Keys<Handle, Asset<T>> {
+    pub fn keys(&self) -> Keys<Handle<H>, Asset<T>> {
         self.store.keys()
     }
 }
 
-pub trait Loader<S, T>
+pub trait Loader<S, T, H = String>
+where
+    S: GraphicsContext<Backend = GL33>,
+    H: Clone,
+{
+    /// Get an asset from an handle
+    fn load(&mut self, asset_name: H) -> Asset<T>;
+
+    fn upload_to_gpu(&self, _ctx: &mut S, _inner: &mut T) -> Result<(), AssetError> {
+        Ok(())
+    }
+}
+
+/// Good for development. Will listen to the asset folder and ask the asset managers to reload their
+/// data if needed
+#[cfg(feature = "hot-reload")]
+pub struct HotReloader<S>
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    /// Get an asset from an handle
-    fn load(&mut self, asset_name: &str) -> Asset<T>;
+    base_path: PathBuf,
+    rx: Receiver<Result<notify::Event, notify::Error>>,
+    _watcher: RecommendedWatcher,
+    _phantom: PhantomData<S>,
+}
 
-    fn upload_to_gpu(&self, _ctx: &mut S, _inner: &mut T) {}
+#[cfg(feature = "hot-reload")]
+impl<S> HotReloader<S>
+where
+    S: GraphicsContext<Backend = GL33> + 'static,
+{
+    pub fn new() -> Self {
+        let base_path = PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("".to_string()));
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        // Add a path to be watched. All files and directories at that path and
+        // below will be monitored for changes.
+
+        // Automatically select the best implementation for your platform.
+        // You can also access each implementation directly e.g. INotifyWatcher.
+        let mut watcher: RecommendedWatcher =
+            Watcher::new_immediate(move |res| tx.send(res).unwrap()).unwrap();
+
+        watcher
+            .watch(base_path.clone(), RecursiveMode::Recursive)
+            .unwrap();
+        Self {
+            base_path,
+            rx,
+            _watcher: watcher,
+            _phantom: PhantomData::default(),
+        }
+    }
+
+    /// Will check if there is a file that has changed and will reload the corresponding resource.
+    ///
+    /// WIP, currently just reload all the shaders :D
+    pub fn update(&mut self, resources: &Resources) {
+        let mut should_reload = false;
+        for res in &self.rx.try_recv() {
+            match res {
+                Ok(Event {
+                    kind: EventKind::Modify(..),
+                    paths,
+                    ..
+                }) => {
+                    debug!("Should reload {:?}", paths);
+                    should_reload = true
+                }
+                _ => (),
+            }
+        }
+
+        if should_reload {
+            if let Some(mut shaderManager) = resources.fetch_mut::<ShaderManager<S>>() {
+                let keys = { shaderManager.keys().map(|k| k.clone()).collect::<Vec<_>>() };
+                for k in keys {
+                    shaderManager.reload(k.0);
+                }
+            }
+        }
+    }
 }

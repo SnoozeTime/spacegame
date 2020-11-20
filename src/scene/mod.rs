@@ -5,6 +5,7 @@ use crate::core::colors::RgbaColor;
 use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
+use crate::core::transform::{HasChildren, HasParent, LocalTransform, Transform};
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{Bullet, Missile};
 use crate::gameplay::camera::update_camera;
@@ -16,6 +17,7 @@ use crate::gameplay::pickup::process_pickups;
 use crate::gameplay::player::get_player;
 use crate::gameplay::trail::update_trails;
 use crate::gameplay::{bullet, collision, enemy, player};
+use crate::render::mesh::{Material, MeshRender};
 use crate::render::particle::ParticleEmitter;
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::{Button, Gui, HorizontalAlign, VerticalAlign};
@@ -105,6 +107,41 @@ impl Scene for MainScene {
                 .execute(|prefab| prefab.spawn(world))
                 .expect("Should be able to spawn player")
         });
+
+        let player_scale = { world.get::<Transform>(self.player.unwrap()).unwrap().scale };
+
+        // add the shield to the player...
+        let shield_entity = world.spawn((
+            Transform {
+                translation: Default::default(),
+                scale: player_scale,
+                rotation: 0.0,
+                dirty: true,
+            },
+            LocalTransform {
+                translation: Default::default(),
+                scale: Default::default(),
+                rotation: 0.0,
+                dirty: true,
+            },
+            HasParent {
+                entity: self.player.unwrap(),
+            },
+            MeshRender {
+                enabled: true,
+                material: Material::Shader {
+                    vertex_shader_id: "simple-vs.glsl".to_string(),
+                    fragment_shader_id: "simple-fs.glsl".to_string(),
+                },
+            },
+        ));
+
+        world.insert_one(
+            self.player.unwrap(),
+            HasChildren {
+                children: vec![shield_entity],
+            },
+        );
 
         // "music/Finding-Flora.wav"
         audio::play_background_music(resources, "music/Finding-Flora.wav");
