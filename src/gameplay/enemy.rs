@@ -365,9 +365,13 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                     info!("No transform and body for entity");
                 }
 
-                if world.get::<Player>(e).is_ok() {
-                    info!("Hit the player");
-                }
+                to_remove.push(GameEvent::Hit(
+                    e,
+                    HitDetails {
+                        hit_points: 2.0,
+                        is_crit: false,
+                    },
+                ));
             }
         }
     }
