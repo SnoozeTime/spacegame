@@ -6,7 +6,7 @@
         0.0,
         0.0
       ],
-      "max_velocity": 0.0,
+      "max_velocity": 200.0,
       "mass": 1.0,
       "max_force": 500.0
     },
@@ -48,21 +48,26 @@
     "shield": null,
     "enemy": {
       "enemy_type": {
-        "Satellite": {
-          "shoot_timer": {
-            "deadline": 3.0,
-            "elapsed": 0.0,
-            "enabled": false
-          },
-          "shoot_distance": 800.0
+        "MineLander": {
+          "deadline": 4.0,
+          "elapsed": 0.0,
+          "enabled": false
         }
       },
-      "speed": 0.0,
+      "speed": 5.0,
       "scratch_drop": [
         0,
         40
       ],
-      "movement": "Follow"
+      "movement": {
+        "RandomPath": [
+          [
+            0.0,
+            0.0
+          ],
+          false
+        ]
+      }
     },
     "trail": null
   }

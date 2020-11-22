@@ -49,6 +49,7 @@
     },
     "shield": null,
     "enemy": {
+        "movement": "Follow",
       "enemy_type": {
         "FollowPlayer": {
             "deadline": 3.0,

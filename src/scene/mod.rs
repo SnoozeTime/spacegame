@@ -51,17 +51,20 @@ pub struct MainScene {
 
     info_text: Option<String>,
     info_text_timer: Timer,
+
+    is_infinite: bool,
 }
 
 impl Default for MainScene {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
 impl MainScene {
-    pub fn new() -> Self {
+    pub fn new(is_infinite: bool) -> Self {
         Self {
+            is_infinite,
             player: None,
             info_text: None,
             restart: false,
@@ -89,7 +92,9 @@ impl Scene for MainScene {
         .unwrap();
         emitter.init_pool();
 
-        let stage_desc: StageDescription = {
+        let stage_desc: StageDescription = if self.is_infinite {
+            StageDescription::infinite()
+        } else {
             let p = PathBuf::from(&base_path).join("stages/stage1.json");
             let content = std::fs::read_to_string(p).unwrap();
             serde_json::from_str(&content).unwrap()
@@ -136,12 +141,14 @@ impl Scene for MainScene {
             },
         ));
 
-        world.insert_one(
-            self.player.unwrap(),
-            HasChildren {
-                children: vec![shield_entity],
-            },
-        );
+        world
+            .insert_one(
+                self.player.unwrap(),
+                HasChildren {
+                    children: vec![shield_entity],
+                },
+            )
+            .expect("Should be able to add shield");
 
         // "music/Finding-Flora.wav"
         audio::play_background_music(resources, "music/Finding-Flora.wav");
@@ -150,6 +157,19 @@ impl Scene for MainScene {
     fn on_destroy(&mut self, world: &mut hecs::World) {
         // remove the player.
         if let Some(p) = self.player {
+            let mut to_despawn = vec![];
+            if let Ok(children) = world.get::<HasChildren>(p) {
+                for c in &children.children {
+                    to_despawn.push(*c);
+                }
+            }
+
+            to_despawn.iter().for_each(|&c| {
+                if let Err(e) = world.despawn(c) {
+                    error!("Cannot despawn player's children");
+                }
+            });
+
             if let Err(e) = world.despawn(p) {
                 error!("Error while despawn player = {:?}", e);
             }

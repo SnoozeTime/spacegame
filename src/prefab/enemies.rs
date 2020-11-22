@@ -10,6 +10,15 @@ use crate::render::sprite::Sprite;
 use hecs::EntityBuilder;
 use serde_derive::{Deserialize, Serialize};
 
+pub const ENEMY_PREFABS: [&str; 6] = [
+    "base_enemy",
+    "base_enemy_2",
+    "satellite",
+    "boss1",
+    "mine_lander",
+    "mine",
+];
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnemyPrefab {
     pub dynamic_body: DynamicBody,
@@ -52,6 +61,7 @@ impl Default for EnemyPrefab {
     fn default() -> Self {
         Self {
             dynamic_body: DynamicBody {
+                impulses: vec![],
                 forces: vec![],
                 velocity: Default::default(),
                 max_velocity: 0.0,

@@ -11,7 +11,7 @@ pub struct Timer {
     elapsed: f32,
 
     /// if true, then update will increase elapsed time.
-    enabled: bool,
+    pub enabled: bool,
 }
 
 impl Timer {

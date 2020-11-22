@@ -3,6 +3,10 @@ use crate::gameplay::collision::{CollisionLayer, CollisionWorld, Ray};
 use hecs::Entity;
 use rand::Rng;
 
+const CLOSE_ENOUGH: f32 = 50.0;
+
+pub mod behavior;
+
 /// Will compute the force to move towards a target without slowing down.
 ///
 /// # Returns
@@ -47,7 +51,10 @@ pub fn avoid(
 
     let collisions = collision_world.ray_with_offset(
         ray,
-        CollisionLayer::ENEMY_BULLET | CollisionLayer::PLAYER_BULLET,
+        CollisionLayer::ENEMY_BULLET
+            | CollisionLayer::PLAYER_BULLET
+            | CollisionLayer::PICKUP
+            | CollisionLayer::MINE,
         transform.scale.x() / 2.0,
     );
 
@@ -70,6 +77,22 @@ pub fn avoid(
         let d = (obstacle_center - transform.translation).length();
         let avoidance_force = glam::vec2(velocity.y(), -velocity.x());
         Some(avoidance_force.normalize() * avoidance_strength * look_ahead / d)
+    } else {
+        None
+    }
+}
+
+/// Follow the target. If it;s close enough, then it will return None
+pub fn go_to_path_point(
+    target: glam::Vec2,
+    position: glam::Vec2,
+    velocity: glam::Vec2,
+    max_speed: f32,
+) -> Option<glam::Vec2> {
+    // Compute distance from position to current. If it's close enough, move to next point.
+    if (target - position).length() > CLOSE_ENOUGH {
+        // go to next.
+        Some(seek(position, velocity, target, max_speed))
     } else {
         None
     }

@@ -1,9 +1,19 @@
 {
-  "nb_pickups": 7,
-  "waves": [
-    {
-      "to_instantiate": ["base_enemy"]
-    }
-  ],
-  "next_stage": "stage2.json"
+    "nb_pickups": 7,
+    "waves": [
+        {
+            "to_instantiate": ["mine_lander"]
+        },
+        {
+            "to_instantiate": ["base_enemy", "base_enemy"]
+        },
+        {
+            "to_instantiate": ["base_enemy", "satellite"]
+        },
+        {
+
+            "to_instantiate": ["boss1"]
+        }
+    ],
+    "next_stage": "stage2.json"
 }

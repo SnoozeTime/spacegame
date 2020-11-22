@@ -1,6 +1,7 @@
 use crate::assets::prefab::PrefabManager;
 use crate::assets::Handle;
 use crate::core::random::RandomGenerator;
+use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::resources::Resources;
 use hecs::Entity;
 use luminance_glfw::GlfwSurface;
@@ -20,6 +21,17 @@ impl From<WaveDescription> for Wave {
             enemies: vec![],
             init: false,
         }
+    }
+}
+
+pub fn gen_wave(nb_enemies: usize, random: &mut RandomGenerator) -> WaveDescription {
+    let prefabs = ENEMY_PREFABS
+        .choose_multiple(random.rng(), nb_enemies)
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>();
+
+    WaveDescription {
+        to_instantiate: prefabs,
     }
 }
 

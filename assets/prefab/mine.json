@@ -31,13 +31,13 @@
         20.0
       ],
       "collision_layer": {
-        "bits": 2
+        "bits": 128
       },
       "collision_mask": null
     },
     "health": {
-      "max": 3.0,
-      "current": 3.0,
+      "max": 2.0,
+      "current": 2.0,
       "hittable": true,
       "invulnerability_timer": {
         "deadline": 1.0,
@@ -48,13 +48,13 @@
     "shield": null,
     "enemy": {
       "enemy_type": {
-        "Satellite": {
-          "shoot_timer": {
-            "deadline": 3.0,
+        "Mine": {
+          "trigger_distance": 100.0,
+          "explosion_timer": {
+            "deadline": 2.0,
             "elapsed": 0.0,
             "enabled": false
-          },
-          "shoot_distance": 800.0
+          }
         }
       },
       "speed": 0.0,
@@ -62,7 +62,7 @@
         0,
         40
       ],
-      "movement": "Follow"
+      "movement": "Nothing"
     },
     "trail": null
   }

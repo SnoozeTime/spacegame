@@ -2,6 +2,7 @@ use crate::core::audio;
 use crate::core::colors::RgbaColor;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::transform::Transform;
+use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::render::particle::ParticleEmitter;
 use crate::render::ui::gui::{GuiContext, HorizontalAlign, VerticalAlign};
 use crate::render::ui::{Button, Gui};
@@ -12,9 +13,16 @@ use bitflags::_core::time::Duration;
 use hecs::World;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone)]
+enum GameMode {
+    Normal,
+    Infinite,
+}
+
 #[derive(Default, Clone)]
 pub struct MainMenu {
     does_start: bool,
+    game_mode: Option<GameMode>,
     emitter_entity: Option<hecs::Entity>,
 }
 
@@ -41,17 +49,20 @@ impl Scene for MainMenu {
     }
 
     fn update(&mut self, _dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
-        if self.does_start {
+        let mut prefabs: Vec<String> = ENEMY_PREFABS.iter().map(|e| e.to_string()).collect();
+
+        prefabs.push("player".to_string());
+        if let Some(GameMode::Normal) = self.game_mode {
             SceneResult::ReplaceScene(Box::new(LoadingScene::new(
-                vec![
-                    "base_enemy".to_string(),
-                    "base_enemy_2".to_string(),
-                    "boss1".to_string(),
-                    "satellite".to_string(),
-                    "player".to_string(),
-                ],
+                prefabs,
                 vec![],
-                MainScene::new(),
+                MainScene::new(false),
+            )))
+        } else if let Some(GameMode::Infinite) = self.game_mode {
+            SceneResult::ReplaceScene(Box::new(LoadingScene::new(
+                prefabs,
+                vec![],
+                MainScene::new(true),
             )))
         } else {
             SceneResult::Noop
@@ -79,13 +90,21 @@ impl Scene for MainMenu {
 
         // START BUTTON
         if menu_button("Start", anchor, &mut gui) {
-            self.does_start = true;
+            self.game_mode = Some(GameMode::Normal);
+        }
+
+        if menu_button(
+            "Infinite Mode",
+            anchor + 80.0 * glam::Vec2::unit_y(),
+            &mut gui,
+        ) {
+            self.game_mode = Some(GameMode::Infinite);
         }
 
         // EXIT BUTTON
         if menu_button(
             "Quit to Desktop",
-            anchor + 80.0 * glam::Vec2::unit_y(),
+            anchor + 160.0 * glam::Vec2::unit_y(),
             &mut gui,
         ) {
             std::process::exit(0);

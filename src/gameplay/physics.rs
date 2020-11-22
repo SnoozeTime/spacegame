@@ -1,4 +1,5 @@
 use crate::core::colors;
+use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::render::path::debug;
 use crate::resources::Resources;
@@ -9,7 +10,11 @@ use std::time::Duration;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DynamicBody {
     /// current forces applied to the body. These should be reset every frame and recomputed.
+    #[serde(default)]
     pub forces: Vec<glam::Vec2>,
+
+    #[serde(default)]
+    pub impulses: Vec<glam::Vec2>,
 
     /// Current velocity of the body.
     pub velocity: glam::Vec2,
@@ -28,6 +33,7 @@ impl Default for DynamicBody {
     fn default() -> Self {
         Self {
             forces: vec![],
+            impulses: vec![],
             velocity: Default::default(),
             max_velocity: 0.0,
             mass: 0.0,
@@ -41,6 +47,10 @@ impl DynamicBody {
         if force.length_squared() > 0.0 {
             self.forces.push(force);
         }
+    }
+
+    pub fn add_impulse(&mut self, impulse: glam::Vec2) {
+        self.impulses.push(impulse);
     }
 }
 
@@ -66,13 +76,18 @@ impl PhysicSystem {
                 .forces
                 .drain(..)
                 .rfold(glam::Vec2::zero(), |a, b| a + b);
+
             if sum_force.length() > body.max_force {
                 sum_force = sum_force.normalize() * body.max_force;
             }
             let acc = sum_force / body.mass;
+            let mut sum_impulses = body
+                .impulses
+                .drain(..)
+                .rfold(glam::Vec2::zero(), |a, b| a + b);
 
             // integrate.
-            body.velocity += dt.as_secs_f32() * acc;
+            body.velocity += dt.as_secs_f32() * acc + sum_impulses;
             if body.velocity.length() > body.max_velocity {
                 body.velocity = body.velocity.normalize() * body.max_velocity;
             }

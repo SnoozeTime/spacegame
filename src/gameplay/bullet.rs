@@ -160,7 +160,9 @@ pub fn spawn_player_bullet(
         BoundingBox {
             half_extend: glam::vec2(3.5, 3.5),
             collision_layer: CollisionLayer::PLAYER_BULLET,
-            collision_mask: Some(CollisionLayer::ENEMY | CollisionLayer::ASTEROID),
+            collision_mask: Some(
+                CollisionLayer::ENEMY | CollisionLayer::ASTEROID | CollisionLayer::MINE,
+            ),
         },
     ));
 
@@ -233,9 +235,10 @@ pub fn spawn_missile(
             dirty: false,
         },
         DynamicBody {
+            impulses: vec![],
             forces: vec![],
             velocity: direction * 80.0,
-            max_velocity: 500.0,
+            max_velocity: 300.0,
             mass: 0.5,
             max_force: 200.0,
         },

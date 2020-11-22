@@ -27,7 +27,20 @@ pub struct StageDescription {
     pub nb_pickups: usize,
 
     #[serde(default)]
-    next_stage: Option<String>,
+    pub is_infinite: bool,
+    #[serde(default)]
+    pub next_stage: Option<String>,
+}
+
+impl StageDescription {
+    pub fn infinite() -> Self {
+        Self {
+            waves: vec![],
+            nb_pickups: 7,
+            is_infinite: true,
+            next_stage: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +60,8 @@ pub struct Stage {
 
     finished: bool,
     next_stage: Option<String>,
+
+    is_infinite: bool,
 }
 
 impl Stage {
@@ -81,7 +96,13 @@ impl Stage {
         // 3. Stuff that the player can pick up for bonuses.
         // -------------------------------------------------
         let pickups = spawn_pickups(world, &mut *random, &no_asteroids, stage_desc.nb_pickups);
-        let waves: Vec<Wave> = stage_desc.waves.drain(..).map(|w| w.into()).collect();
+        let waves: Vec<Wave> = if stage_desc.is_infinite {
+            (0..2)
+                .map(|i| wave::gen_wave(i + 1, &mut *random).into())
+                .collect()
+        } else {
+            stage_desc.waves.drain(..).map(|w| w.into()).collect()
+        };
         assert!(waves.len() > 0);
 
         Self {
@@ -97,6 +118,7 @@ impl Stage {
             timer_between_stages: Timer::of_seconds(10.0),
 
             next_stage: stage_desc.next_stage,
+            is_infinite: stage_desc.is_infinite,
         }
     }
 
@@ -145,7 +167,17 @@ impl Stage {
                     self.next_wave = if self.waves.len() > idx + 1 {
                         Some(idx + 1)
                     } else {
-                        None
+                        // if we are in infinite mode, then we will generate more waves :D never
+                        // stop!
+                        if self.is_infinite {
+                            let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
+                            self.waves = (0..5)
+                                .map(|i| wave::gen_wave(i, &mut *random).into())
+                                .collect();
+                            Some(0)
+                        } else {
+                            None
+                        }
                     };
                 }
             }
@@ -257,6 +289,7 @@ pub fn generate_terrain(
                 id: "asteroid.png".to_string(),
             },
             DynamicBody {
+                impulses: vec![],
                 forces: vec![],
                 velocity: Default::default(),
                 max_velocity: 500.0,
@@ -289,6 +322,7 @@ pub fn generate_terrain(
                 id: "asteroid.png".to_string(),
             },
             DynamicBody {
+                impulses: vec![],
                 forces: vec![],
                 velocity: Default::default(),
                 max_velocity: 500.0,

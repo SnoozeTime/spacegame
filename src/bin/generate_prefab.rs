@@ -4,7 +4,7 @@ use spacegame::assets::prefab::Prefab;
 use spacegame::core::timer::Timer;
 use spacegame::core::transform::Transform;
 use spacegame::gameplay::collision::{BoundingBox, CollisionLayer};
-use spacegame::gameplay::enemy::{Boss1, Enemy, EnemyType, Satellite};
+use spacegame::gameplay::enemy::{Boss1, Enemy, EnemyType, MovementBehavior, Satellite};
 use spacegame::gameplay::health::Health;
 use spacegame::gameplay::physics::DynamicBody;
 use spacegame::gameplay::player::{Player, Stats};
@@ -25,6 +25,7 @@ fn gen_player() {
         let scale = 50.0;
         let player_prefab = PlayerPrefab {
             dynamic_body: DynamicBody {
+                impulses: vec![],
                 forces: vec![],
                 velocity: glam::Vec2::zero(),
                 max_velocity: 500.0,
@@ -63,12 +64,110 @@ fn gen_player() {
     std::fs::write("assets/prefab/player.json", player);
 }
 
+fn gen_mine() {
+    let mine = {
+        let scale = 40.0;
+        let enemy_prefab = EnemyPrefab {
+            dynamic_body: DynamicBody {
+                forces: vec![],
+                impulses: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 0.0,
+                mass: 1.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "Proto-ship.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::MINE,
+                collision_mask: None,
+            },
+            health: Some(Health::new(2.0, Timer::of_seconds(1.0))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::Mine {
+                    trigger_distance: 100.0,
+                    explosion_timer: {
+                        let mut timer = Timer::of_seconds(1.0);
+                        timer.stop();
+                        timer
+                    },
+                },
+                speed: 0.0,
+                scratch_drop: (0, 40),
+                movement: MovementBehavior::Nothing,
+            },
+            trail: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/mine.json", mine);
+}
+
+fn gen_mine_lander() {
+    let mine_lander = {
+        let scale = 40.0;
+        let enemy_prefab = EnemyPrefab {
+            dynamic_body: DynamicBody {
+                forces: vec![],
+                impulses: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 200.0,
+                mass: 1.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "Proto-ship.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(3.0, Timer::of_seconds(1.0))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::MineLander(Timer::of_seconds(4.0)),
+                speed: 5.0,
+                scratch_drop: (0, 40),
+                movement: MovementBehavior::RandomPath(glam::Vec2::zero(), false),
+            },
+            trail: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/mine_lander.json", mine_lander);
+}
+
 fn main() {
     gen_player();
+    gen_mine_lander();
+    gen_mine();
     let satellite = {
         let scale = 40.0;
         let enemy_prefab = EnemyPrefab {
             dynamic_body: DynamicBody {
+                impulses: vec![],
                 forces: vec![],
                 velocity: glam::Vec2::zero(),
                 max_velocity: 0.0,
@@ -98,6 +197,7 @@ fn main() {
                 }),
                 speed: 0.0,
                 scratch_drop: (0, 40),
+                movement: MovementBehavior::Follow,
             },
             trail: None,
         };
@@ -113,6 +213,7 @@ fn main() {
         let scale = 100.0;
         let enemy_prefab = EnemyPrefab {
             dynamic_body: DynamicBody {
+                impulses: vec![],
                 forces: vec![],
                 velocity: glam::Vec2::zero(),
                 max_velocity: 500.0,
@@ -144,6 +245,7 @@ fn main() {
                 }),
                 speed: 5.0,
                 scratch_drop: (0, 100),
+                movement: MovementBehavior::Follow,
             },
             trail: None,
         };

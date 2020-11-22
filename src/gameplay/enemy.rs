@@ -1,17 +1,20 @@
+use crate::assets::prefab::PrefabManager;
+use crate::assets::Handle;
+use crate::core::colors;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
-use crate::core::{audio, colors};
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
 use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
 use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
-use crate::gameplay::steering::{avoid, halt, seek};
+use crate::gameplay::steering::behavior::{avoid_obstacles, follow_player, follow_random_path};
 use crate::render::path::debug;
 use crate::resources::Resources;
 use hecs::World;
 use log::{debug, trace};
+use luminance_glfw::GlfwSurface;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
 use std::time::Duration;
@@ -21,6 +24,7 @@ pub struct Enemy {
     pub enemy_type: EnemyType,
     pub speed: f32,
     pub scratch_drop: (u32, u32),
+    pub movement: MovementBehavior,
 }
 
 impl Default for Enemy {
@@ -29,6 +33,46 @@ impl Default for Enemy {
             enemy_type: EnemyType::FollowPlayer(Timer::of_seconds(4.0)),
             speed: 10.0,
             scratch_drop: (10, 50),
+            movement: MovementBehavior::Follow,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MovementBehavior {
+    /// Move toward the player. Avoid basic obstacles
+    Follow,
+    /// Follow a path. Each point will be randomly generated.
+    RandomPath(glam::Vec2, bool),
+    /// Do not move.
+    Nothing,
+}
+
+impl Default for MovementBehavior {
+    fn default() -> Self {
+        Self::Follow
+    }
+}
+
+impl MovementBehavior {
+    pub fn apply(
+        &mut self,
+        e: hecs::Entity,
+        t: &mut Transform,
+        body: &mut DynamicBody,
+        maybe_player: Option<glam::Vec2>,
+        resources: &Resources,
+    ) {
+        match self {
+            Self::Nothing => (),
+            Self::Follow => {
+                follow_player(t, body, maybe_player, resources);
+                avoid_obstacles(e, t, body, resources);
+            }
+            Self::RandomPath(ref mut target, ref mut is_init) => {
+                follow_random_path(target, is_init, t, body, resources);
+                avoid_obstacles(e, t, body, resources);
+            }
         }
     }
 }
@@ -38,6 +82,15 @@ pub enum EnemyType {
     FollowPlayer(Timer),
     Satellite(Satellite),
     Boss1(Boss1),
+    /// Drop some mines like an asshole.
+    MineLander(Timer),
+    /// Will explode when player comes near,
+    Mine {
+        /// Distance from the player below which the mine will be triggered
+        trigger_distance: f32,
+        /// Time from when the mine is triggered until the mine explode.
+        explosion_timer: Timer,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,11 +137,34 @@ impl Default for Satellite {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Path {
+pub struct Route {
     pub path: Vec<glam::Vec2>,
 
     #[serde(default)]
     pub current: usize,
+}
+
+impl Route {
+    pub fn get_current(&self) -> Option<glam::Vec2> {
+        self.path.get(self.current).map(|v| *v)
+    }
+
+    pub fn go_to_next(&mut self) {
+        self.current = (self.current + 1) % self.path.len()
+    }
+
+    pub fn debug_draw(&self, resources: &Resources) {
+        if self.path.len() == 0 {
+            return;
+        }
+        //
+        for i in 0..self.path.len() - 1 {
+            let p1 = self.path[i];
+            let p2 = self.path[i + 1];
+
+            debug::stroke_line(resources, p1, p2, colors::GREEN);
+        }
+    }
 }
 
 pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
@@ -101,9 +177,12 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 
     let mut ev_channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
 
+    // prefabs to spawn.
+    let mut to_spawn: Vec<(String, glam::Vec2)> = vec![];
     let mut bullets = vec![];
     let mut to_remove = vec![];
     let mut missiles = vec![];
+    let mut explosions = vec![];
     //let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
     let maybe_player = world
@@ -115,51 +194,12 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         .query::<(&mut Transform, &mut Enemy, &mut DynamicBody)>()
         .iter()
     {
+        enemy.movement.apply(e, t, body, maybe_player, resources);
+        //follow_player(t, body, maybe_player, resources);
+        //avoid_obstacles(e, t, body, resources);
         // Basic movement.
         if let Some(player_position) = maybe_player {
             let dir = player_position - t.translation;
-
-            let steering = if (t.translation - player_position).length() > 200.0 {
-                seek(
-                    t.translation,
-                    body.velocity,
-                    player_position,
-                    body.max_velocity,
-                )
-            } else {
-                halt(body.velocity)
-            };
-
-            {
-                let collision_world = resources.fetch::<CollisionWorld>().unwrap();
-                if body.velocity.length() > 0.0 {
-                    if let Some(f) = avoid(e, t, body.velocity, 300.0, &*collision_world, 300.0) {
-                        body.add_force(f);
-                        debug::stroke_line(
-                            resources,
-                            t.translation,
-                            t.translation + f,
-                            colors::BLUE,
-                        );
-                    }
-                }
-            }
-
-            body.add_force(steering);
-            debug::stroke_line(
-                resources,
-                t.translation,
-                t.translation + steering,
-                colors::RED,
-            );
-
-            // rotate toward the player
-            {
-                let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
-                let angle_to_perform = (player_position - t.translation).angle_between(dir);
-                t.rotation -= 0.05 * angle_to_perform;
-            }
-
             match enemy.enemy_type {
                 EnemyType::Boss1(ref mut boss1) => {
                     if boss1.should_shoot() {
@@ -216,6 +256,55 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                     // Draw stuff to the screen.
                     debug::stroke_circle(resources, t.translation, 1500.0, colors::RED);
                 }
+                EnemyType::MineLander(ref mut timer) => {
+                    timer.tick(dt);
+                    if timer.finished() {
+                        timer.reset();
+                        to_spawn.push(("mine".to_string(), t.translation));
+                    }
+                }
+                EnemyType::Mine {
+                    trigger_distance,
+                    ref mut explosion_timer,
+                } => {
+                    if explosion_timer.enabled {
+                        explosion_timer.tick(dt);
+                        if explosion_timer.finished() {
+                            // badaboum
+                            explosions.push((e, t.translation, trigger_distance));
+                            to_remove.push(GameEvent::Delete(e));
+                        }
+                        debug::stroke_circle(
+                            resources,
+                            t.translation,
+                            trigger_distance,
+                            colors::GREEN,
+                        );
+                    } else {
+                        if (player_position - t.translation).length() < trigger_distance {
+                            // BOOM
+                            explosion_timer.reset();
+                            explosion_timer.start();
+                        }
+                        debug::stroke_circle(
+                            resources,
+                            t.translation,
+                            trigger_distance,
+                            colors::RED,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+        for (prefab, pos) in to_spawn {
+            if let Some(prefab) = prefab_manager.get(&Handle(prefab)) {
+                prefab.execute(|prefab| {
+                    prefab.spawn_at_pos(world, pos);
+                });
             }
         }
     }
@@ -242,6 +331,45 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
             entity,
             CollisionLayer::PLAYER | CollisionLayer::PLAYER_BULLET,
         );
+    }
+
+    // process explosions.
+    //
+    {
+        let collision_world = resources.fetch::<CollisionWorld>().unwrap();
+        for (mine, pos, radius) in explosions {
+            info!("EXPLOSION HAPPENED AT {:?}", (pos, radius));
+            let entity_touched = collision_world.circle_query(pos, radius);
+            info!("Entities in explosion = {:?}", entity_touched);
+
+            for e in entity_touched {
+                if e == mine {
+                    continue;
+                }
+
+                // Apply force from center to position.
+                let mut query = world
+                    .query_one::<(&Transform, &mut DynamicBody)>(e)
+                    .unwrap();
+
+                if let Some((t, body)) = query.get() {
+                    let force = (t.translation - pos).normalize() * 500.0;
+                    debug::stroke_line(
+                        resources,
+                        t.translation,
+                        t.translation + force,
+                        colors::RED,
+                    );
+                    body.add_impulse(force);
+                } else {
+                    info!("No transform and body for entity");
+                }
+
+                if world.get::<Player>(e).is_ok() {
+                    info!("Hit the player");
+                }
+            }
+        }
     }
 
     ev_channel.drain_vec_write(&mut to_remove);

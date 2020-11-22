@@ -64,7 +64,11 @@
         }
       },
       "speed": 5.0,
-      "scratch_drop": [10, 50]
+      "scratch_drop": [
+        0,
+        100
+      ],
+      "movement": "Follow"
     },
     "trail": null
   }

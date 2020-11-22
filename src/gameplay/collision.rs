@@ -75,6 +75,18 @@ impl CollisionWorld {
 
         return intersections;
     }
+
+    pub fn circle_query(&self, center: glam::Vec2, radius: f32) -> Vec<Entity> {
+        let mut intersections = vec![];
+        let circle = Circle { center, radius };
+        for (transform, bb, e) in self.bodies.iter() {
+            if bb.collide_with_circle(*transform, circle) {
+                intersections.push(*e);
+            }
+        }
+
+        intersections
+    }
 }
 
 /// Bounding box to detect collisions.
@@ -96,6 +108,18 @@ impl Default for BoundingBox {
 }
 
 const EPSILON: f32 = 0.0001;
+
+#[derive(Debug, Copy, Clone)]
+pub struct Circle {
+    pub center: glam::Vec2,
+    pub radius: f32,
+}
+
+impl Circle {
+    fn is_point_inside(&self, point: glam::Vec2) -> bool {
+        (self.center - point).length() <= self.radius
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Ray {
@@ -124,6 +148,32 @@ impl BoundingBox {
             (_, _, layer, Some(mask)) => (layer & mask).bits != 0,
             _ => false,
         }
+    }
+
+    fn is_point_inside(&self, position: glam::Vec2, point: glam::Vec2) -> bool {
+        let min = position - self.half_extend;
+        let max = position + self.half_extend;
+        point.x() >= min.x() && point.x() <= max.x() && point.y() >= min.y() && point.y() <= max.y()
+    }
+
+    fn collide_with_circle(&self, position: glam::Vec2, circle: Circle) -> bool {
+        // edge case is circle center inside AABB
+        if self.is_point_inside(position, circle.center) {
+            return true;
+        }
+
+        // If any edge in circle, that's a collision.
+        let edge1 = position - self.half_extend;
+        let edge2 = position - self.half_extend.x() * glam::Vec2::unit_x()
+            + self.half_extend.y() * glam::Vec2::unit_y();
+        let edge3 = position + self.half_extend.x() * glam::Vec2::unit_x()
+            - self.half_extend.y() * glam::Vec2::unit_y();
+        let edge4 = position + self.half_extend;
+
+        circle.is_point_inside(edge1)
+            || circle.is_point_inside(edge2)
+            || circle.is_point_inside(edge3)
+            || circle.is_point_inside(edge4)
     }
 
     /// Check if ray intersects the AABB. If yes, it will return the time of intersection and point
@@ -194,7 +244,7 @@ impl BoundingBox {
 bitflags! {
     #[derive(Serialize, Deserialize)]
     pub struct CollisionLayer: u32 {
-        const NOTHING = 0b10000000;
+        const NOTHING = 0b1000000000000;
         const PLAYER = 0b00000001;
         const ENEMY = 0b00000010;
         const PLAYER_BULLET = 0b00000100;
@@ -202,6 +252,7 @@ bitflags! {
         const ASTEROID = 0b00010000;
         const MISSILE = 0b00100000;
         const PICKUP = 0b01000000;
+        const MINE = 0b010000000;
     }
 }
 
@@ -355,9 +406,14 @@ pub fn process_collisions(
         match (e1_query.get(), e2_query.get()) {
             (Some((t1, b1)), Some((t2, b2))) => {
                 let dir = (t1.translation - t2.translation).normalize();
+
+                let restitution =
+                    (b1.velocity - b2.velocity).dot(dir) / (1.0 / b1.mass + 1.0 / b2.mass);
                 // BIM!
-                b2.add_force(dir * 10.0 * -b2.max_velocity);
-                b1.add_force(dir * 10.0 * b1.max_velocity);
+                if restitution < 0.0 {
+                    b2.add_impulse(dir * restitution / b2.mass);
+                    b1.add_impulse(-dir * restitution / b1.mass);
+                }
             }
             _ => (),
         }
