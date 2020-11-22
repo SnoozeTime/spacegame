@@ -1,9 +1,10 @@
 use crate::core::input::Input;
 use crate::core::random::RandomGenerator;
+use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::collision::{aabb_intersection, BoundingBox, CollisionLayer};
-use crate::gameplay::health::Shield;
+use crate::gameplay::health::{Health, Shield};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::Player;
@@ -103,7 +104,6 @@ pub fn aabb_intersection2(
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Items {
-    //
     /// Speed +30%
     SpeedBonus,
     /// Crit chance +5%
@@ -112,6 +112,8 @@ pub enum Items {
     CritDmg,
     /// Shield +1
     ShieldUp,
+    /// Health +1
+    HealthUp,
     /// Shoot random Missiles when firing
     Missile,
 }
@@ -130,6 +132,21 @@ impl Items {
             Items::CritDmg => {
                 let mut player = world.get_mut::<Player>(player).unwrap();
                 player.stats.crit_multiplier += 0.05;
+            }
+            Items::HealthUp => {
+                let mut should_add_health = false;
+                if let Ok(mut health) = world.get_mut::<Health>(player) {
+                    health.current += 1.0;
+                    health.max += 1.0;
+                } else {
+                    should_add_health = true;
+                }
+
+                if should_add_health {
+                    world
+                        .insert_one(player, Health::new(1.0, Timer::of_seconds(1.0)))
+                        .expect("Cannot add health component");
+                }
             }
             Items::ShieldUp => {
                 let mut should_add_shield = false;
@@ -159,6 +176,7 @@ impl Items {
             Items::CritChance => "Crit Chance +5%",
             Items::CritDmg => "Crit Damage +5%",
             Items::ShieldUp => "Shield Up",
+            Items::HealthUp => "Health Up",
             Items::Missile => "Missile Spray",
         }
         .to_string()
@@ -167,12 +185,13 @@ impl Items {
 
 impl Distribution<Items> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Items {
-        match rng.gen_range(0, 5) {
+        match rng.gen_range(0, 6) {
             0 => Items::SpeedBonus,
             1 => Items::CritChance,
             2 => Items::CritDmg,
             3 => Items::Missile,
-            _ => Items::ShieldUp,
+            4 => Items::ShieldUp,
+            _ => Items::HealthUp,
         }
     }
 }

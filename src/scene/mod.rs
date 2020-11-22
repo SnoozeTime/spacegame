@@ -166,7 +166,7 @@ impl Scene for MainScene {
 
             to_despawn.iter().for_each(|&c| {
                 if let Err(e) = world.despawn(c) {
-                    error!("Cannot despawn player's children");
+                    error!("Cannot despawn player's children = {:?}", e);
                 }
             });
 

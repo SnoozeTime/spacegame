@@ -1,5 +1,4 @@
 use crate::core::colors;
-use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::render::path::debug;
 use crate::resources::Resources;
@@ -81,7 +80,7 @@ impl PhysicSystem {
                 sum_force = sum_force.normalize() * body.max_force;
             }
             let acc = sum_force / body.mass;
-            let mut sum_impulses = body
+            let sum_impulses = body
                 .impulses
                 .drain(..)
                 .rfold(glam::Vec2::zero(), |a, b| a + b);

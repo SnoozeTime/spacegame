@@ -3,7 +3,6 @@ use crate::assets::prefab::PrefabManager;
 use crate::assets::{AssetManager, Handle};
 use crate::core::scene::{Scene, SceneResult};
 use crate::resources::Resources;
-use crate::scene::MainScene;
 use bitflags::_core::time::Duration;
 use hecs::World;
 use luminance_glfw::GlfwSurface;
@@ -56,8 +55,8 @@ where
 
     fn update(&mut self, _dt: Duration, _world: &mut World, resources: &Resources) -> SceneResult {
         let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
-        let mut audio_manager = resources
-            .fetch_mut::<AssetManager<GlfwSurface, Audio>>()
+        let audio_manager = resources
+            .fetch::<AssetManager<GlfwSurface, Audio>>()
             .unwrap();
         // loaded.
         let mut nb_loaded = self

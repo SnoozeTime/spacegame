@@ -7,7 +7,7 @@ use shrev::{EventChannel, ReaderId};
 use std::io::{BufReader, Cursor};
 
 pub struct AudioSystem {
-    stream: rodio::OutputStream,
+    _stream: rodio::OutputStream,
     handle: rodio::OutputStreamHandle,
 
     /// Sink for the background music.
@@ -31,7 +31,7 @@ impl AudioSystem {
         let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
 
         Ok(Self {
-            stream,
+            _stream: stream,
             handle,
             sound_sinks,
             background,
@@ -41,7 +41,7 @@ impl AudioSystem {
 
     pub fn process(&mut self, resources: &Resources) {
         let channel = resources.fetch::<EventChannel<GameEvent>>().unwrap();
-        let mut audio_manager = resources
+        let audio_manager = resources
             .fetch::<AssetManager<GlfwSurface, Audio>>()
             .unwrap();
         for ev in channel.read(&mut self.rdr_id) {
@@ -77,7 +77,7 @@ impl AudioSystem {
                         asset.execute(|audio| {
                             if let Audio::File(content) = audio {
                                 // get the first available channel.
-                                let mut sink = self
+                                let sink = self
                                     .sound_sinks
                                     .iter_mut()
                                     .filter(|sink| sink.empty())
@@ -98,8 +98,6 @@ impl AudioSystem {
                 }
                 _ => (),
             }
-
-            if let GameEvent::PlayBackgroundMusic(name) = ev {}
         }
     }
 }

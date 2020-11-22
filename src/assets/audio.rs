@@ -2,7 +2,7 @@ use crate::assets::{Asset, Loader};
 use luminance::context::GraphicsContext;
 use luminance_gl::GL33;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub enum Audio {

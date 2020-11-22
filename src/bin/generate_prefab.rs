@@ -46,7 +46,7 @@ fn gen_player() {
                 collision_layer: CollisionLayer::PLAYER,
                 collision_mask: None,
             },
-            health: Health::new(3.0, Timer::of_seconds(3.0)),
+            health: Health::new(3.0, Timer::of_seconds(1.0)),
             shield: None,
             trail: emitter,
             stats: Stats {

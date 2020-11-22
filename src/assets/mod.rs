@@ -334,7 +334,6 @@ pub struct HotReloader<S>
 where
     S: GraphicsContext<Backend = GL33>,
 {
-    base_path: PathBuf,
     rx: Receiver<Result<notify::Event, notify::Error>>,
     _watcher: RecommendedWatcher,
     _phantom: PhantomData<S>,
@@ -346,7 +345,8 @@ where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
     pub fn new() -> Self {
-        let base_path = PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("".to_string()));
+        let base_path =
+            PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("".to_string())).join("assets");
 
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -362,7 +362,6 @@ where
             .watch(base_path.clone(), RecursiveMode::Recursive)
             .unwrap();
         Self {
-            base_path,
             rx,
             _watcher: watcher,
             _phantom: PhantomData::default(),
@@ -389,10 +388,10 @@ where
         }
 
         if should_reload {
-            if let Some(mut shaderManager) = resources.fetch_mut::<ShaderManager<S>>() {
-                let keys = { shaderManager.keys().map(|k| k.clone()).collect::<Vec<_>>() };
+            if let Some(mut shader_manager) = resources.fetch_mut::<ShaderManager<S>>() {
+                let keys = { shader_manager.keys().map(|k| k.clone()).collect::<Vec<_>>() };
                 for k in keys {
-                    shaderManager.reload(k.0);
+                    shader_manager.reload(k.0);
                 }
             }
         }

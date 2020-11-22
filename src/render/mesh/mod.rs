@@ -2,8 +2,6 @@ use crate::assets::shader::ShaderManager;
 use crate::assets::Handle;
 use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
-use crate::gameplay::player::get_player;
-use downcast_rs::__std::time::Instant;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
@@ -15,6 +13,7 @@ use luminance::tess::{Mode, Tess};
 use luminance::texture::Dim2;
 use luminance_derive::{Semantics, UniformInterface, Vertex};
 use luminance_gl::GL33;
+use std::time::Instant;
 
 // Vertex definition
 // -----------------
@@ -53,6 +52,7 @@ pub struct Vertex {
 // Matrices to translate to view space, other useful uniforms such as timestamp, delta,
 // and so on...
 // --------------------------------------------------------------------------------------
+#[allow(dead_code)]
 #[derive(UniformInterface)]
 pub struct ShaderUniform {
     /// PROJECTION matrix in MVP
@@ -77,6 +77,9 @@ pub enum Material {
     Shader {
         vertex_shader_id: String,
         fragment_shader_id: String,
+    },
+    Texture {
+        sprite_id: String,
     },
 }
 
@@ -143,7 +146,7 @@ where
     }
     pub fn render(
         &mut self,
-        pipeline: &Pipeline<S::Backend>,
+        _pipeline: &Pipeline<S::Backend>,
         shd_gate: &mut ShadingGate<S::Backend>,
         proj_matrix: &glam::Mat4,
         view: &glam::Mat4,
@@ -166,12 +169,6 @@ where
                     dst: Factor::Zero,
                 },
             );
-        // let transform = Transform {
-        //     translation: glam::vec2(200.0, 200.0),
-        //     scale: glam::vec2(100.0, 100.0),
-        //     rotation: 0.0,
-        //     dirty: false,
-        // };
         let elapsed = self.creation_time.elapsed().as_secs_f32();
 
         for (_, (t, render)) in world.query::<(&Transform, &MeshRender)>().iter() {
