@@ -11,7 +11,7 @@ use serde_derive::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WaveDescription {
     /// List of stuff to instantiate in the wave
-    to_instantiate: Vec<String>,
+    pub to_instantiate: Vec<String>,
 }
 
 impl From<WaveDescription> for Wave {

@@ -6,7 +6,9 @@ pub enum GameEvent {
     Hit(hecs::Entity, HitDetails),
     GameOver,
     TextUpdated,
-    EnemyDied(hecs::Entity, (u32, u32)),
+
+    /// Enemy that dies, its position, the amount of scrap to gain, the % of chance to drop a pickup.
+    EnemyDied(hecs::Entity, glam::Vec2, (u32, u32), u8),
 
     /// Some text to display for the player. E.g. Pickup.
     InfoText(String),

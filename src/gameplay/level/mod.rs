@@ -15,9 +15,11 @@ use std::time::Duration;
 const NB_BLOCKS_X: u32 = 80;
 const NB_BLOCKS_Y: u32 = 50;
 
-pub mod random_events;
+pub mod difficulty;
 pub mod wave;
 use crate::event::GameEvent;
+use crate::gameplay::health::Invulnerable;
+use crate::gameplay::level::difficulty::{DifficultyConfig, WaveDifficulty};
 use shrev::EventChannel;
 use wave::{Wave, WaveDescription};
 
@@ -62,6 +64,7 @@ pub struct Stage {
     next_stage: Option<String>,
 
     is_infinite: bool,
+    pub wave_difficulty: Option<WaveDifficulty>,
 }
 
 impl Stage {
@@ -96,12 +99,14 @@ impl Stage {
         // 3. Stuff that the player can pick up for bonuses.
         // -------------------------------------------------
         let pickups = spawn_pickups(world, &mut *random, &no_asteroids, stage_desc.nb_pickups);
-        let waves: Vec<Wave> = if stage_desc.is_infinite {
-            (0..2)
-                .map(|i| wave::gen_wave(i + 1, &mut *random).into())
-                .collect()
+        let (waves, wave_difficulty): (Vec<Wave>, Option<_>) = if stage_desc.is_infinite {
+            // Generate the wave difficulty.
+            let wave_difficulty = WaveDifficulty::default();
+            let difficulty_config = resources.fetch::<DifficultyConfig>().unwrap();
+            let generated = Self::gen_waves(wave_difficulty, &mut *random, &*difficulty_config);
+            (generated.0, Some(generated.1))
         } else {
-            stage_desc.waves.drain(..).map(|w| w.into()).collect()
+            (stage_desc.waves.drain(..).map(|w| w.into()).collect(), None)
         };
         assert!(waves.len() > 0);
 
@@ -116,10 +121,32 @@ impl Stage {
             next_wave: Some(0),
             timer_between_waves: Timer::of_seconds(5.0),
             timer_between_stages: Timer::of_seconds(10.0),
-
+            wave_difficulty,
             next_stage: stage_desc.next_stage,
             is_infinite: stage_desc.is_infinite,
         }
+    }
+
+    fn gen_waves(
+        mut wave_difficulty: WaveDifficulty,
+        random: &mut RandomGenerator,
+        difficulty_config: &DifficultyConfig,
+    ) -> (Vec<Wave>, WaveDifficulty) {
+        info!("Generate waves");
+        (
+            (0..2)
+                .map(|_| {
+                    let wave: Wave = WaveDescription {
+                        to_instantiate: wave_difficulty.pick_prefabs(&mut *random),
+                    }
+                    .into();
+                    wave_difficulty = difficulty_config.next_difficulty(&wave_difficulty);
+                    info!("New wave difficulty = {:#?}", wave_difficulty);
+                    wave
+                })
+                .collect(),
+            wave_difficulty,
+        )
     }
 
     pub fn enemy_died(&mut self, entity: Entity) {
@@ -171,9 +198,12 @@ impl Stage {
                         // stop!
                         if self.is_infinite {
                             let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
-                            self.waves = (0..5)
-                                .map(|i| wave::gen_wave(i, &mut *random).into())
-                                .collect();
+                            let wave_difficulty = self.wave_difficulty.unwrap();
+                            let difficulty_config = resources.fetch::<DifficultyConfig>().unwrap();
+                            let generated =
+                                Self::gen_waves(wave_difficulty, &mut *random, &*difficulty_config);
+                            self.waves = generated.0;
+                            self.wave_difficulty = Some(generated.1);
                             Some(0)
                         } else {
                             None
@@ -279,6 +309,7 @@ pub fn generate_terrain(
     for p in asteroids_field1.drain(..).take(asteroid_per_field) {
         trace!("will spawn asteroid at {:?}", p);
         asteroids.push(world.spawn((
+            Invulnerable,
             Transform {
                 translation: p,
                 scale: glam::Vec2::new(32.0, 32.0),
@@ -312,6 +343,7 @@ pub fn generate_terrain(
     for p in asteroid_field2.drain(..).take(asteroid_per_field) {
         trace!("will spawn asteroid at {:?}", p);
         asteroids.push(world.spawn((
+            Invulnerable,
             Transform {
                 translation: p,
                 scale: glam::Vec2::new(32.0, 32.0),

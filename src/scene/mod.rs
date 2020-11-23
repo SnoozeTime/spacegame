@@ -1,5 +1,6 @@
 use crate::assets::prefab::PrefabManager;
 use crate::assets::Handle;
+use crate::core::animation::AnimationSystem;
 use crate::core::audio;
 use crate::core::colors::RgbaColor;
 use crate::core::random::RandomGenerator;
@@ -13,7 +14,7 @@ use crate::gameplay::health::{Health, HealthSystem, Shield};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::level::{Stage, StageDescription};
 use crate::gameplay::physics::{PhysicConfig, PhysicSystem};
-use crate::gameplay::pickup::process_pickups;
+use crate::gameplay::pickup::{process_pickups, spawn_pickup};
 use crate::gameplay::player::get_player;
 use crate::gameplay::trail::update_trails;
 use crate::gameplay::{bullet, collision, enemy, player};
@@ -44,6 +45,7 @@ pub struct MainScene {
     stage: Option<Stage>,
     health_system: Option<HealthSystem>,
     physic_system: PhysicSystem,
+    animation_system: AnimationSystem,
     state: MainSceneState,
     return_to_menu: bool,
     restart: bool,
@@ -70,6 +72,7 @@ impl MainScene {
             restart: false,
             state: MainSceneState::Running,
             return_to_menu: false,
+            animation_system: AnimationSystem,
             stage: None,
             health_system: None,
             physic_system: PhysicSystem::new(PhysicConfig { damping: 0.99 }),
@@ -206,6 +209,7 @@ impl Scene for MainScene {
             player::update_player(world, dt, resources);
             update_camera(world, resources);
             enemy::update_enemies(world, &resources, dt);
+            self.animation_system.animate(world);
             update_trails(world);
             self.physic_system.update(world, dt, resources);
 
@@ -281,7 +285,7 @@ impl Scene for MainScene {
                     if let Some(inv) = resources.fetch::<Inventory>() {
                         gui.colored_label(
                             glam::vec2(15.0, 50.0),
-                            format!("Scratch: {}", inv.scratch()),
+                            format!("Scrap: {}", inv.scratch()),
                             RgbaColor::new(255, 255, 255, 255),
                         )
                     }
@@ -360,14 +364,24 @@ impl Scene for MainScene {
                 drain_scratch = true;
                 self.state = MainSceneState::GameWon
             }
-            GameEvent::EnemyDied(e, (low_scratch, high_scratch)) => {
+            GameEvent::EnemyDied(e, pos, (low_scrap, high_scrap), pickup_drop) => {
                 let mut random = resources
                     .fetch_mut::<RandomGenerator>()
                     .expect("Should have a random generator");
-                if let Some(ref mut inv) = resources.fetch_mut::<Inventory>() {
-                    let scratch_to_add = random.rng().gen_range(low_scratch, high_scratch);
-                    inv.add_scratch(scratch_to_add);
+
+                if high_scrap > low_scrap {
+                    if let Some(ref mut inv) = resources.fetch_mut::<Inventory>() {
+                        let scratch_to_add = random.rng().gen_range(low_scrap, high_scrap);
+                        inv.add_scratch(scratch_to_add);
+                    }
                 }
+
+                // drop some pickups :)
+                let pick: u8 = random.rng().gen_range(0, 101);
+                if pick <= pickup_drop {
+                    spawn_pickup(world, pos, &mut *random);
+                }
+
                 if let Some(stage) = self.stage.as_mut() {
                     stage.enemy_died(e)
                 }

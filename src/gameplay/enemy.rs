@@ -1,5 +1,6 @@
 use crate::assets::prefab::PrefabManager;
 use crate::assets::Handle;
+use crate::core::animation::AnimationController;
 use crate::core::colors;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
@@ -22,8 +23,10 @@ use std::time::Duration;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Enemy {
     pub enemy_type: EnemyType,
-    pub speed: f32,
-    pub scratch_drop: (u32, u32),
+    /// amount of scrap to give to the player.
+    pub scrap_drop: (u32, u32),
+    /// % of chance to drop a pickup.
+    pub pickup_drop_percent: u8,
     pub movement: MovementBehavior,
 }
 
@@ -31,8 +34,8 @@ impl Default for Enemy {
     fn default() -> Self {
         Self {
             enemy_type: EnemyType::FollowPlayer(Timer::of_seconds(4.0)),
-            speed: 10.0,
-            scratch_drop: (10, 50),
+            pickup_drop_percent: 0,
+            scrap_drop: (10, 50),
             movement: MovementBehavior::Follow,
         }
     }
@@ -190,8 +193,13 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         .iter()
         .map(|(_, (_, t))| t.translation)
         .next();
-    for (e, (t, enemy, body)) in world
-        .query::<(&mut Transform, &mut Enemy, &mut DynamicBody)>()
+    for (e, (t, enemy, body, animation)) in world
+        .query::<(
+            &mut Transform,
+            &mut Enemy,
+            &mut DynamicBody,
+            Option<&mut AnimationController>,
+        )>()
         .iter()
     {
         enemy.movement.apply(e, t, body, maybe_player, resources);
@@ -268,6 +276,12 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                     ref mut explosion_timer,
                 } => {
                     if explosion_timer.enabled {
+                        if let Some(anim) = animation {
+                            if anim.current_animation.is_none() {
+                                anim.current_animation = Some("boum".to_string());
+                            }
+                            t.scale = trigger_distance * glam::Vec2::one();
+                        }
                         explosion_timer.tick(dt);
                         if explosion_timer.finished() {
                             // badaboum

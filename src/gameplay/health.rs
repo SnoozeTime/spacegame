@@ -1,7 +1,7 @@
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
-use crate::gameplay::enemy::Enemy;
+use crate::gameplay::enemy::{Enemy, EnemyType};
 use crate::gameplay::player::Player;
 use crate::render::particle::ParticleEmitter;
 use crate::render::sprite::Blink;
@@ -11,6 +11,9 @@ use serde_derive::{Deserialize, Serialize};
 use shrev::{EventChannel, ReaderId};
 use std::path::PathBuf;
 use std::time::Duration;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Invulnerable;
 
 /// Health/Hull is the health points of an entity. When those reach 0, then the entity dies.
 /// It does not refill over time, so the player will need to refill it with some money.
@@ -129,11 +132,28 @@ impl HealthSystem {
 
                 let mut insert_blink = false;
                 {
+                    let invulnerable = world.get::<Invulnerable>(*e);
+                    if invulnerable.is_ok() {
+                        continue;
+                    }
+
                     let health = world.get_mut::<Health>(*e);
                     let shield = world.get_mut::<Shield>(*e);
+                    let t = world
+                        .get::<Transform>(*e)
+                        .expect("Enemy with health should have a transform");
 
-                    let enemy_drop = if let Ok(enemy) = world.get::<Enemy>(*e) {
-                        Some(enemy.scratch_drop)
+                    let enemy_drop = if let Ok(mut enemy) = world.get_mut::<Enemy>(*e) {
+                        // if should explode on contact. BOUM
+                        if let EnemyType::Mine {
+                            ref mut explosion_timer,
+                            ..
+                        } = enemy.enemy_type
+                        {
+                            explosion_timer.start();
+                        }
+
+                        Some((t.translation, enemy.scrap_drop, enemy.pickup_drop_percent))
                     } else {
                         None
                     };
@@ -239,7 +259,7 @@ impl HealthSystem {
         death_events: &mut Vec<GameEvent>,
         world: &hecs::World,
         entity: hecs::Entity,
-        is_enemy: Option<(u32, u32)>,
+        is_enemy: Option<(glam::Vec2, (u32, u32), u8)>,
     ) {
         // no shield, no health,  you're dead boy.
         if world.get::<Player>(entity).is_ok() {
@@ -248,8 +268,8 @@ impl HealthSystem {
             death_events.push(GameEvent::Delete(entity));
         }
 
-        if let Some(scratch_drop) = is_enemy {
-            death_events.push(GameEvent::EnemyDied(entity, scratch_drop));
+        if let Some(drop) = is_enemy {
+            death_events.push(GameEvent::EnemyDied(entity, drop.0, drop.1, drop.2));
         }
     }
 

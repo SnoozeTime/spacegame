@@ -9,6 +9,7 @@ use spacegame::game::{Game, GameBuilder};
 
 use spacegame::config::{load_config, GameEngineConfig, PlayerConfig};
 use spacegame::gameplay::inventory::Inventory;
+use spacegame::gameplay::level::difficulty::DifficultyConfig;
 use spacegame::gameplay::Action;
 use spacegame::scene::loading::LoadingScene;
 #[allow(unused_imports)]
@@ -45,6 +46,13 @@ fn main_loop(mut surface: GlfwSurface) {
         GameEngineConfig::default()
     });
 
+    let difficulty_config_path = PathBuf::from(base_path.clone()).join("config/difficulty.json");
+    let difficulty_config: DifficultyConfig =
+        load_config(&difficulty_config_path).unwrap_or_else(|e| {
+            log::info!("Will use default PlayerConfig because = {:?}", e);
+            DifficultyConfig::default()
+        });
+
     let mut game: Game<Action> = GameBuilder::new(&mut surface)
         // .for_scene(Box::new(ParticleScene::new(
         //     PathBuf::from(base_path).join("particle/particle.json"),
@@ -63,6 +71,7 @@ fn main_loop(mut surface: GlfwSurface) {
         )))
         .with_resource(player_config)
         .with_resource(engine_config)
+        .with_resource(difficulty_config)
         .with_resource(Inventory::default())
         .build();
 

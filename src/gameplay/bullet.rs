@@ -225,8 +225,8 @@ pub fn spawn_missile(
             home_to_entity: Some(target),
         },
         Sprite {
-            id: "fast_bullet.png".to_string(),
-            // id: "missile.png".to_string(),
+            //id: "fast_bullet.png".to_string(),
+            id: "missile.png".to_string(),
         },
         Transform {
             translation: initial_position,

@@ -1,4 +1,5 @@
 use crate::assets::prefab::Prefab;
+use crate::core::animation::AnimationController;
 use crate::core::transform::Transform;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
 use crate::gameplay::enemy::Enemy;
@@ -19,6 +20,16 @@ pub const ENEMY_PREFABS: [&str; 6] = [
     "mine",
 ];
 
+pub const ENEMY_STR_1: [&str; 5] = [
+    "base_enemy",
+    "base_enemy",
+    "base_enemy",
+    "base_enemy",
+    "base_enemy_2",
+];
+pub const ENEMY_STR_2: [&str; 2] = ["mine_lander", "satellite"];
+pub const ENEMY_STR_3: [&str; 1] = ["boss1"];
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnemyPrefab {
     pub dynamic_body: DynamicBody,
@@ -29,6 +40,7 @@ pub struct EnemyPrefab {
     pub shield: Option<Shield>,
     pub enemy: Enemy,
     pub trail: Option<ParticleEmitter>,
+    pub animation: Option<AnimationController>,
 }
 
 #[typetag::serde]
@@ -52,6 +64,9 @@ impl Prefab for EnemyPrefab {
             components.add(Trail {
                 should_display: true,
             });
+        }
+        if let Some(animation) = self.animation.clone() {
+            components.add(animation);
         }
         world.spawn(components.build())
     }
@@ -79,6 +94,7 @@ impl Default for EnemyPrefab {
             shield: None,
             enemy: Enemy::default(),
             trail: None,
+            animation: None,
         }
     }
 }
