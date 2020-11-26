@@ -20,7 +20,6 @@ pub enum BulletType {
     Round1,
     Round2,
     Twin,
-    BigAss,
 }
 
 impl BulletType {
@@ -32,9 +31,17 @@ impl BulletType {
             BulletType::Twin => "twin_bullets.png",
             BulletType::Round1 => "round_bullet.png",
             BulletType::Round2 => "round_bullet_2.png",
-            BulletType::BigAss => "big_ass_bullet.png",
         }
         .to_string()
+    }
+
+    fn get_bullet_speed(&self) -> f32 {
+        match *self {
+            BulletType::Fast => 10.0,
+            BulletType::Round1 => 3.0,
+            BulletType::Round2 => 5.0,
+            _ => 5.0,
+        }
     }
 }
 
@@ -76,7 +83,8 @@ pub fn process_missiles(world: &World, resources: &Resources) {
                 body.add_force(steering);
 
                 // rotate toward the player
-                let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
+                let dir = glam::Mat2::from_angle(std::f32::consts::FRAC_PI_2 + t.rotation)
+                    * glam::Vec2::unit_y();
                 let angle_to_perform = (target_pos.translation - t.translation).angle_between(dir);
                 t.rotation -= 0.05 * angle_to_perform;
             } else {
@@ -191,7 +199,7 @@ pub fn spawn_enemy_bullet(
     world.spawn((
         Bullet {
             direction,
-            speed: 10.0,
+            speed: bullet_type.get_bullet_speed(),
             alive: true,
             details: hit_details,
         },
@@ -226,7 +234,7 @@ pub fn spawn_missile(
         },
         Sprite {
             //id: "fast_bullet.png".to_string(),
-            id: "missile.png".to_string(),
+            id: "spaceships/Projectiles/missile-01.png".to_string(),
         },
         Transform {
             translation: initial_position,
@@ -242,7 +250,7 @@ pub fn spawn_missile(
             mass: 0.5,
             max_force: 200.0,
         },
-        Health::new(1.0, Timer::of_seconds(1.0)),
+        //Health::new(1.0, Timer::of_seconds(1.0)),
         BoundingBox {
             half_extend: glam::vec2(7.0, 7.0),
             collision_layer: CollisionLayer::MISSILE,

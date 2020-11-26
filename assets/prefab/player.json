@@ -2,13 +2,14 @@
   "PlayerPrefab": {
     "dynamic_body": {
       "forces": [],
+      "impulses": [],
       "velocity": [
         0.0,
         0.0
       ],
-      "max_velocity": 500.0,
+      "max_velocity": 600.0,
       "mass": 1.0,
-      "max_force": 500.0
+      "max_force": 1500.0
     },
     "transform": {
       "translation": [
@@ -16,19 +17,19 @@
         100.0
       ],
       "scale": [
-        50.0,
-        50.0
+        24.0,
+        24.0
       ],
       "rotation": 0.0,
       "dirty": true
     },
     "sprite": {
-      "id": "P-blue-a.png"
+      "id": "spaceships/blue_05.png"
     },
     "bounding_box": {
       "half_extend": [
-        25.0,
-        25.0
+        20.0,
+        20.0
       ],
       "collision_layer": {
         "bits": 1
@@ -36,11 +37,11 @@
       "collision_mask": null
     },
     "health": {
-      "max": 3.0,
-      "current": 3.0,
+      "max": 10.0,
+      "current": 10.0,
       "hittable": true,
       "invulnerability_timer": {
-        "deadline": 3.0,
+        "deadline": 1.0,
         "elapsed": 0.0,
         "enabled": false
       }
@@ -117,7 +118,13 @@
       "dmg": 1.0,
       "crit_percent": 50,
       "crit_multiplier": 1.5,
-      "missile_percent": 0
+      "missile_percent": 0,
+      "boost_timer": {
+        "deadline": 1.0,
+        "elapsed": 0.0,
+        "enabled": false
+      },
+      "boost_magnitude": 500.0
     }
   }
 }

@@ -12,6 +12,7 @@ pub struct AudioSystem {
 
     /// Sink for the background music.
     background: rodio::Sink,
+    current_background: Option<String>,
 
     /// Sinks for sound
     sound_sinks: Vec<rodio::Sink>,
@@ -35,6 +36,7 @@ impl AudioSystem {
             handle,
             sound_sinks,
             background,
+            current_background: None,
             rdr_id: channel.register_reader(),
         })
     }
@@ -48,6 +50,7 @@ impl AudioSystem {
             match ev {
                 GameEvent::PlayBackgroundMusic(name) => {
                     if let Some(asset) = audio_manager.get(&Handle(name.to_string())) {
+                        self.current_background = Some(name.to_string());
                         if !self.background.empty() {
                             self.background.stop();
                             self.background = rodio::Sink::try_new(&self.handle)
@@ -97,6 +100,25 @@ impl AudioSystem {
                     }
                 }
                 _ => (),
+            }
+        }
+
+        // LOOP !
+        if let Some(ref bg) = self.current_background {
+            if self.background.empty() {
+                if let Some(asset) = audio_manager.get(&Handle(bg.clone())) {
+                    asset.execute(|audio| {
+                        info!("Could load asset");
+                        if let Audio::File(content) = audio {
+                            self.background.append(
+                                rodio::Decoder::new(BufReader::new(Cursor::new(content.clone())))
+                                    .unwrap(),
+                            );
+
+                            self.background.play();
+                        }
+                    });
+                }
             }
         }
     }

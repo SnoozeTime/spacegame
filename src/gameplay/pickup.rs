@@ -4,7 +4,7 @@ use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::collision::{aabb_intersection, BoundingBox, CollisionLayer};
-use crate::gameplay::health::{Health, Shield};
+use crate::gameplay::health::{Health, Invulnerable, Shield};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::Player;
@@ -27,6 +27,7 @@ pub fn spawn_pickup(
 ) -> hecs::Entity {
     let item: Items = random.rng().gen();
     world.spawn((
+        Invulnerable,
         Transform {
             translation: pos,
             scale: glam::vec2(20.0, 20.0),
@@ -67,6 +68,8 @@ pub fn process_pickups(world: &mut hecs::World, resources: &Resources) {
                 && aabb_intersection(&pos, &bounding_box, t, bb)
             {
                 if let Ok(()) = inventory.remove_scratch(50) {
+                    //
+                    channel.single_write(GameEvent::PlaySound("sounds/powerUp2.mp3".to_string()));
                     to_delete.push(GameEvent::Delete(e));
                     to_delete.push(GameEvent::InfoText(pickup.item.info_text()));
                     picked_up.push(pickup.item);
@@ -127,17 +130,17 @@ impl Items {
             }
             Items::CritChance => {
                 let mut player = world.get_mut::<Player>(player).unwrap();
-                player.stats.crit_percent += 5;
+                player.stats.crit_percent += 10;
             }
             Items::CritDmg => {
                 let mut player = world.get_mut::<Player>(player).unwrap();
-                player.stats.crit_multiplier += 0.05;
+                player.stats.crit_multiplier += 0.10;
             }
             Items::HealthUp => {
                 let mut should_add_health = false;
                 if let Ok(mut health) = world.get_mut::<Health>(player) {
-                    health.current += 1.0;
-                    health.max += 1.0;
+                    health.current += 5.0;
+                    health.max += 5.0;
                 } else {
                     should_add_health = true;
                 }
@@ -151,8 +154,8 @@ impl Items {
             Items::ShieldUp => {
                 let mut should_add_shield = false;
                 if let Ok(mut shield) = world.get_mut::<Shield>(player) {
-                    shield.current += 1.0;
-                    shield.max += 1.0;
+                    shield.current += 2.0;
+                    shield.max += 2.0;
                 } else {
                     should_add_shield = true;
                 }
@@ -165,7 +168,7 @@ impl Items {
             }
             Items::Missile => {
                 let mut player = world.get_mut::<Player>(player).unwrap();
-                player.stats.missile_percent += 5;
+                player.stats.missile_percent += 10;
             }
         }
     }

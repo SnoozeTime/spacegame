@@ -8,8 +8,11 @@ use crate::render::ui::gui::{GuiContext, HorizontalAlign, VerticalAlign};
 use crate::render::ui::{Button, Gui};
 use crate::resources::Resources;
 use crate::scene::loading::LoadingScene;
+use crate::scene::story::StoryScene;
 use crate::scene::MainScene;
+use crate::ui::menu_button;
 use bitflags::_core::time::Duration;
+use glfw::WindowEvent;
 use hecs::World;
 use std::path::PathBuf;
 
@@ -26,7 +29,7 @@ pub struct MainMenu {
     emitter_entity: Option<hecs::Entity>,
 }
 
-impl Scene for MainMenu {
+impl Scene<WindowEvent> for MainMenu {
     fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         //generate_terrain(world, resources);
         let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
@@ -48,7 +51,12 @@ impl Scene for MainMenu {
         }
     }
 
-    fn update(&mut self, _dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
+    fn update(
+        &mut self,
+        _dt: Duration,
+        _world: &mut World,
+        _resources: &Resources,
+    ) -> SceneResult<WindowEvent> {
         let mut prefabs: Vec<String> = ENEMY_PREFABS.iter().map(|e| e.to_string()).collect();
 
         prefabs.push("player".to_string());
@@ -56,7 +64,13 @@ impl Scene for MainMenu {
             SceneResult::ReplaceScene(Box::new(LoadingScene::new(
                 prefabs,
                 vec![],
-                MainScene::new(false),
+                StoryScene::new(
+                    vec![
+                        "Humans discovered an alien artefact deep inside the moon.".to_string(),
+                        "It should be ours...".to_string(),
+                    ],
+                    MainScene::new(false),
+                ),
             )))
         } else if let Some(GameMode::Infinite) = self.game_mode {
             SceneResult::ReplaceScene(Box::new(LoadingScene::new(
@@ -89,13 +103,14 @@ impl Scene for MainMenu {
         let mut gui = gui_context.new_frame();
 
         // START BUTTON
-        if menu_button("Start", anchor, &mut gui) {
+        if menu_button("Start", anchor, 48.0, &mut gui) {
             self.game_mode = Some(GameMode::Normal);
         }
 
         if menu_button(
             "Infinite Mode",
             anchor + 80.0 * glam::Vec2::unit_y(),
+            48.0,
             &mut gui,
         ) {
             self.game_mode = Some(GameMode::Infinite);
@@ -105,6 +120,7 @@ impl Scene for MainMenu {
         if menu_button(
             "Quit to Desktop",
             anchor + 160.0 * glam::Vec2::unit_y(),
+            48.0,
             &mut gui,
         ) {
             std::process::exit(0);
@@ -112,17 +128,4 @@ impl Scene for MainMenu {
 
         Some(gui)
     }
-}
-
-fn menu_button(text: &str, position: glam::Vec2, ui: &mut Gui) -> bool {
-    Button::new(text.to_string(), position)
-        .set_bg_color(RgbaColor::new(0, 0, 0, 0), RgbaColor::new(0, 0, 0, 0))
-        .set_text_color(
-            RgbaColor::from_hex("FFFFFFFF").unwrap(),
-            RgbaColor::from_hex("01FFFFFF").unwrap(),
-        )
-        .set_font_size(48.0)
-        .set_text_align(HorizontalAlign::Left, VerticalAlign::Top)
-        .set_padding(0.0)
-        .build(ui)
 }

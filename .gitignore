@@ -1,3 +1,9 @@
 /target
-assets/sprites/*.png
+assets/sprites/**/*
+assets/sprites/*
+assets/scifi_effects
 .idea
+packed.bin
+assets/music
+assets/sounds
+game_packed

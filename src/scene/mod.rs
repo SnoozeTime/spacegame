@@ -10,6 +10,7 @@ use crate::core::transform::{HasChildren, HasParent, LocalTransform, Transform};
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{Bullet, Missile};
 use crate::gameplay::camera::update_camera;
+use crate::gameplay::explosion::ExplosionSystem;
 use crate::gameplay::health::{Health, HealthSystem, Shield};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::level::{Stage, StageDescription};
@@ -24,6 +25,9 @@ use crate::render::ui::gui::GuiContext;
 use crate::render::ui::{Button, Gui, HorizontalAlign, VerticalAlign};
 use crate::resources::Resources;
 use crate::scene::main_menu::MainMenu;
+use crate::scene::pause::PauseScene;
+use crate::scene::story::StoryScene;
+use glfw::{Key, WindowEvent};
 use hecs::World;
 use log::info;
 use luminance_glfw::GlfwSurface;
@@ -34,11 +38,14 @@ use std::time::Duration;
 pub mod loading;
 pub mod main_menu;
 pub mod particle_scene;
+pub mod pause;
+pub mod story;
 
 enum MainSceneState {
     Running,
     GameOver,
     GameWon,
+    Paused,
 }
 
 pub struct MainScene {
@@ -46,6 +53,8 @@ pub struct MainScene {
     health_system: Option<HealthSystem>,
     physic_system: PhysicSystem,
     animation_system: AnimationSystem,
+    explosion_system: Option<ExplosionSystem>,
+
     state: MainSceneState,
     return_to_menu: bool,
     restart: bool,
@@ -75,16 +84,18 @@ impl MainScene {
             animation_system: AnimationSystem,
             stage: None,
             health_system: None,
+            explosion_system: None,
             physic_system: PhysicSystem::new(PhysicConfig { damping: 0.99 }),
             info_text_timer: Timer::of_seconds(3.0),
         }
     }
 }
 
-impl Scene for MainScene {
+impl Scene<WindowEvent> for MainScene {
     fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         info!("Create MainScene");
         self.health_system = Some(HealthSystem::new(resources));
+        self.explosion_system = Some(ExplosionSystem::new(resources));
 
         //generate_terrain(world, resources);
         let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
@@ -116,7 +127,7 @@ impl Scene for MainScene {
                 .expect("Should be able to spawn player")
         });
 
-        let player_scale = { world.get::<Transform>(self.player.unwrap()).unwrap().scale };
+        let player_scale = { world.get::<Transform>(self.player.unwrap()).unwrap().scale * 2.0 };
 
         // add the shield to the player...
         let shield_entity = world.spawn((
@@ -198,7 +209,12 @@ impl Scene for MainScene {
         });
     }
 
-    fn update(&mut self, dt: Duration, world: &mut World, resources: &Resources) -> SceneResult {
+    fn update(
+        &mut self,
+        dt: Duration,
+        world: &mut World,
+        resources: &Resources,
+    ) -> SceneResult<WindowEvent> {
         log::debug!("UPDATE SYSTEMS");
         self.info_text_timer.tick(dt);
         if self.info_text_timer.finished() {
@@ -209,7 +225,7 @@ impl Scene for MainScene {
             player::update_player(world, dt, resources);
             update_camera(world, resources);
             enemy::update_enemies(world, &resources, dt);
-            self.animation_system.animate(world);
+            self.animation_system.animate(world, resources);
             update_trails(world);
             self.physic_system.update(world, dt, resources);
 
@@ -222,12 +238,26 @@ impl Scene for MainScene {
             if let Some(hs) = self.health_system.as_mut() {
                 hs.update(world, &resources, dt);
             }
+            if let Some(system) = self.explosion_system.as_mut() {
+                system.update(world, &resources);
+            }
             if let Some(ref mut stage) = self.stage {
                 stage.update(world, resources, dt);
             }
         }
 
-        if self.return_to_menu {
+        if let MainSceneState::Paused = self.state {
+            self.state = MainSceneState::Running;
+            SceneResult::Push(Box::new(PauseScene::default()))
+        } else if let MainSceneState::GameWon = self.state {
+            SceneResult::ReplaceScene(Box::new(StoryScene::new(
+                vec![
+                    "You reach the moon, with all its riches".to_string(),
+                    "Now, the whole space is waiting for you...".to_string(),
+                ],
+                MainMenu::default(),
+            )))
+        } else if self.return_to_menu {
             SceneResult::ReplaceScene(Box::new(MainMenu::default()))
         } else if self.restart {
             SceneResult::ReplaceScene(Box::new(MainScene::default()))
@@ -246,6 +276,7 @@ impl Scene for MainScene {
         let mut gui = gui_context.new_frame();
 
         match self.state {
+            MainSceneState::Paused => (),
             MainSceneState::Running => {
                 if let Some(player_health) = get_player(world) {
                     let health = world.get::<Health>(player_health).unwrap();
@@ -308,15 +339,39 @@ impl Scene for MainScene {
                         )
                     }
                 }
+
+                // information about infinite wave.
+                if let Some(ref stage) = self.stage {
+                    if stage.is_infinite {
+                        gui.colored_label(
+                            glam::vec2(
+                                gui.window_dim.width as f32 - 100.0,
+                                gui.window_dim.height as f32 - 40.0,
+                            ),
+                            format!("Wave {}", stage.wave_number),
+                            RgbaColor::new(255, 255, 255, 255),
+                        )
+                    }
+                }
             }
             MainSceneState::GameOver => {
-                // In case of game over, let's just show the message and buttons to return back home.
                 let center = gui_context.window_dim.to_vec2() / 2.0 - glam::Vec2::unit_y() * 100.0;
-                gui.colored_label(
-                    center,
-                    "Game Over...".to_string(),
-                    RgbaColor::new(255, 255, 255, 255),
-                );
+                if let Some(ref stage) = self.stage {
+                    if stage.is_infinite {
+                        gui.colored_label(
+                            center,
+                            format!("You died at wave {}", stage.wave_number),
+                            RgbaColor::new(255, 255, 255, 255),
+                        )
+                    } else {
+                        // In case of game over, let's just show the message and buttons to return back home.
+                        gui.colored_label(
+                            center,
+                            "Game Over...".to_string(),
+                            RgbaColor::new(255, 255, 255, 255),
+                        );
+                    }
+                }
 
                 if game_button("Restart", center + glam::Vec2::unit_y() * 50.0, &mut gui) {
                     self.restart = true;
@@ -414,6 +469,12 @@ impl Scene for MainScene {
             if let Some(ref mut inv) = resources.fetch_mut::<Inventory>() {
                 inv.drain_scratch();
             }
+        }
+    }
+
+    fn process_input(&mut self, _world: &mut World, input: WindowEvent, _resources: &Resources) {
+        if let WindowEvent::Key(Key::Escape, _0, glfw::Action::Press, _2) = input {
+            self.state = MainSceneState::Paused;
         }
     }
 }

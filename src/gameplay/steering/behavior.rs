@@ -4,7 +4,7 @@ use super::{avoid, go_to_path_point, halt, seek};
 use crate::core::colors;
 use crate::core::random::RandomGenerator;
 use crate::core::transform::Transform;
-use crate::gameplay::collision::CollisionWorld;
+use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
 use crate::gameplay::physics::DynamicBody;
 use crate::render::path::debug;
 use crate::resources::Resources;
@@ -46,6 +46,38 @@ pub fn follow_player(
     }
 }
 
+/// Variation of follow_player. Do not halt.
+pub fn follow_player_bis(
+    t: &mut Transform,
+    body: &mut DynamicBody,
+    player_pos: Option<glam::Vec2>,
+    resources: &Resources,
+) {
+    if let Some(player_position) = player_pos {
+        let steering = seek(
+            t.translation,
+            body.velocity,
+            player_position,
+            body.max_velocity,
+        );
+
+        body.add_force(steering);
+        debug::stroke_line(
+            resources,
+            t.translation,
+            t.translation + steering,
+            colors::RED,
+        );
+
+        // rotate toward the player
+        {
+            let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
+            let angle_to_perform = (player_position - t.translation).angle_between(dir);
+            t.rotation -= 0.05 * angle_to_perform;
+        }
+    }
+}
+
 fn rotate_towards(t: &mut Transform, target: glam::Vec2) {
     let dir = glam::Mat2::from_angle(t.rotation) * glam::Vec2::unit_y();
     let angle_to_perform = (target - t.translation).angle_between(dir);
@@ -59,11 +91,20 @@ pub fn avoid_obstacles(
     t: &mut Transform,
     body: &mut DynamicBody,
     resources: &Resources,
+    ignore_mask: CollisionLayer,
 ) {
     {
         let collision_world = resources.fetch::<CollisionWorld>().unwrap();
         if body.velocity.length() > 0.0 {
-            if let Some(f) = avoid(e, t, body.velocity, 300.0, &*collision_world, 300.0) {
+            if let Some(f) = avoid(
+                e,
+                t,
+                body.velocity,
+                300.0,
+                &*collision_world,
+                300.0,
+                ignore_mask,
+            ) {
                 body.add_force(f);
                 debug::stroke_line(resources, t.translation, t.translation + f, colors::BLUE);
             }

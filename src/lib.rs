@@ -16,7 +16,7 @@ pub mod prefab;
 pub mod render;
 pub mod resources;
 pub mod scene;
-
+pub mod ui;
 pub const WIDTH: u32 = 1600;
 pub const HEIGHT: u32 = 960;
 pub const DIMENSIONS: WindowDim = WindowDim::Windowed {

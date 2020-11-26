@@ -4,6 +4,7 @@ use crate::core::audio;
 use crate::core::camera::screen_to_world;
 use crate::core::input::{Axis, Input};
 use crate::core::random::RandomGenerator;
+use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::gameplay::bullet::spawn_missile;
 use crate::gameplay::collision::CollisionLayer;
@@ -25,31 +26,6 @@ use serde_derive::{Deserialize, Serialize};
 pub enum Weapon {
     Simple,
 }
-//
-// impl Weapon {
-//     pub fn shoot(
-//         &self,
-//         initial_pos: glam::Vec2,
-//         direction: glam::Vec2,
-//     ) -> Vec<(glam::Vec2, glam::Vec2, BulletType, HitDetails)> {
-//         match *self {
-//             Weapon::Simple => vec![(initial_pos, direction, bullet::BulletType::Twin)],
-//             Weapon::Multiple => vec![
-//                 (initial_pos, direction, bullet::BulletType::Fast),
-//                 (
-//                     initial_pos,
-//                     glam::Mat2::from_angle(3.14 / 4.0) * direction,
-//                     bullet::BulletType::Fast,
-//                 ),
-//                 (
-//                     initial_pos,
-//                     glam::Mat2::from_angle(-3.14 / 4.0) * direction,
-//                     bullet::BulletType::Fast,
-//                 ),
-//             ],
-//         }
-//     }
-// }
 
 /// Tag to tell the ECS that the entity is a player.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,6 +45,10 @@ pub struct Stats {
     pub crit_multiplier: f32,
     /// % change to shoot a missile when shooting
     pub missile_percent: u32,
+    /// Time between boosts
+    pub boost_timer: Timer,
+    /// force of the boost
+    pub boost_magnitude: f32,
 }
 
 impl Default for Stats {
@@ -78,6 +58,8 @@ impl Default for Stats {
             crit_percent: 5,
             crit_multiplier: 1.2,
             missile_percent: 0,
+            boost_timer: Timer::of_seconds(1.0),
+            boost_magnitude: 500.0,
         }
     }
 }
@@ -125,7 +107,7 @@ fn z_axis() -> Axis<Action> {
     }
 }
 
-pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
+pub fn update_player(world: &mut World, dt: Duration, resources: &Resources) {
     // only one player for now.
     let input = resources.fetch::<Input<Action>>().unwrap();
     let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
@@ -180,6 +162,15 @@ pub fn update_player(world: &mut World, _dt: Duration, resources: &Resources) {
             transform.rotation -= player_controller_conf.rotation_delta * angle_to_perform;
         }
         transform.rotation -= player_controller_conf.rotation_delta * delta_z;
+
+        // boost
+        player.stats.boost_timer.tick(dt);
+        if player.stats.boost_timer.finished() {
+            if input.is_just_pressed(Action::Boost) {
+                player.stats.boost_timer.reset();
+                dynamic.add_impulse(dir * player.stats.boost_magnitude);
+            }
+        }
 
         // Shoot stuff
         if input.is_just_pressed(Action::Shoot) {

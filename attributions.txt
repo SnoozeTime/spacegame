@@ -1,2 +1,7 @@
 FindingFlora -> https://jordanwinslow.me/electronic-soundtrack/
 spacelifeNo14 -> https://opengameart.org/content/spacelife-14
+
+sprites ->
+_pixel_spaceships_for_shmup_1.4 => https://livingtheindie.com/asset-license/
+
+scifi explosion -> Skorpio opengameart

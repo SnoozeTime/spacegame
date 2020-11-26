@@ -6,7 +6,7 @@ use spacegame::core::animation::{Animation, AnimationController};
 use spacegame::core::timer::Timer;
 use spacegame::core::transform::Transform;
 use spacegame::gameplay::collision::{BoundingBox, CollisionLayer};
-use spacegame::gameplay::enemy::{Boss1, Enemy, EnemyType, MovementBehavior, Satellite};
+use spacegame::gameplay::enemy::{Boss1, Enemy, EnemyType, MovementBehavior, Satellite, Spammer};
 use spacegame::gameplay::health::Health;
 use spacegame::gameplay::physics::DynamicBody;
 use spacegame::gameplay::player::{Player, Stats};
@@ -24,15 +24,15 @@ fn gen_player() {
                 .unwrap(),
         )
         .unwrap();
-        let scale = 50.0;
+        let scale = 24.0;
         let player_prefab = PlayerPrefab {
             dynamic_body: DynamicBody {
                 impulses: vec![],
                 forces: vec![],
                 velocity: glam::Vec2::zero(),
-                max_velocity: 500.0,
+                max_velocity: 600.0,
                 mass: 1.0,
-                max_force: 500.0,
+                max_force: 1500.0,
             },
             transform: Transform {
                 translation: glam::Vec2::new(100.0, 100.0),
@@ -41,10 +41,10 @@ fn gen_player() {
                 dirty: true,
             },
             sprite: Sprite {
-                id: "P-blue-a.png".to_string(),
+                id: "spaceships/blue_05.png".to_string(),
             },
             bounding_box: BoundingBox {
-                half_extend: scale / 2.0 * glam::Vec2::one(),
+                half_extend: 20.0 * glam::Vec2::one(),
                 collision_layer: CollisionLayer::PLAYER,
                 collision_mask: None,
             },
@@ -56,6 +56,8 @@ fn gen_player() {
                 crit_percent: 50,
                 crit_multiplier: 1.5,
                 missile_percent: 0,
+                boost_timer: Timer::of_seconds(1.0),
+                boost_magnitude: 500.0,
             },
         };
 
@@ -68,7 +70,7 @@ fn gen_player() {
 
 fn gen_mine() {
     let mine = {
-        let scale = 40.0;
+        let scale = 20.0;
         let enemy_prefab = EnemyPrefab {
             dynamic_body: DynamicBody {
                 forces: vec![],
@@ -130,6 +132,7 @@ fn gen_mine() {
                 let mut animation_controller = AnimationController {
                     animations,
                     current_animation: None,
+                    delete_on_finished: false,
                 };
                 animation_controller
             }),
@@ -144,7 +147,7 @@ fn gen_mine() {
 
 fn gen_mine_lander() {
     let mine_lander = {
-        let scale = 40.0;
+        let scale = 24.0;
         let enemy_prefab = EnemyPrefab {
             dynamic_body: DynamicBody {
                 forces: vec![],
@@ -161,7 +164,7 @@ fn gen_mine_lander() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "Proto-ship.png".to_string(),
+                id: "spaceships/red_03.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -187,9 +190,54 @@ fn gen_mine_lander() {
     std::fs::write("assets/prefab/mine_lander.json", mine_lander);
 }
 
+fn gen_wanderer() {
+    let prefab = {
+        let scale = 24.0;
+        let enemy_prefab = EnemyPrefab {
+            dynamic_body: DynamicBody {
+                forces: vec![],
+                impulses: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 200.0,
+                mass: 1.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "spaceships/red_04.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(3.0, Timer::of_seconds(1.0))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::Wanderer(Timer::of_seconds(4.0)),
+                scrap_drop: (10, 70),
+                pickup_drop_percent: 2,
+                movement: MovementBehavior::RandomPath(glam::Vec2::zero(), false),
+            },
+            trail: None,
+            animation: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/wanderer.json", prefab);
+}
+
 fn gen_base_enemy() {
     let base_enemy = {
-        let scale = 50.0;
+        let scale = 24.0;
         let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
         let mut emitter: ParticleEmitter = serde_json::from_str(
             &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
@@ -212,7 +260,7 @@ fn gen_base_enemy() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "Enemy1.png".to_string(),
+                id: "spaceships/darkgrey_02.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -237,9 +285,115 @@ fn gen_base_enemy() {
 
     std::fs::write("assets/prefab/base_enemy.json", base_enemy);
 }
+
+fn gen_carrier() {
+    let base_enemy = {
+        let scale = 128.0;
+        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let mut emitter: ParticleEmitter = serde_json::from_str(
+            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+                .unwrap(),
+        )
+        .unwrap();
+        let enemy_prefab = EnemyPrefab {
+            dynamic_body: DynamicBody {
+                impulses: vec![],
+                forces: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 50.0,
+                mass: 10.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "spaceships/large_red_01.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(15.0, Timer::of_seconds(0.3))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::Carrier {
+                    nb_of_spaceships: 4,
+                    time_between_deploy: Timer::of_seconds(12.0),
+                },
+                scrap_drop: (10, 40),
+                pickup_drop_percent: 70,
+                movement: MovementBehavior::Follow,
+            },
+            trail: Some(emitter),
+            animation: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/carrier.json", base_enemy);
+}
+
+fn gen_kamikaze() {
+    let base_enemy = {
+        let scale = 20.0;
+        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let mut emitter: ParticleEmitter = serde_json::from_str(
+            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+                .unwrap(),
+        )
+        .unwrap();
+        let enemy_prefab = EnemyPrefab {
+            dynamic_body: DynamicBody {
+                impulses: vec![],
+                forces: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 300.0,
+                mass: 1.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "spaceships/metalic_06.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(2.0, Timer::of_seconds(0.5))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::Kamikaze,
+                scrap_drop: (10, 40),
+                pickup_drop_percent: 2,
+                movement: MovementBehavior::GoToPlayer,
+            },
+            trail: Some(emitter),
+            animation: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/kamikaze.json", base_enemy);
+}
+
 fn gen_base_enemy_2() {
     let base_enemy = {
-        let scale = 50.0;
+        let scale = 24.0;
         let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
         let mut emitter: ParticleEmitter = serde_json::from_str(
             &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
@@ -263,7 +417,7 @@ fn gen_base_enemy_2() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "Enemy1.png".to_string(),
+                id: "spaceships/metalic_06.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -288,12 +442,118 @@ fn gen_base_enemy_2() {
     std::fs::write("assets/prefab/base_enemy_2.json", base_enemy);
 }
 
+fn gen_base_enemy_3() {
+    let base_enemy = {
+        let scale = 24.0;
+        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let mut emitter: ParticleEmitter = serde_json::from_str(
+            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+                .unwrap(),
+        )
+        .unwrap();
+        let enemy_prefab = EnemyPrefab {
+            animation: None,
+            dynamic_body: DynamicBody {
+                impulses: vec![],
+                forces: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 400.0,
+                mass: 1.0,
+                max_force: 1000.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "spaceships/darkgrey_04.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(3.0, Timer::of_seconds(0.5))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::FollowPlayer(Timer::of_seconds(1.0)),
+                scrap_drop: (50, 90),
+                pickup_drop_percent: 10,
+                movement: MovementBehavior::Follow,
+            },
+            trail: Some(emitter),
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/base_enemy_3.json", base_enemy);
+}
+
+fn gen_spammer() {
+    let spammer = {
+        let scale = 32.0;
+        let enemy_prefab = EnemyPrefab {
+            animation: None,
+            dynamic_body: DynamicBody {
+                impulses: vec![],
+                forces: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 100.0,
+                mass: 5.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "spaceships/green_04.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(3.0, Timer::of_seconds(1.0))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::Spammer(Spammer {
+                    shoot_timer: Timer::of_seconds(1.0),
+                    nb_shot: 3,
+                    current_shot: 0,
+                    salve_timer: Timer::of_seconds(6.0),
+                }),
+                scrap_drop: (20, 70),
+                pickup_drop_percent: 10,
+                movement: MovementBehavior::Follow,
+            },
+            trail: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/spammer.json", spammer);
+}
+
 fn main() {
+    gen_wanderer();
     gen_player();
     gen_mine_lander();
     gen_mine();
     gen_base_enemy();
     gen_base_enemy_2();
+    gen_base_enemy_3();
+    gen_spammer();
+    gen_kamikaze();
+    gen_carrier();
     let satellite = {
         let scale = 40.0;
         let enemy_prefab = EnemyPrefab {
@@ -313,7 +573,7 @@ fn main() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "Proto-ship.png".to_string(),
+                id: "sat.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -342,7 +602,7 @@ fn main() {
 
     //
     let boss = {
-        let scale = 100.0;
+        let scale = 64.0;
         let enemy_prefab = EnemyPrefab {
             animation: None,
             dynamic_body: DynamicBody {
@@ -360,7 +620,7 @@ fn main() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "EnemyBoss.png".to_string(),
+                id: "spaceships/large_grey_02.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),

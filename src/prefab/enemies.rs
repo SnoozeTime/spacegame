@@ -11,24 +11,23 @@ use crate::render::sprite::Sprite;
 use hecs::EntityBuilder;
 use serde_derive::{Deserialize, Serialize};
 
-pub const ENEMY_PREFABS: [&str; 6] = [
+pub const ENEMY_PREFABS: [&str; 11] = [
     "base_enemy",
     "base_enemy_2",
+    "base_enemy_3",
     "satellite",
     "boss1",
     "mine_lander",
     "mine",
+    "wanderer",
+    "spammer",
+    "carrier",
+    "kamikaze",
 ];
 
-pub const ENEMY_STR_1: [&str; 5] = [
-    "base_enemy",
-    "base_enemy",
-    "base_enemy",
-    "base_enemy",
-    "base_enemy_2",
-];
-pub const ENEMY_STR_2: [&str; 2] = ["mine_lander", "satellite"];
-pub const ENEMY_STR_3: [&str; 1] = ["boss1"];
+pub const ENEMY_STR_1: [&str; 4] = ["base_enemy", "base_enemy", "wanderer", "kamikaze"];
+pub const ENEMY_STR_2: [&str; 4] = ["mine_lander", "satellite", "base_enemy_2", "spammer"];
+pub const ENEMY_STR_3: [&str; 3] = ["boss1", "base_enemy_3", "carrier"];
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnemyPrefab {

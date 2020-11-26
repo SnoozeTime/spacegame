@@ -2,6 +2,7 @@
   "EnemyPrefab": {
     "dynamic_body": {
       "forces": [],
+      "impulses": [],
       "velocity": [
         0.0,
         0.0
@@ -16,19 +17,19 @@
         0.0
       ],
       "scale": [
-        40.0,
-        40.0
+        24.0,
+        24.0
       ],
       "rotation": 0.0,
       "dirty": false
     },
     "sprite": {
-      "id": "Proto-ship.png"
+      "id": "spaceships/red_03.png"
     },
     "bounding_box": {
       "half_extend": [
-        20.0,
-        20.0
+        12.0,
+        12.0
       ],
       "collision_layer": {
         "bits": 2
@@ -54,11 +55,11 @@
           "enabled": false
         }
       },
-      "speed": 5.0,
-      "scratch_drop": [
-        0,
-        40
+      "scrap_drop": [
+        10,
+        70
       ],
+      "pickup_drop_percent": 2,
       "movement": {
         "RandomPath": [
           [
@@ -69,6 +70,7 @@
         ]
       }
     },
-    "trail": null
+    "trail": null,
+    "animation": null
   }
 }

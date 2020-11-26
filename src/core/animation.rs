@@ -1,6 +1,9 @@
+use crate::event::GameEvent;
 use crate::render::sprite::Sprite;
+use crate::resources::Resources;
 use log::error;
 use serde_derive::{Deserialize, Serialize};
+use shrev::EventChannel;
 use std::collections::HashMap;
 
 /// One animation (in one spreadsheet).
@@ -24,6 +27,10 @@ impl Animation {
             elapsed_frame: 0,
         }
     }
+
+    pub fn last_frame(&self) -> bool {
+        self.keyframes.len() == self.current_index + 1
+    }
 }
 
 /// All Animations for an entity
@@ -35,13 +42,17 @@ pub struct AnimationController {
 
     /// if set to something, will play the corresponding animation
     pub current_animation: Option<String>,
+
+    #[serde(default)]
+    pub delete_on_finished: bool,
 }
 
 pub struct AnimationSystem;
 
 impl AnimationSystem {
-    pub fn animate(&mut self, world: &mut hecs::World) {
-        for (_, (controller, sprite)) in world
+    pub fn animate(&mut self, world: &mut hecs::World, resources: &Resources) {
+        let mut events = vec![];
+        for (e, (controller, sprite)) in world
             .query::<(&mut AnimationController, &mut Sprite)>()
             .iter()
         {
@@ -52,6 +63,10 @@ impl AnimationSystem {
                     animation.elapsed_frame += 1;
                     if animation.elapsed_frame > animation.keyframes[animation.current_index].1 {
                         animation.elapsed_frame = 0;
+
+                        if animation.last_frame() && controller.delete_on_finished {
+                            events.push(GameEvent::Delete(e));
+                        }
                         animation.current_index =
                             (animation.current_index + 1) % animation.keyframes.len();
                     }
@@ -59,6 +74,11 @@ impl AnimationSystem {
                     error!("Cannot find animation with name = {}", animation_name);
                 }
             }
+        }
+
+        {
+            let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
+            channel.drain_vec_write(&mut events);
         }
     }
 }

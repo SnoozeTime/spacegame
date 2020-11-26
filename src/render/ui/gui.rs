@@ -3,10 +3,13 @@ use crate::core::window::WindowDim;
 use crate::render::ui::text::Text;
 use crate::render::ui::{text, Button, DrawData, Panel, FONT_DATA};
 use glfw::{Action, MouseButton, WindowEvent};
-use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
+use glyph_brush::GlyphBrushBuilder;
 use serde_derive::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use glyph_brush::rusttype::Scale;
+use glyph_brush::{GlyphBrush, GlyphCruncher, Layout, Section};
 
 pub struct GuiContext {
     pub(crate) window_dim: WindowDim,
@@ -103,6 +106,20 @@ impl Gui {
             pos,
         ));
     }
+
+    pub fn centered_label(&mut self, pos: glam::Vec2, text: String) {
+        let bounds = self.text_bounds(text.as_str(), self.style.font_size);
+        let real_pos = pos - bounds / 2.0;
+        self.draw_data.push(DrawData::Text(
+            Text {
+                content: text,
+                font_size: self.style.font_size,
+                color: self.style.text_color,
+                align: (HorizontalAlign::Left, VerticalAlign::Top),
+            },
+            real_pos,
+        ));
+    }
     pub fn colored_label(&mut self, pos: glam::Vec2, text: String, color: RgbaColor) {
         self.draw_data.push(DrawData::Text(
             Text {
@@ -127,6 +144,34 @@ impl Gui {
         }
 
         btn.build(self)
+    }
+
+    pub fn text_bounds(&mut self, text: &str, font_size: f32) -> glam::Vec2 {
+        let scale = Scale::uniform(font_size.round());
+        let section = Section {
+            text,
+            scale,
+            screen_position: (0.0, 0.0), //(text_position.x(), text_position.y()),
+            bounds: (
+                self.window_dim.width as f32 / 3.15,
+                self.window_dim.height as f32,
+            ),
+            color: RgbaColor::new(0, 0, 0, 0).to_normalized(),
+            layout: Layout::default()
+                .h_align(self.style.button_text_align.0.into())
+                .v_align(self.style.button_text_align.1.into()),
+            ..Section::default()
+        };
+
+        let bounds = self
+            .fonts
+            .borrow_mut()
+            .glyph_bounds(section)
+            .expect("Text should have bounds");
+
+        let height = bounds.height();
+        let width = bounds.width();
+        glam::vec2(width, height)
     }
 }
 
@@ -190,7 +235,7 @@ impl Default for Style {
             button_text_color: RgbaColor::new(255, 255, 255, 255),
             button_hovered_text_color: RgbaColor::new(255, 255, 255, 255),
             button_text_align: (HorizontalAlign::Center, VerticalAlign::Center),
-            text_color: RgbaColor::new(0, 0, 0, 255),
+            text_color: RgbaColor::new(255, 255, 255, 255),
             font_size: 16.0,
         }
     }

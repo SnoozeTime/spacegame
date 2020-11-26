@@ -1,0 +1,24 @@
+{
+  "nb_pickups": 3,
+  "waves": [
+    {
+      "to_instantiate": ["mine_lander", "mine_lander", "base_enemy_3"]
+    },
+    {
+      "to_instantiate": ["mine_lander", "carrier", "base_enemy", "base_enemy", "base_enemy"]
+    },
+    {
+      "to_instantiate": ["boss1", "mine_lander", "base_enemy", "base_enemy", "base_enemy", "base_enemy"]
+    },
+    {
+      "to_instantiate": ["base_enemy_3", "base_enemy_2", "boss1", "base_enemy_2"]
+    }
+  ],
+  "backgrounds": [
+    "background3/back.png",
+    "background3/front.png",
+    "background3/left.png",
+    "background3/right.png",
+    "background3/top.png"
+  ]
+}

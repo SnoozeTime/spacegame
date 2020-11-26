@@ -4,15 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 pub trait InputAction: Hash + Eq + PartialEq + Clone {
-    /// Get the action from the key
-    fn from_key(key: Key) -> Option<Self>
-    where
-        Self: std::marker::Sized;
-
-    /// Get the action from the mouse button
-    fn from_mouse_button(btn: MouseButton) -> Option<Self>
-    where
-        Self: std::marker::Sized;
+    fn get_default_key_mapping() -> HashMap<Key, Self>;
+    fn get_default_mouse_mapping() -> HashMap<MouseButton, Self>;
 }
 
 pub struct Axis<A>
@@ -33,17 +26,22 @@ where
     just_pressed: HashSet<A>,
 
     mouse_pos: glam::Vec2,
+
+    key_mapping: HashMap<Key, A>,
+    mouse_mapping: HashMap<MouseButton, A>,
 }
 
 impl<A> Input<A>
 where
     A: InputAction,
 {
-    pub fn new() -> Self {
+    pub fn new(key_mapping: HashMap<Key, A>, mouse_mapping: HashMap<MouseButton, A>) -> Self {
         Self {
             action_state: HashMap::default(),
             just_pressed: HashSet::default(),
             mouse_pos: glam::Vec2::zero(),
+            key_mapping,
+            mouse_mapping,
         }
     }
 
@@ -53,24 +51,24 @@ where
     pub fn process_event(&mut self, ev: WindowEvent) {
         match ev {
             WindowEvent::Key(key, _, glfw::Action::Press, _) => {
-                if let Some(action) = A::from_key(key) {
+                if let Some(action) = self.key_mapping.get(&key).cloned() {
                     self.action_state.insert(action.clone(), true);
                     self.just_pressed.insert(action);
                 }
             }
             WindowEvent::Key(key, _, glfw::Action::Release, _) => {
-                if let Some(action) = A::from_key(key) {
+                if let Some(action) = self.key_mapping.get(&key).cloned() {
                     self.action_state.insert(action, false);
                 }
             }
             WindowEvent::MouseButton(btn, glfw::Action::Press, _) => {
-                if let Some(action) = A::from_mouse_button(btn) {
+                if let Some(action) = self.mouse_mapping.get(&btn).cloned() {
                     self.action_state.insert(action.clone(), true);
                     self.just_pressed.insert(action);
                 }
             }
             WindowEvent::MouseButton(btn, glfw::Action::Release, _) => {
-                if let Some(action) = A::from_mouse_button(btn) {
+                if let Some(action) = self.mouse_mapping.get(&btn).cloned() {
                     self.action_state.insert(action, false);
                 }
             }

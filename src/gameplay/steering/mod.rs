@@ -43,20 +43,14 @@ pub fn avoid(
     look_ahead: f32,
     collision_world: &CollisionWorld,
     avoidance_strength: f32,
+    ignore_mask: CollisionLayer,
 ) -> Option<glam::Vec2> {
     let ray = Ray {
         c: transform.translation,
         d: velocity.normalize(),
     };
 
-    let collisions = collision_world.ray_with_offset(
-        ray,
-        CollisionLayer::ENEMY_BULLET
-            | CollisionLayer::PLAYER_BULLET
-            | CollisionLayer::PICKUP
-            | CollisionLayer::MINE,
-        transform.scale.x() / 2.0,
-    );
+    let collisions = collision_world.ray_with_offset(ray, ignore_mask, transform.scale.x() / 2.0);
 
     let mut current_t = std::f32::INFINITY;
     let mut collision_data = None;

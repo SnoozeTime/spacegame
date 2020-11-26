@@ -131,6 +131,7 @@ impl HealthSystem {
                 let mut explosion = false;
 
                 let mut insert_blink = false;
+                let mut is_enemy = false;
                 {
                     let invulnerable = world.get::<Invulnerable>(*e);
                     if invulnerable.is_ok() {
@@ -139,11 +140,14 @@ impl HealthSystem {
 
                     let health = world.get_mut::<Health>(*e);
                     let shield = world.get_mut::<Shield>(*e);
-                    let t = world
-                        .get::<Transform>(*e)
-                        .expect("Enemy with health should have a transform");
+                    let t = world.get::<Transform>(*e);
+                    if t.is_err() {
+                        continue;
+                    }
+                    let t = t.unwrap();
 
                     let enemy_drop = if let Ok(mut enemy) = world.get_mut::<Enemy>(*e) {
+                        is_enemy = true;
                         // if should explode on contact. BOUM
                         if let EnemyType::Mine {
                             ref mut explosion_timer,

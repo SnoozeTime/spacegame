@@ -27,8 +27,14 @@ where
 {
     let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
 
+    #[cfg(not(feature = "packed"))]
     let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
         sprite::SpriteSyncLoader::new(PathBuf::from(&base_path).join("assets/sprites")),
+    ));
+
+    #[cfg(feature = "packed")]
+    let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
+        sprite::SpritePackLoader::new(PathBuf::from(&base_path).join("assets/sprites")),
     ));
 
     let prefab_loader: PrefabManager<S> = AssetManager::from_loader(Box::new(
@@ -93,6 +99,9 @@ pub enum AssetError {
 
     #[error(transparent)]
     TextureError(#[from] luminance::texture::TextureError),
+
+    #[error("Cannot find {0} in packed data")]
+    PackedError(String),
 }
 
 pub struct Asset<T> {

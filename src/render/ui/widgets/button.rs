@@ -103,31 +103,7 @@ impl Button {
         let dimensions = if let Some(dimension) = self.dimensions {
             dimension
         } else {
-            let scale = Scale::uniform(font_size.round());
-            let section = Section {
-                text: self.text.as_str(),
-                scale,
-                screen_position: (text_position.x(), text_position.y()),
-                bounds: (
-                    ui.window_dim.width as f32 / 3.15,
-                    ui.window_dim.height as f32,
-                ),
-                color: RgbaColor::new(0, 0, 0, 0).to_normalized(),
-                layout: Layout::default()
-                    .h_align(text_align.0.into())
-                    .v_align(text_align.1.into()),
-                ..Section::default()
-            };
-
-            let bounds = ui
-                .fonts
-                .borrow_mut()
-                .glyph_bounds(section)
-                .expect("Text should have bounds");
-
-            let height = bounds.height();
-            let width = bounds.width();
-            glam::vec2(width, height)
+            ui.text_bounds(self.text.as_str(), font_size)
         };
 
         let mouse_pos_rel = ui.mouse_pos - self.anchor;

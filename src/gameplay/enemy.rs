@@ -1,23 +1,30 @@
 use crate::assets::prefab::PrefabManager;
 use crate::assets::Handle;
-use crate::core::animation::AnimationController;
+use crate::core::animation::{Animation, AnimationController};
 use crate::core::colors;
+use crate::core::random::RandomGenerator;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
 use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
+use crate::gameplay::explosion::ExplosionDetails;
 use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
-use crate::gameplay::steering::behavior::{avoid_obstacles, follow_player, follow_random_path};
+use crate::gameplay::steering::behavior::{
+    avoid_obstacles, follow_player, follow_player_bis, follow_random_path,
+};
 use crate::render::path::debug;
+use crate::render::sprite::Sprite;
 use crate::resources::Resources;
 use hecs::World;
 use log::{debug, trace};
 use luminance_glfw::GlfwSurface;
+use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
+use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +52,8 @@ impl Default for Enemy {
 pub enum MovementBehavior {
     /// Move toward the player. Avoid basic obstacles
     Follow,
+    /// Move towards player. Avoid nothing. Very blunt.
+    GoToPlayer,
     /// Follow a path. Each point will be randomly generated.
     RandomPath(glam::Vec2, bool),
     /// Do not move.
@@ -66,15 +75,23 @@ impl MovementBehavior {
         maybe_player: Option<glam::Vec2>,
         resources: &Resources,
     ) {
+        let ignore_mask = CollisionLayer::ENEMY_BULLET
+            | CollisionLayer::PLAYER_BULLET
+            | CollisionLayer::PICKUP
+            | CollisionLayer::MINE;
         match self {
             Self::Nothing => (),
+            Self::GoToPlayer => {
+                follow_player_bis(t, body, maybe_player, resources);
+                avoid_obstacles(e, t, body, resources, ignore_mask | CollisionLayer::PLAYER);
+            }
             Self::Follow => {
                 follow_player(t, body, maybe_player, resources);
-                avoid_obstacles(e, t, body, resources);
+                avoid_obstacles(e, t, body, resources, ignore_mask);
             }
             Self::RandomPath(ref mut target, ref mut is_init) => {
                 follow_random_path(target, is_init, t, body, resources);
-                avoid_obstacles(e, t, body, resources);
+                avoid_obstacles(e, t, body, resources, ignore_mask);
             }
         }
     }
@@ -85,8 +102,16 @@ pub enum EnemyType {
     FollowPlayer(Timer),
     Satellite(Satellite),
     Boss1(Boss1),
+    Carrier {
+        time_between_deploy: Timer,
+        nb_of_spaceships: usize,
+    },
     /// Drop some mines like an asshole.
     MineLander(Timer),
+    /// Move randomly like mine lander, but shoots instead
+    Wanderer(Timer),
+    /// Move randomly like mine lander, but shoots instead
+    Spammer(Spammer),
     /// Will explode when player comes near,
     Mine {
         /// Distance from the player below which the mine will be triggered
@@ -94,6 +119,8 @@ pub enum EnemyType {
         /// Time from when the mine is triggered until the mine explode.
         explosion_timer: Timer,
     },
+    /// Go straight towards the player and explode on contact.
+    Kamikaze,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +136,32 @@ pub struct Boss1 {
 }
 
 impl Boss1 {
+    fn should_shoot(&mut self) -> bool {
+        self.nb_shot != self.current_shot
+    }
+
+    fn prepare_to_shoot(&mut self) {
+        self.shoot_timer.reset();
+        self.shoot_timer.start();
+        self.salve_timer.reset();
+        self.salve_timer.stop();
+        self.current_shot = 0;
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Spammer {
+    /// Time between shots
+    pub shoot_timer: Timer,
+    /// nb of time to shoot during a salve
+    pub nb_shot: usize,
+    /// nb of shots during current salve.
+    pub current_shot: usize,
+    /// timeout between salves.
+    pub salve_timer: Timer,
+}
+
+impl Spammer {
     fn should_shoot(&mut self) -> bool {
         self.nb_shot != self.current_shot
     }
@@ -182,11 +235,10 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 
     // prefabs to spawn.
     let mut to_spawn: Vec<(String, glam::Vec2)> = vec![];
+    let mut spaceship_to_spawn = vec![];
     let mut bullets = vec![];
     let mut to_remove = vec![];
     let mut missiles = vec![];
-    let mut explosions = vec![];
-    //let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
     let maybe_player = world
         .query::<(&Player, &Transform)>()
@@ -209,6 +261,69 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         if let Some(player_position) = maybe_player {
             let dir = player_position - t.translation;
             match enemy.enemy_type {
+                EnemyType::Kamikaze => {
+                    if (t.translation - player_position).length() < 60.0 {
+                        to_remove.push(GameEvent::Delete(e));
+                        to_remove.push(GameEvent::Explosion(
+                            e,
+                            ExplosionDetails { radius: 100.0 },
+                            t.translation,
+                        ));
+                    }
+                }
+                EnemyType::Carrier {
+                    nb_of_spaceships,
+                    ref mut time_between_deploy,
+                } => {
+                    time_between_deploy.tick(dt);
+                    if time_between_deploy.finished() {
+                        time_between_deploy.reset();
+                        spaceship_to_spawn.push((e, t.translation, nb_of_spaceships));
+                    }
+                }
+                EnemyType::Spammer(ref mut spammer) => {
+                    if spammer.should_shoot() {
+                        spammer.shoot_timer.tick(dt);
+                        if spammer.shoot_timer.finished() {
+                            spammer.shoot_timer.reset();
+
+                            // shoot.
+                            let d = dir.normalize();
+                            bullets.push((t.translation, d, BulletType::Round1));
+                            bullets.push((
+                                t.translation,
+                                glam::Mat2::from_angle(std::f32::consts::FRAC_PI_4) * d,
+                                BulletType::Round1,
+                            ));
+                            bullets.push((
+                                t.translation,
+                                glam::Mat2::from_angle(-std::f32::consts::FRAC_PI_4) * d,
+                                BulletType::Round1,
+                            ));
+                            bullets.push((
+                                t.translation,
+                                glam::Mat2::from_angle(-std::f32::consts::FRAC_PI_3) * d,
+                                BulletType::Round1,
+                            ));
+                            bullets.push((
+                                t.translation,
+                                glam::Mat2::from_angle(std::f32::consts::FRAC_PI_3) * d,
+                                BulletType::Round1,
+                            ));
+                            ev_channel.single_write(GameEvent::PlaySound(
+                                "sounds/scifi_kit/Laser/Laser_04.wav".to_string(),
+                            ));
+
+                            spammer.current_shot += 1;
+                        }
+                    } else {
+                        // if here, boss1 needs to wait before it is able to shoot again.
+                        spammer.salve_timer.tick(dt);
+                        if spammer.salve_timer.finished() {
+                            spammer.prepare_to_shoot();
+                        }
+                    }
+                }
                 EnemyType::Boss1(ref mut boss1) => {
                     if boss1.should_shoot() {
                         boss1.shoot_timer.tick(dt);
@@ -219,7 +334,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                             let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
                             bullets.push(to_spawn);
                             ev_channel.single_write(GameEvent::PlaySound(
-                                "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+                                "sounds/scifi_kit/Laser/Laser_03.wav".to_string(),
                             ));
 
                             boss1.current_shot += 1;
@@ -255,7 +370,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                             shoot_timer.reset();
                             let to_spawn = (t.translation, dir.normalize(), BulletType::Round2);
                             ev_channel.single_write(GameEvent::PlaySound(
-                                "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+                                "sounds/scifi_kit/Laser/Laser_04.wav".to_string(),
                             ));
                             bullets.push(to_spawn);
                         }
@@ -263,6 +378,32 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
 
                     // Draw stuff to the screen.
                     debug::stroke_circle(resources, t.translation, 1500.0, colors::RED);
+                }
+                EnemyType::Wanderer(ref mut timer) => {
+                    timer.tick(dt);
+                    if timer.finished() {
+                        timer.reset();
+                        let d = dir.normalize();
+                        bullets.push((t.translation, d, BulletType::Round1));
+                        bullets.push((
+                            t.translation,
+                            glam::Mat2::from_angle(std::f32::consts::FRAC_PI_2) * d,
+                            BulletType::Round1,
+                        ));
+                        bullets.push((
+                            t.translation,
+                            glam::Mat2::from_angle(2.0 * std::f32::consts::FRAC_PI_2) * d,
+                            BulletType::Round1,
+                        ));
+                        bullets.push((
+                            t.translation,
+                            glam::Mat2::from_angle(3.0 * std::f32::consts::FRAC_PI_2) * d,
+                            BulletType::Round1,
+                        ));
+                        ev_channel.single_write(GameEvent::PlaySound(
+                            "sounds/scifi_kit/Laser/Laser_04.wav".to_string(),
+                        ));
+                    }
                 }
                 EnemyType::MineLander(ref mut timer) => {
                     timer.tick(dt);
@@ -285,8 +426,14 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                         explosion_timer.tick(dt);
                         if explosion_timer.finished() {
                             // badaboum
-                            explosions.push((e, t.translation, trigger_distance));
                             to_remove.push(GameEvent::Delete(e));
+                            to_remove.push(GameEvent::Explosion(
+                                e,
+                                ExplosionDetails {
+                                    radius: trigger_distance,
+                                },
+                                t.translation,
+                            ));
                         }
                         debug::stroke_circle(
                             resources,
@@ -347,49 +494,26 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
         );
     }
 
-    // process explosions.
-    //
     {
-        let collision_world = resources.fetch::<CollisionWorld>().unwrap();
-        for (mine, pos, radius) in explosions {
-            info!("EXPLOSION HAPPENED AT {:?}", (pos, radius));
-            let entity_touched = collision_world.circle_query(pos, radius);
-            info!("Entities in explosion = {:?}", entity_touched);
+        let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+        let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
-            for e in entity_touched {
-                if e == mine {
-                    continue;
+        for (_e, pos, nb) in spaceship_to_spawn {
+            if let Some(asset) = prefab_manager.get(&Handle("kamikaze".to_string())) {
+                for _ in 0..nb {
+                    asset.execute(|prefab| {
+                        let e = prefab.spawn_at_pos(world, pos);
+                        if let Ok(mut body) = world.get_mut::<DynamicBody>(e) {
+                            let angle = random.rng().gen_range(0.0, std::f32::consts::PI * 2.0);
+                            let impulse =
+                                500.0 * glam::Mat2::from_angle(angle) * glam::Vec2::unit_y();
+                            body.add_impulse(impulse);
+                        }
+                    });
                 }
-
-                // Apply force from center to position.
-                let mut query = world
-                    .query_one::<(&Transform, &mut DynamicBody)>(e)
-                    .unwrap();
-
-                if let Some((t, body)) = query.get() {
-                    let force = (t.translation - pos).normalize() * 500.0;
-                    debug::stroke_line(
-                        resources,
-                        t.translation,
-                        t.translation + force,
-                        colors::RED,
-                    );
-                    body.add_impulse(force);
-                } else {
-                    info!("No transform and body for entity");
-                }
-
-                to_remove.push(GameEvent::Hit(
-                    e,
-                    HitDetails {
-                        hit_points: 2.0,
-                        is_crit: false,
-                    },
-                ));
             }
         }
     }
-
     ev_channel.drain_vec_write(&mut to_remove);
     trace!("Finished update_enemies")
 }

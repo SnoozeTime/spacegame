@@ -1,19 +1,26 @@
 {
-    "nb_pickups": 7,
+    "nb_pickups": 3,
     "waves": [
         {
-            "to_instantiate": ["mine_lander"]
+            "to_instantiate": ["base_enemy"]
         },
         {
-            "to_instantiate": ["base_enemy", "base_enemy"]
+            "to_instantiate": ["base_enemy", "kamikaze"]
         },
         {
-            "to_instantiate": ["base_enemy", "satellite"]
+            "to_instantiate": ["base_enemy", "satellite", "base_enemy"]
         },
         {
-
             "to_instantiate": ["boss1"]
         }
     ],
-    "next_stage": "stage2.json"
+    "next_stage": "stage2.json",
+    "backgrounds": [
+        "background2/back.png",
+        "background2/bottom.png",
+        "background2/front.png",
+        "background2/left.png",
+        "background2/right.png",
+        "background2/top.png"
+    ]
 }

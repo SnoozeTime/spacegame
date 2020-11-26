@@ -1,3 +1,4 @@
+use crate::gameplay::explosion::ExplosionDetails;
 use crate::gameplay::health::HitDetails;
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,9 @@ pub enum GameEvent {
 
     /// Start the next stage.
     NextStage(String),
+
+    /// Something exploded :D
+    Explosion(hecs::Entity, ExplosionDetails, glam::Vec2),
 
     /// No more stages, you are the boss !
     YouWin,

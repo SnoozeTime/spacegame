@@ -32,6 +32,8 @@ pub struct StageDescription {
     pub is_infinite: bool,
     #[serde(default)]
     pub next_stage: Option<String>,
+
+    pub backgrounds: Vec<String>,
 }
 
 impl StageDescription {
@@ -41,13 +43,14 @@ impl StageDescription {
             nb_pickups: 7,
             is_infinite: true,
             next_stage: None,
+            backgrounds: vec![],
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Stage {
-    background: hecs::Entity,
+    background: Option<hecs::Entity>,
     /// Asteroid entities.
     asteroids: Vec<hecs::Entity>,
     pickups: Vec<hecs::Entity>,
@@ -63,7 +66,8 @@ pub struct Stage {
     finished: bool,
     next_stage: Option<String>,
 
-    is_infinite: bool,
+    pub is_infinite: bool,
+    pub wave_number: usize,
     pub wave_difficulty: Option<WaveDifficulty>,
 }
 
@@ -79,18 +83,21 @@ impl Stage {
 
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
-        let background = backgrounds.choose(random.rng()).unwrap().to_string();
-
-        // First choose a random background.
-        let background = world.spawn((
-            Transform {
-                translation: glam::Vec2::new(0.0, 0.0),
-                scale: glam::Vec2::new(1600.0, 960.0),
-                rotation: 0.0,
-                dirty: false,
-            },
-            Sprite { id: background },
-        ));
+        let background = stage_desc
+            .backgrounds
+            .choose(random.rng())
+            .cloned()
+            .map(|background| {
+                world.spawn((
+                    Transform {
+                        translation: glam::Vec2::new(0.0, 0.0),
+                        scale: glam::Vec2::new(1600.0, 960.0),
+                        rotation: 0.0,
+                        dirty: false,
+                    },
+                    Sprite { id: background },
+                ))
+            });
 
         // 2. GENERATE ASTEROIDS!
         // -------------------------------
@@ -114,6 +121,7 @@ impl Stage {
             background,
             asteroids,
             pickups,
+            wave_number: 1,
             waves,
             finished: false,
             no_asteroids,
@@ -177,6 +185,7 @@ impl Stage {
                 // Tick the timer between waves.
                 self.timer_between_waves.tick(dt);
                 if self.timer_between_waves.finished() {
+                    self.wave_number += 1;
                     self.timer_between_waves.stop();
                     self.timer_between_waves.reset();
 
@@ -238,8 +247,10 @@ impl Stage {
             });
         }
 
-        if let Err(e) = world.despawn(self.background) {
-            error!("Error while despawning background = {:?}", e);
+        if let Some(bg) = self.background {
+            if let Err(e) = world.despawn(bg) {
+                error!("Error while despawning background = {:?}", e);
+            }
         }
 
         self.asteroids.iter().for_each(|&e| {
@@ -282,7 +293,7 @@ pub fn generate_terrain(
                 let x = x as i32 - NB_BLOCKS_X as i32 / 2;
                 let y = y as i32 - NB_BLOCKS_Y as i32 / 2;
 
-                let world_value = glam::Vec2::new(x as f32 * 32.0, y as f32 * 32.0);
+                let world_value = glam::Vec2::new(x as f32 * 48.0, y as f32 * 48.0);
                 if perlin >= 0.0 && perlin <= 0.10 {
                     values.push(world_value);
                 } else if perlin >= 0.8 {

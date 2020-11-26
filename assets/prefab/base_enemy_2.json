@@ -2,44 +2,43 @@
   "EnemyPrefab": {
     "dynamic_body": {
       "forces": [],
+      "impulses": [],
       "velocity": [
         0.0,
         0.0
       ],
-      "max_velocity": 400.0,
+      "max_velocity": 300.0,
       "mass": 1.0,
-      "max_force": 1500.0
+      "max_force": 500.0
     },
     "transform": {
       "translation": [
-        -500.0,
-        400.0
+        0.0,
+        0.0
       ],
       "scale": [
-        50.0,
-        50.0
+        24.0,
+        24.0
       ],
-      "rotation": 3.14,
+      "rotation": 0.0,
       "dirty": false
     },
     "sprite": {
-      "id": "Enemy2.png"
+      "id": "spaceships/darkgrey_03.png"
     },
     "bounding_box": {
       "half_extend": [
-        25.0,
-        25.0
+        12.0,
+        12.0
       ],
       "collision_layer": {
         "bits": 2
       },
-      "collision_mask": {
-        "bits": 53
-      }
+      "collision_mask": null
     },
     "health": {
-      "max": 3,
-      "current": 2,
+      "max": 3.0,
+      "current": 3.0,
       "hittable": true,
       "invulnerability_timer": {
         "deadline": 0.5,
@@ -49,16 +48,19 @@
     },
     "shield": null,
     "enemy": {
-        "movement": "Follow",
       "enemy_type": {
         "FollowPlayer": {
-            "deadline": 1.5,
-            "elapsed": 0.0,
-            "enabled": true
+          "deadline": 1.0,
+          "elapsed": 0.0,
+          "enabled": false
         }
       },
-      "speed": 5.0,
-      "scratch_drop": [10, 50]
+      "scrap_drop": [
+        30,
+        60
+      ],
+      "pickup_drop_percent": 5,
+      "movement": "Follow"
     },
     "trail": {
       "enabled": true,
@@ -126,6 +128,7 @@
         0.0
       ],
       "burst": false
-    }
+    },
+    "animation": null
   }
 }

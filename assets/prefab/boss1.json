@@ -2,6 +2,7 @@
   "EnemyPrefab": {
     "dynamic_body": {
       "forces": [],
+      "impulses": [],
       "velocity": [
         0.0,
         0.0
@@ -16,19 +17,19 @@
         0.0
       ],
       "scale": [
-        100.0,
-        100.0
+        64.0,
+        64.0
       ],
       "rotation": 0.0,
       "dirty": false
     },
     "sprite": {
-      "id": "EnemyBoss.png"
+      "id": "spaceships/large_grey_02.png"
     },
     "bounding_box": {
       "half_extend": [
-        50.0,
-        50.0
+        32.0,
+        32.0
       ],
       "collision_layer": {
         "bits": 2
@@ -63,13 +64,14 @@
           }
         }
       },
-      "speed": 5.0,
-      "scratch_drop": [
-        0,
+      "scrap_drop": [
+        20,
         100
       ],
+      "pickup_drop_percent": 100,
       "movement": "Follow"
     },
-    "trail": null
+    "trail": null,
+    "animation": null
   }
 }

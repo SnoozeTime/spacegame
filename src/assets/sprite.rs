@@ -12,6 +12,9 @@ use luminance_gl::GL33;
 use serde_derive::{Deserialize, Serialize};
 use std::path::Path;
 
+mod packed;
+pub use packed::*;
+
 pub enum SpriteAsset<S>
 where
     S: GraphicsContext<Backend = GL33>,
@@ -42,8 +45,8 @@ where
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SpriteAssetMetadata {
-    sampler: SamplerDef,
+pub struct SpriteAssetMetadata {
+    pub sampler: SamplerDef,
 }
 
 impl Default for SpriteAssetMetadata {
@@ -141,8 +144,8 @@ where
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct SamplerDef {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SamplerDef {
     /// How should we wrap around the *r* sampling coordinate?
     pub wrap_r: WrapDef,
     /// How should we wrap around the *s* sampling coordinate?
@@ -173,8 +176,8 @@ impl SamplerDef {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-enum WrapDef {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum WrapDef {
     /// If textures coordinates lay outside of *[0;1]*, they will be clamped to either *0* or *1* for
     /// every components.
     ClampToEdge,
@@ -199,7 +202,7 @@ impl WrapDef {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MinFilterDef {
     Nearest,
     Linear,
@@ -222,7 +225,7 @@ impl MinFilterDef {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MagFilterDef {
     Nearest,
     Linear,
@@ -236,7 +239,7 @@ impl MagFilterDef {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DepthComparisonDef {
     /// Depth test never succeeds.
     Never,
@@ -271,7 +274,7 @@ impl DepthComparisonDef {
     }
 }
 
-fn load_texels<P: AsRef<Path>>(path: P) -> Result<(u32, u32, Vec<u8>), ImageError> {
+pub fn load_texels<P: AsRef<Path>>(path: P) -> Result<(u32, u32, Vec<u8>), ImageError> {
     let img = image::open(path).map(|img| img.flipv().to_rgba())?;
     let (width, height) = img.dimensions();
     Ok((width, height, img.into_raw()))

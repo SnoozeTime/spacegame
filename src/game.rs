@@ -15,7 +15,7 @@ use crate::render::ui::gui::GuiContext;
 use crate::render::Renderer;
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
-use glfw::{Action, Context, Key, WindowEvent};
+use glfw::{Context, WindowEvent};
 use log::info;
 use luminance_glfw::GlfwSurface;
 use shrev::{EventChannel, ReaderId};
@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 /// exposed so gamebuilder provides a simpler way to get started.
 pub struct GameBuilder<'a, A> {
     surface: &'a mut GlfwSurface,
-    scene: Option<Box<dyn Scene>>,
+    scene: Option<Box<dyn Scene<WindowEvent>>>,
     resources: Resources,
     audio_system: AudioSystem,
     phantom: PhantomData<A>,
@@ -45,10 +45,6 @@ where
         let mut resources = Resources::default();
         let chan: EventChannel<GameEvent> = EventChannel::new();
         resources.insert(chan);
-
-        // Need some input :D
-        let input: Input<A> = Input::new();
-        resources.insert(input);
 
         // and some asset manager;
         crate::assets::create_asset_managers(surface, &mut resources);
@@ -74,7 +70,7 @@ where
     }
 
     /// Set up the first scene.
-    pub fn for_scene(mut self, scene: Box<dyn Scene>) -> Self {
+    pub fn for_scene(mut self, scene: Box<dyn Scene<WindowEvent>>) -> Self {
         self.scene = Some(scene);
         self
     }
@@ -93,6 +89,10 @@ where
     pub fn build(mut self) -> Game<'a, A> {
         let renderer = Renderer::new(self.surface, &self.gui_context);
 
+        // Need some input :D
+        let input: Input<A> =
+            Input::new(A::get_default_key_mapping(), A::get_default_mouse_mapping());
+        self.resources.insert(input);
         let mut world = hecs::World::new();
 
         // if a seed is provided, let's add it to the resources.
@@ -158,7 +158,7 @@ pub struct Game<'a, A> {
     renderer: Renderer<GlfwSurface>,
 
     /// All the scenes. Current scene will be used in the main loop.
-    scene_stack: SceneStack,
+    scene_stack: SceneStack<WindowEvent>,
 
     /// Play music and sound effects
     audio_system: AudioSystem,
@@ -204,11 +204,13 @@ where
                 self.gui_context.reset_inputs();
                 for (_, event) in self.surface.events_rx.try_iter() {
                     match event {
-                        WindowEvent::Close
-                        | WindowEvent::Key(Key::Escape, _, Action::Release, _) => break 'app,
+                        WindowEvent::Close => break 'app,
                         WindowEvent::FramebufferSize(_, _) => resize = true,
                         ev => {
                             self.gui_context.process_event(ev.clone());
+                            if let Some(scene) = self.scene_stack.current_mut() {
+                                scene.process_input(&mut self.world, ev.clone(), &self.resources);
+                            }
                             input.process_event(ev)
                         }
                     }

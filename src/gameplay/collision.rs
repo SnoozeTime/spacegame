@@ -2,6 +2,7 @@ use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{Bullet, Missile};
+use crate::gameplay::explosion::ExplosionDetails;
 use crate::gameplay::health::{Health, HitDetails};
 use crate::gameplay::physics::DynamicBody;
 use crate::render::path::debug;
@@ -370,27 +371,39 @@ pub fn process_collisions(
 
         // Missile to health
         // -------------------
-        let missile_vs_missile;
+        let has_missile;
         {
-            let e1_health = world.get::<Health>(e1).is_ok();
-            let e2_health = world.get::<Health>(e2).is_ok();
             let e1_missile = world.get::<Missile>(e1).is_ok();
             let e2_missile = world.get::<Missile>(e2).is_ok();
-            missile_vs_missile = e1_missile && e2_missile;
-            match (e1_health, e2_missile, e2_health, e1_missile) {
-                (_, true, _, true) => {
+            has_missile = e1_missile || e2_missile;
+            match (e2_missile, e1_missile) {
+                (true, _) => {
                     events.push(GameEvent::Delete(e2));
-                    events.push(GameEvent::Delete(e1));
+                    let e2_transform = world
+                        .get::<Transform>(e2)
+                        .expect("Missile should have a transform");
+                    events.push(GameEvent::Explosion(
+                        e2,
+                        ExplosionDetails { radius: 100.0 },
+                        e2_transform.translation,
+                    ));
                 }
-                (true, true, _, _) => events.append(&mut process_missile_collision(world, e1, e2)),
-                (_, _, true, true) => events.append(&mut process_missile_collision(world, e2, e1)),
-                (false, true, _, _) => events.push(GameEvent::Delete(e2)),
-                (_, _, _, true) => events.push(GameEvent::Delete(e1)),
+                (_, true) => {
+                    events.push(GameEvent::Delete(e1));
+                    let e1_transform = world
+                        .get::<Transform>(e1)
+                        .expect("Missile should have a transform");
+                    events.push(GameEvent::Explosion(
+                        e1,
+                        ExplosionDetails { radius: 100.0 },
+                        e1_transform.translation,
+                    ));
+                }
                 _ => (),
             }
         }
 
-        if missile_vs_missile {
+        if has_missile {
             continue;
         }
 

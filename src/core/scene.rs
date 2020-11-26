@@ -9,22 +9,29 @@ use std::time::Duration;
 /// The top of the stack will be used for the update loop. The states below
 /// are still kept in memory so to go back to a previous state, you just have
 /// to pop the stack.
-#[derive(Default)]
-pub struct SceneStack {
-    states: Vec<Box<dyn Scene>>,
+pub struct SceneStack<I> {
+    states: Vec<Box<dyn Scene<I>>>,
 }
 
-pub enum SceneResult {
-    ReplaceScene(Box<dyn Scene>),
-    Push(Box<dyn Scene>),
+impl<I> Default for SceneStack<I> {
+    fn default() -> Self {
+        Self { states: vec![] }
+    }
+}
+
+pub enum SceneResult<I> {
+    ReplaceScene(Box<dyn Scene<I>>),
+    Push(Box<dyn Scene<I>>),
     Pop,
+    /// Remove all existing scenes and create the new one.
+    ReplaceAll(Box<dyn Scene<I>>),
     Noop,
 }
 
-impl SceneStack {
+impl<I> SceneStack<I> {
     pub fn apply_result(
         &mut self,
-        res: SceneResult,
+        res: SceneResult<I>,
         world: &mut hecs::World,
         resources: &mut Resources,
     ) {
@@ -33,6 +40,12 @@ impl SceneStack {
             SceneResult::Push(state) => self.push(state, world, resources),
             SceneResult::Pop => {
                 self.pop(world);
+            }
+            SceneResult::ReplaceAll(state) => {
+                while !self.states.is_empty() {
+                    self.pop(world);
+                }
+                self.push(state, world, resources);
             }
             SceneResult::Noop => (),
         }
@@ -43,7 +56,7 @@ impl SceneStack {
     /// The callback on_enter will be executed for the new state.
     pub fn push(
         &mut self,
-        state: Box<dyn Scene>,
+        state: Box<dyn Scene<I>>,
         world: &mut hecs::World,
         resources: &mut Resources,
     ) {
@@ -58,7 +71,7 @@ impl SceneStack {
     }
 
     /// Remove the current state and execute its exit callback.
-    pub fn pop(&mut self, world: &mut hecs::World) -> Option<Box<dyn Scene>> {
+    pub fn pop(&mut self, world: &mut hecs::World) -> Option<Box<dyn Scene<I>>> {
         if let Some(mut s) = self.states.pop() {
             s.on_destroy(world);
             if let Some(current) = self.states.last() {
@@ -73,7 +86,7 @@ impl SceneStack {
     /// Replace the current state.
     pub fn replace(
         &mut self,
-        state: Box<dyn Scene>,
+        state: Box<dyn Scene<I>>,
         world: &mut hecs::World,
         resources: &mut Resources,
     ) {
@@ -88,12 +101,12 @@ impl SceneStack {
 
     /// Get the current state as a mut reference.
     #[allow(clippy::borrowed_box)]
-    pub fn current_mut(&mut self) -> Option<&mut Box<dyn Scene>> {
+    pub fn current_mut(&mut self) -> Option<&mut Box<dyn Scene<I>>> {
         self.states.last_mut()
     }
 }
 
-pub trait Scene {
+pub trait Scene<I> {
     /// WIll be called when the state is added to the state stack.
     fn on_create(&mut self, _world: &mut hecs::World, _resources: &mut Resources) {
         info!("Create state");
@@ -121,7 +134,7 @@ pub trait Scene {
     //fn on_new_world(&mut self);
 
     /// Update gameplay systems.
-    fn update(&mut self, dt: Duration, world: &mut World, resources: &Resources) -> SceneResult;
+    fn update(&mut self, dt: Duration, world: &mut World, resources: &Resources) -> SceneResult<I>;
 
     fn prepare_gui(
         &mut self,
@@ -135,4 +148,7 @@ pub trait Scene {
 
     /// React to game events.
     fn process_event(&mut self, _world: &mut World, _ev: GameEvent, _resources: &Resources) {}
+
+    /// Process input from keyboard/mouse
+    fn process_input(&mut self, _world: &mut World, _input: I, _resources: &Resources) {}
 }

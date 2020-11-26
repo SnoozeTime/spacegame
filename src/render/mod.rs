@@ -16,7 +16,6 @@ use luminance::texture::Dim2;
 use luminance_gl::GL33;
 use std::time::Duration;
 
-pub mod background;
 pub mod mesh;
 pub mod particle;
 pub mod path;
