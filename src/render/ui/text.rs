@@ -3,6 +3,7 @@ use crate::core::window::WindowDim;
 use crate::render::ui::gui::{HorizontalAlign, VerticalAlign};
 use crate::resources::Resources;
 use glyph_brush::rusttype::*;
+use glyph_brush::BrushError::TextureTooSmall;
 use glyph_brush::{BrushAction, GlyphBrush, Layout, Section};
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
@@ -164,23 +165,27 @@ where
             });
         }
 
-        let action = glyph_brush
-            .process_queued(
-                |rect, tex_data| {
-                    // Update part of gpu texture with new glyph alpha values
-                    self.texture
-                        .upload_part_raw(
-                            GenMipmaps::No,
-                            [rect.min.x as u32, rect.min.y as u32],
-                            [rect.width() as u32, rect.height() as u32],
-                            tex_data,
-                        )
-                        .expect("Cannot upload part of texture");
-                },
-                |vertex_data| to_vertex(width, height, vertex_data),
-            )
-            .unwrap();
+        let action = glyph_brush.process_queued(
+            |rect, tex_data| {
+                // Update part of gpu texture with new glyph alpha values
+                self.texture
+                    .upload_part_raw(
+                        GenMipmaps::No,
+                        [rect.min.x as u32, rect.min.y as u32],
+                        [rect.width() as u32, rect.height() as u32],
+                        tex_data,
+                    )
+                    .expect("Cannot upload part of texture");
+            },
+            |vertex_data| to_vertex(width, height, vertex_data),
+        );
 
+        if let Err(e) = action {
+            let TextureTooSmall { suggested } = e;
+            glyph_brush.resize_texture(suggested.0, suggested.1);
+            return;
+        }
+        let action = action.unwrap();
         match action {
             BrushAction::Draw(v) => {
                 let tess = surface

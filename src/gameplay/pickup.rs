@@ -107,12 +107,14 @@ pub fn aabb_intersection2(
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Items {
-    /// Speed +30%
+    /// Speed +50%
     SpeedBonus,
-    /// Crit chance +5%
+    /// Crit chance +10%
     CritChance,
-    /// Crit dmg +0.05 (5%)
+    /// Crit dmg +0.10 (10%)
     CritDmg,
+    /// Base Damage +10%
+    BaseDmg,
     /// Shield +1
     ShieldUp,
     /// Health +1
@@ -126,7 +128,7 @@ impl Items {
         match self {
             Items::SpeedBonus => {
                 let mut dynamic_body = world.get_mut::<DynamicBody>(player).unwrap();
-                dynamic_body.velocity *= 1.3;
+                dynamic_body.velocity *= 1.5;
             }
             Items::CritChance => {
                 let mut player = world.get_mut::<Player>(player).unwrap();
@@ -136,11 +138,16 @@ impl Items {
                 let mut player = world.get_mut::<Player>(player).unwrap();
                 player.stats.crit_multiplier += 0.10;
             }
+
+            Items::BaseDmg => {
+                let mut player = world.get_mut::<Player>(player).unwrap();
+                player.stats.dmg *= 1.1;
+            }
             Items::HealthUp => {
                 let mut should_add_health = false;
                 if let Ok(mut health) = world.get_mut::<Health>(player) {
-                    health.current += 5.0;
                     health.max += 5.0;
+                    health.current = health.max;
                 } else {
                     should_add_health = true;
                 }
@@ -154,15 +161,15 @@ impl Items {
             Items::ShieldUp => {
                 let mut should_add_shield = false;
                 if let Ok(mut shield) = world.get_mut::<Shield>(player) {
-                    shield.current += 2.0;
                     shield.max += 2.0;
+                    shield.current = shield.max;
                 } else {
                     should_add_shield = true;
                 }
 
                 if should_add_shield {
                     world
-                        .insert_one(player, Shield::new(1.0, 5.0, 0.05))
+                        .insert_one(player, Shield::new(1.0, 5.0, 0.15))
                         .expect("Cannot add shield component");
                 }
             }
@@ -175,6 +182,7 @@ impl Items {
 
     pub fn info_text(&self) -> String {
         match self {
+            Items::BaseDmg => "Base Damage Up",
             Items::SpeedBonus => "Speed +30%",
             Items::CritChance => "Crit Chance +5%",
             Items::CritDmg => "Crit Damage +5%",
@@ -188,12 +196,13 @@ impl Items {
 
 impl Distribution<Items> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Items {
-        match rng.gen_range(0, 6) {
+        match rng.gen_range(0, 7) {
             0 => Items::SpeedBonus,
             1 => Items::CritChance,
             2 => Items::CritDmg,
             3 => Items::Missile,
             4 => Items::ShieldUp,
+            5 => Items::BaseDmg,
             _ => Items::HealthUp,
         }
     }

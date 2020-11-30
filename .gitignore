@@ -3,7 +3,7 @@ assets/sprites/**/*
 assets/sprites/*
 assets/scifi_effects
 .idea
-packed.bin
+2packed.bin
 assets/music
 assets/sounds
 game_packed

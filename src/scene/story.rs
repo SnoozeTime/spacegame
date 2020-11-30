@@ -2,11 +2,9 @@ use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
 use crate::render::ui::{Gui, GuiContext};
 use crate::resources::Resources;
-use crate::scene::MainScene;
 use bitflags::_core::time::Duration;
 use glfw::{Key, WindowEvent};
 use hecs::World;
-use serde::private::ser::serialize_tagged_newtype;
 
 pub struct StoryScene<S: Scene<WindowEvent>> {
     sentences: Vec<String>,

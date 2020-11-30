@@ -1,5 +1,6 @@
 use crate::assets::audio::Audio;
 use crate::assets::{AssetManager, Handle};
+use crate::config::AudioConfig;
 use crate::event::GameEvent;
 use crate::resources::Resources;
 use luminance_glfw::GlfwSurface;
@@ -18,20 +19,27 @@ pub struct AudioSystem {
     sound_sinks: Vec<rodio::Sink>,
 
     rdr_id: ReaderId<GameEvent>,
+
+    config: AudioConfig,
 }
 
 impl AudioSystem {
-    pub fn new(resources: &Resources, channel_nb: usize) -> Result<Self, anyhow::Error> {
+    pub fn new(resources: &Resources, config: AudioConfig) -> Result<Self, anyhow::Error> {
         let (stream, handle) = rodio::OutputStream::try_default()?;
         let background = rodio::Sink::try_new(&handle)?;
-
+        background.set_volume(config.background_volume as f32 / 100.0);
         let mut sound_sinks = vec![];
-        for _ in 0..channel_nb {
-            sound_sinks.push(rodio::Sink::try_new(&handle)?);
+        for _ in 0..config.channel_nb {
+            sound_sinks.push({
+                let sink = rodio::Sink::try_new(&handle)?;
+                sink.set_volume(config.effects_volume as f32 / 100.0);
+                sink
+            });
         }
         let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
 
         Ok(Self {
+            config,
             _stream: stream,
             handle,
             sound_sinks,
@@ -55,6 +63,8 @@ impl AudioSystem {
                             self.background.stop();
                             self.background = rodio::Sink::try_new(&self.handle)
                                 .expect("SHould be able to create new sink");
+                            self.background
+                                .set_volume(self.config.background_volume as f32 / 100.0);
                         }
 
                         asset.execute(|audio| {

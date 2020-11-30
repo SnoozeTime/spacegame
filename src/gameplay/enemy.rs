@@ -1,14 +1,14 @@
 use crate::assets::prefab::PrefabManager;
 use crate::assets::Handle;
-use crate::core::animation::{Animation, AnimationController};
+use crate::core::animation::AnimationController;
 use crate::core::colors;
 use crate::core::random::RandomGenerator;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{spawn_enemy_bullet, spawn_missile, BulletType};
-use crate::gameplay::collision::{CollisionLayer, CollisionWorld};
-use crate::gameplay::explosion::ExplosionDetails;
+use crate::gameplay::collision::CollisionLayer;
+use crate::gameplay::explosion::{ExplosionDetails, ExplosionType};
 use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::player::{get_player, Player};
@@ -16,7 +16,6 @@ use crate::gameplay::steering::behavior::{
     avoid_obstacles, follow_player, follow_player_bis, follow_random_path,
 };
 use crate::render::path::debug;
-use crate::render::sprite::Sprite;
 use crate::resources::Resources;
 use hecs::World;
 use log::{debug, trace};
@@ -24,7 +23,6 @@ use luminance_glfw::GlfwSurface;
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
-use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +119,8 @@ pub enum EnemyType {
     },
     /// Go straight towards the player and explode on contact.
     Kamikaze,
+    /// last boss. Is a real a**hole
+    LastBoss(LastBoss),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,6 +136,32 @@ pub struct Boss1 {
 }
 
 impl Boss1 {
+    fn should_shoot(&mut self) -> bool {
+        self.nb_shot != self.current_shot
+    }
+
+    fn prepare_to_shoot(&mut self) {
+        self.shoot_timer.reset();
+        self.shoot_timer.start();
+        self.salve_timer.reset();
+        self.salve_timer.stop();
+        self.current_shot = 0;
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LastBoss {
+    /// Time between shots
+    pub shoot_timer: Timer,
+    /// nb of time to shoot during a salve
+    pub nb_shot: usize,
+    /// nb of shots during current salve.
+    pub current_shot: usize,
+    /// timeout between salves.
+    pub salve_timer: Timer,
+}
+
+impl LastBoss {
     fn should_shoot(&mut self) -> bool {
         self.nb_shot != self.current_shot
     }
@@ -266,8 +292,17 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                         to_remove.push(GameEvent::Delete(e));
                         to_remove.push(GameEvent::Explosion(
                             e,
-                            ExplosionDetails { radius: 100.0 },
+                            ExplosionDetails {
+                                radius: 100.0,
+                                ty: ExplosionType::First,
+                            },
                             t.translation,
+                        ));
+                        to_remove.push(GameEvent::EnemyDied(
+                            e,
+                            t.translation,
+                            enemy.scrap_drop,
+                            enemy.pickup_drop_percent,
                         ));
                     }
                 }
@@ -279,6 +314,39 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                     if time_between_deploy.finished() {
                         time_between_deploy.reset();
                         spaceship_to_spawn.push((e, t.translation, nb_of_spaceships));
+                    }
+                }
+                EnemyType::LastBoss(ref mut boss) => {
+                    if boss.should_shoot() {
+                        boss.shoot_timer.tick(dt);
+                        if boss.shoot_timer.finished() {
+                            boss.shoot_timer.reset();
+
+                            // shoot.
+                            let d = dir.normalize();
+                            for i in 0..12 {
+                                bullets.push((
+                                    t.translation,
+                                    glam::Mat2::from_angle(
+                                        i as f32 * std::f32::consts::PI / 6.0
+                                            + boss.current_shot as f32 * std::f32::consts::PI
+                                                / 24.0,
+                                    ) * d,
+                                    BulletType::Fast,
+                                ));
+                            }
+                            ev_channel.single_write(GameEvent::PlaySound(
+                                "sounds/scifi_kit/Laser/Laser_04.wav".to_string(),
+                            ));
+
+                            boss.current_shot += 1;
+                        }
+                    } else {
+                        // if here, boss1 needs to wait before it is able to shoot again.
+                        boss.salve_timer.tick(dt);
+                        if boss.salve_timer.finished() {
+                            boss.prepare_to_shoot();
+                        }
                     }
                 }
                 EnemyType::Spammer(ref mut spammer) => {
@@ -431,6 +499,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                                 e,
                                 ExplosionDetails {
                                     radius: trigger_distance,
+                                    ty: ExplosionType::First,
                                 },
                                 t.translation,
                             ));

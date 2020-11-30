@@ -41,7 +41,7 @@
       "current": 15.0,
       "hittable": true,
       "invulnerability_timer": {
-        "deadline": 0.3,
+        "deadline": 0.5,
         "elapsed": 0.0,
         "enabled": false
       }

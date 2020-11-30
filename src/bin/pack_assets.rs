@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 use downcast_rs::__std::ffi::{OsStr, OsString};
 use log::{debug, error, info};
 use spacegame::assets::sprite::{
@@ -55,8 +57,10 @@ fn main() {
         // "./assets/sprites/background2",
         // "./assets/sprites/background3",
         // "./assets/sprites/explosion4",
+        // "./assets/sprites/explosion4",
         // "./assets/sprites/windshield_wiper",
         "./assets/sprites/spaceships",
+        "./assets/sprites/spaceships/Projectiles",
     ];
 
     let to_pack = dirs

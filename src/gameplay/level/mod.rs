@@ -18,8 +18,9 @@ const NB_BLOCKS_Y: u32 = 50;
 pub mod difficulty;
 pub mod wave;
 use crate::event::GameEvent;
+use crate::gameplay::explosion::Explosion;
 use crate::gameplay::health::Invulnerable;
-use crate::gameplay::level::difficulty::{DifficultyConfig, WaveDifficulty};
+use crate::gameplay::level::difficulty::DifficultyConfig;
 use shrev::EventChannel;
 use wave::{Wave, WaveDescription};
 
@@ -40,10 +41,30 @@ impl StageDescription {
     pub fn infinite() -> Self {
         Self {
             waves: vec![],
-            nb_pickups: 7,
+            nb_pickups: 10,
             is_infinite: true,
             next_stage: None,
-            backgrounds: vec![],
+            backgrounds: vec![
+                "background2/back.png",
+                "background2/bottom.png",
+                "background2/front.png",
+                "background2/left.png",
+                "background2/right.png",
+                "background2/top.png",
+                "back.png",
+                "front.png",
+                "left.png",
+                "right.png",
+                "top.png",
+                "background3/back.png",
+                "background3/front.png",
+                "background3/left.png",
+                "background3/right.png",
+                "background3/top.png",
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
         }
     }
 }
@@ -68,7 +89,6 @@ pub struct Stage {
 
     pub is_infinite: bool,
     pub wave_number: usize,
-    pub wave_difficulty: Option<WaveDifficulty>,
 }
 
 impl Stage {
@@ -76,11 +96,10 @@ impl Stage {
         world: &mut hecs::World,
         resources: &Resources,
         mut stage_desc: StageDescription,
+        starting_wave_nb: usize,
     ) -> Self {
         // 1. CREATE THE BACKGROUND!
         // ----------------------------------
-        let backgrounds = ["front.png", "left.png", "top.png", "right.png", "back.png"];
-
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
         let background = stage_desc
@@ -91,7 +110,7 @@ impl Stage {
                 world.spawn((
                     Transform {
                         translation: glam::Vec2::new(0.0, 0.0),
-                        scale: glam::Vec2::new(1600.0, 960.0),
+                        scale: glam::Vec2::new(2048.0, 2048.0),
                         rotation: 0.0,
                         dirty: false,
                     },
@@ -106,14 +125,13 @@ impl Stage {
         // 3. Stuff that the player can pick up for bonuses.
         // -------------------------------------------------
         let pickups = spawn_pickups(world, &mut *random, &no_asteroids, stage_desc.nb_pickups);
-        let (waves, wave_difficulty): (Vec<Wave>, Option<_>) = if stage_desc.is_infinite {
+
+        let waves = if stage_desc.is_infinite {
             // Generate the wave difficulty.
-            let wave_difficulty = WaveDifficulty::default();
             let difficulty_config = resources.fetch::<DifficultyConfig>().unwrap();
-            let generated = Self::gen_waves(wave_difficulty, &mut *random, &*difficulty_config);
-            (generated.0, Some(generated.1))
+            Self::gen_waves(starting_wave_nb, &mut *random, &*difficulty_config)
         } else {
-            (stage_desc.waves.drain(..).map(|w| w.into()).collect(), None)
+            stage_desc.waves.drain(..).map(|w| w.into()).collect()
         };
         assert!(waves.len() > 0);
 
@@ -121,7 +139,7 @@ impl Stage {
             background,
             asteroids,
             pickups,
-            wave_number: 1,
+            wave_number: starting_wave_nb - 1,
             waves,
             finished: false,
             no_asteroids,
@@ -129,32 +147,30 @@ impl Stage {
             next_wave: Some(0),
             timer_between_waves: Timer::of_seconds(5.0),
             timer_between_stages: Timer::of_seconds(10.0),
-            wave_difficulty,
             next_stage: stage_desc.next_stage,
             is_infinite: stage_desc.is_infinite,
         }
     }
 
     fn gen_waves(
-        mut wave_difficulty: WaveDifficulty,
+        mut initial_wave_nb: usize,
         random: &mut RandomGenerator,
         difficulty_config: &DifficultyConfig,
-    ) -> (Vec<Wave>, WaveDifficulty) {
+    ) -> Vec<Wave> {
         info!("Generate waves");
-        (
-            (0..2)
-                .map(|_| {
-                    let wave: Wave = WaveDescription {
-                        to_instantiate: wave_difficulty.pick_prefabs(&mut *random),
-                    }
-                    .into();
-                    wave_difficulty = difficulty_config.next_difficulty(&wave_difficulty);
-                    info!("New wave difficulty = {:#?}", wave_difficulty);
-                    wave
-                })
-                .collect(),
-            wave_difficulty,
-        )
+        (0..2)
+            .map(|_| {
+                let wave_difficulty = difficulty_config.difficulty(initial_wave_nb);
+                let wave: Wave = WaveDescription {
+                    to_instantiate: wave_difficulty.pick_prefabs(&mut *random),
+                }
+                .into();
+
+                initial_wave_nb += 1;
+                info!("New wave difficulty = {:#?}", wave_difficulty);
+                wave
+            })
+            .collect()
     }
 
     pub fn enemy_died(&mut self, entity: Entity) {
@@ -207,12 +223,13 @@ impl Stage {
                         // stop!
                         if self.is_infinite {
                             let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
-                            let wave_difficulty = self.wave_difficulty.unwrap();
                             let difficulty_config = resources.fetch::<DifficultyConfig>().unwrap();
-                            let generated =
-                                Self::gen_waves(wave_difficulty, &mut *random, &*difficulty_config);
-                            self.waves = generated.0;
-                            self.wave_difficulty = Some(generated.1);
+                            let generated = Self::gen_waves(
+                                self.wave_number + 1,
+                                &mut *random,
+                                &*difficulty_config,
+                            );
+                            self.waves = generated;
                             Some(0)
                         } else {
                             None
@@ -264,6 +281,19 @@ impl Stage {
                 error!("Error while despawning pickups = {:?}", e);
             }
         });
+
+        {
+            let explosions = world
+                .query::<&Explosion>()
+                .iter()
+                .map(|(e, _)| e)
+                .collect::<Vec<_>>();
+            explosions.iter().for_each(|&e| {
+                if let Err(e) = world.despawn(e) {
+                    error!("Error while despawning explosion = {:?}", e);
+                }
+            });
+        }
     }
 }
 
@@ -293,7 +323,7 @@ pub fn generate_terrain(
                 let x = x as i32 - NB_BLOCKS_X as i32 / 2;
                 let y = y as i32 - NB_BLOCKS_Y as i32 / 2;
 
-                let world_value = glam::Vec2::new(x as f32 * 48.0, y as f32 * 48.0);
+                let world_value = glam::Vec2::new(x as f32 * 32.0, y as f32 * 32.0);
                 if perlin >= 0.0 && perlin <= 0.10 {
                     values.push(world_value);
                 } else if perlin >= 0.8 {

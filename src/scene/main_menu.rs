@@ -1,16 +1,17 @@
 use crate::core::audio;
-use crate::core::colors::RgbaColor;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::transform::Transform;
 use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::render::particle::ParticleEmitter;
-use crate::render::ui::gui::{GuiContext, HorizontalAlign, VerticalAlign};
-use crate::render::ui::{Button, Gui};
+use crate::render::ui::gui::GuiContext;
+use crate::render::ui::Gui;
 use crate::resources::Resources;
+use crate::save::is_infinite_unlocked;
 use crate::scene::loading::LoadingScene;
 use crate::scene::story::StoryScene;
+use crate::scene::wave_selection::WaveSelectionScene;
 use crate::scene::MainScene;
-use crate::ui::menu_button;
+use crate::ui::{disabled_menu_button, draw_cursor, menu_button};
 use bitflags::_core::time::Duration;
 use glfw::WindowEvent;
 use hecs::World;
@@ -55,7 +56,7 @@ impl Scene<WindowEvent> for MainMenu {
         &mut self,
         _dt: Duration,
         _world: &mut World,
-        _resources: &Resources,
+        resources: &Resources,
     ) -> SceneResult<WindowEvent> {
         let mut prefabs: Vec<String> = ENEMY_PREFABS.iter().map(|e| e.to_string()).collect();
 
@@ -69,14 +70,14 @@ impl Scene<WindowEvent> for MainMenu {
                         "Humans discovered an alien artefact deep inside the moon.".to_string(),
                         "It should be ours...".to_string(),
                     ],
-                    MainScene::new(false),
+                    MainScene::new(false, 0),
                 ),
             )))
         } else if let Some(GameMode::Infinite) = self.game_mode {
             SceneResult::ReplaceScene(Box::new(LoadingScene::new(
                 prefabs,
                 vec![],
-                MainScene::new(true),
+                WaveSelectionScene::new(resources),
             )))
         } else {
             SceneResult::Noop
@@ -90,8 +91,6 @@ impl Scene<WindowEvent> for MainMenu {
         _resources: &Resources,
         gui_context: &GuiContext,
     ) -> Option<Gui> {
-        //let gui_context = resources.fetch::<GuiContext>().unwrap();
-
         let w = gui_context.window_dim.width as f32;
         let h = gui_context.window_dim.height as f32;
         // panel should take up 20% of the window width and 80% of the window height
@@ -101,19 +100,29 @@ impl Scene<WindowEvent> for MainMenu {
         let anchor = glam::vec2(w / 2.0 - panel_width / 2.0, h / 2.0 - panel_height / 2.0);
 
         let mut gui = gui_context.new_frame();
+        draw_cursor(&mut gui);
 
         // START BUTTON
         if menu_button("Start", anchor, 48.0, &mut gui) {
             self.game_mode = Some(GameMode::Normal);
         }
 
-        if menu_button(
-            "Infinite Mode",
-            anchor + 80.0 * glam::Vec2::unit_y(),
-            48.0,
-            &mut gui,
-        ) {
-            self.game_mode = Some(GameMode::Infinite);
+        if is_infinite_unlocked(_resources) {
+            if menu_button(
+                "Infinite Mode",
+                anchor + 80.0 * glam::Vec2::unit_y(),
+                48.0,
+                &mut gui,
+            ) {
+                self.game_mode = Some(GameMode::Infinite);
+            }
+        } else {
+            disabled_menu_button(
+                "Infinite Mode",
+                anchor + 80.0 * glam::Vec2::unit_y(),
+                48.0,
+                &mut gui,
+            );
         }
 
         // EXIT BUTTON

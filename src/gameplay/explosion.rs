@@ -13,14 +13,23 @@ use crate::resources::Resources;
 use serde_derive::{Deserialize, Serialize};
 use shrev::{EventChannel, ReaderId};
 use std::collections::HashMap;
-use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Explosive;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Explosion;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum ExplosionType {
+    First,
+    Second,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ExplosionDetails {
     pub radius: f32,
+    pub ty: ExplosionType,
 }
 
 pub struct ExplosionSystem {
@@ -51,7 +60,14 @@ impl ExplosionSystem {
         for (entity, explosion, pos) in explosions {
             // play the sound, show the animation, then query who is hit by this explosion.
             events.push(GameEvent::PlaySound("sounds/explosion.wav".to_string()));
-            spawn_explosion(world, pos, explosion.radius * glam::Vec2::one());
+            match explosion.ty {
+                ExplosionType::First => {
+                    spawn_explosion(world, pos, explosion.radius * glam::Vec2::one())
+                }
+                ExplosionType::Second => {
+                    spawn_explosion_2(world, pos, explosion.radius * glam::Vec2::one())
+                }
+            }
 
             let entity_touched = collision_world.circle_query(pos, explosion.radius);
             info!("Entities in explosion = {:?}", entity_touched);
@@ -76,7 +92,7 @@ impl ExplosionSystem {
                         t.translation + force,
                         colors::RED,
                     );
-                    body.add_impulse(force);
+                    body.add_impulse(force / body.mass);
 
                     events.push(GameEvent::Hit(
                         e,
@@ -102,6 +118,7 @@ impl ExplosionSystem {
 pub fn spawn_explosion(world: &mut hecs::World, position: glam::Vec2, scale: glam::Vec2) {
     let mut builder = hecs::EntityBuilder::new();
 
+    builder.add(Explosion);
     builder.add(Transform {
         translation: position,
         scale,
@@ -123,11 +140,11 @@ pub fn spawn_explosion(world: &mut hecs::World, position: glam::Vec2, scale: gla
             (String::from("explosion4/k2_0008.png"), 8),
             (String::from("explosion4/k2_0009.png"), 9),
             (String::from("explosion4/k2_0010.png"), 10),
-            (String::from("explosion4/k2_0012.png"), 10),
-            (String::from("explosion4/k2_0012.png"), 10),
-            (String::from("explosion4/k2_0013.png"), 10),
-            (String::from("explosion4/k2_0014.png"), 10),
-            (String::from("explosion4/k2_0015.png"), 10),
+            (String::from("explosion4/k2_0012.png"), 11),
+            (String::from("explosion4/k2_0012.png"), 12),
+            (String::from("explosion4/k2_0013.png"), 13),
+            (String::from("explosion4/k2_0014.png"), 14),
+            (String::from("explosion4/k2_0015.png"), 15),
         ]),
     );
 
@@ -140,6 +157,53 @@ pub fn spawn_explosion(world: &mut hecs::World, position: glam::Vec2, scale: gla
     builder.add(animation_controller);
     builder.add(Sprite {
         id: String::from("explosion4/k2_0001.png"),
+    });
+
+    world.spawn(builder.build());
+}
+
+pub fn spawn_explosion_2(world: &mut hecs::World, position: glam::Vec2, scale: glam::Vec2) {
+    let mut builder = hecs::EntityBuilder::new();
+
+    builder.add(Explosion);
+    builder.add(Transform {
+        translation: position,
+        scale,
+        rotation: 0.0,
+        dirty: false,
+    });
+
+    let mut animations = HashMap::new();
+    animations.insert(
+        String::from("boum"),
+        Animation::new(vec![
+            (String::from("explosion5/h_0001.png"), 1),
+            (String::from("explosion5/h_0002.png"), 2),
+            (String::from("explosion5/h_0003.png"), 3),
+            (String::from("explosion5/h_0004.png"), 4),
+            (String::from("explosion5/h_0005.png"), 5),
+            (String::from("explosion5/h_0006.png"), 6),
+            (String::from("explosion5/h_0007.png"), 7),
+            (String::from("explosion5/h_0008.png"), 8),
+            (String::from("explosion5/h_0009.png"), 9),
+            (String::from("explosion5/h_0010.png"), 10),
+            (String::from("explosion5/h_0012.png"), 11),
+            (String::from("explosion5/h_0012.png"), 12),
+            (String::from("explosion5/h_0013.png"), 13),
+            (String::from("explosion5/h_0014.png"), 14),
+            (String::from("explosion5/h_0015.png"), 15),
+        ]),
+    );
+
+    let animation_controller = AnimationController {
+        animations,
+        current_animation: Some("boum".to_string()),
+        delete_on_finished: true,
+    };
+
+    builder.add(animation_controller);
+    builder.add(Sprite {
+        id: String::from("explosion4/h_0001.png"),
     });
 
     world.spawn(builder.build());

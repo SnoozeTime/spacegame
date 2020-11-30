@@ -11,12 +11,13 @@ use crate::render::sprite::Sprite;
 use hecs::EntityBuilder;
 use serde_derive::{Deserialize, Serialize};
 
-pub const ENEMY_PREFABS: [&str; 11] = [
+pub const ENEMY_PREFABS: [&str; 12] = [
     "base_enemy",
     "base_enemy_2",
     "base_enemy_3",
     "satellite",
     "boss1",
+    "last_boss",
     "mine_lander",
     "mine",
     "wanderer",
@@ -27,7 +28,7 @@ pub const ENEMY_PREFABS: [&str; 11] = [
 
 pub const ENEMY_STR_1: [&str; 4] = ["base_enemy", "base_enemy", "wanderer", "kamikaze"];
 pub const ENEMY_STR_2: [&str; 4] = ["mine_lander", "satellite", "base_enemy_2", "spammer"];
-pub const ENEMY_STR_3: [&str; 3] = ["boss1", "base_enemy_3", "carrier"];
+pub const ENEMY_STR_3: [&str; 4] = ["boss1", "base_enemy_3", "carrier", "last_boss"];
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnemyPrefab {
@@ -62,6 +63,7 @@ impl Prefab for EnemyPrefab {
             components.add(particles);
             components.add(Trail {
                 should_display: true,
+                offset: 0.0,
             });
         }
         if let Some(animation) = self.animation.clone() {

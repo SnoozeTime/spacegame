@@ -1,16 +1,17 @@
 #[allow(unused_imports)]
 use log::info;
 use luminance_glfw::GlfwSurface;
-use luminance_windowing::WindowOpt;
+use luminance_windowing::{CursorMode, WindowOpt};
 use std::path::PathBuf;
 use std::process::exit;
 
 use spacegame::game::{Game, GameBuilder};
 
-use spacegame::config::{load_config, GameEngineConfig, PlayerConfig};
+use spacegame::config::{load_config, AudioConfig, GameEngineConfig, InputConfig, PlayerConfig};
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::level::difficulty::DifficultyConfig;
 use spacegame::gameplay::Action;
+use spacegame::save::read_saved_data;
 use spacegame::scene::loading::LoadingScene;
 #[allow(unused_imports)]
 use spacegame::scene::main_menu::MainMenu;
@@ -19,7 +20,12 @@ use spacegame::scene::particle_scene::ParticleScene;
 use spacegame::DIMENSIONS;
 
 fn main() {
-    let surface = GlfwSurface::new_gl33("Hello Window", WindowOpt::default().set_dim(DIMENSIONS));
+    let surface = GlfwSurface::new_gl33(
+        "EverFight",
+        WindowOpt::default()
+            .set_cursor_mode(CursorMode::Invisible)
+            .set_dim(DIMENSIONS),
+    );
 
     match surface {
         Ok(surface) => main_loop(surface),
@@ -34,31 +40,34 @@ fn main_loop(mut surface: GlfwSurface) {
     dotenv::dotenv().ok();
     pretty_env_logger::init();
 
-    let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
-    let player_config_path = PathBuf::from(base_path.clone()).join("config/player_controller.json");
+    let base_path = PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("assets/".to_string()));
+    let player_config_path = base_path.join("config/player_controller.json");
     let player_config: PlayerConfig = load_config(&player_config_path).unwrap_or_else(|e| {
         log::info!("Will use default PlayerConfig because = {:?}", e);
         PlayerConfig::default()
     });
-    let engine_config_path = PathBuf::from(base_path.clone()).join("config/engine.json");
+    let engine_config_path = base_path.join("config/engine.json");
     let engine_config: GameEngineConfig = load_config(&engine_config_path).unwrap_or_else(|e| {
-        log::info!("Will use default PlayerConfig because = {:?}", e);
+        log::info!("Will use default GameEngineConfig because = {:?}", e);
         GameEngineConfig::default()
     });
 
-    let difficulty_config_path = PathBuf::from(base_path.clone()).join("config/difficulty.json");
+    let difficulty_config_path = base_path.join("config/difficulty.json");
     let difficulty_config: DifficultyConfig =
         load_config(&difficulty_config_path).unwrap_or_else(|e| {
-            log::info!("Will use default PlayerConfig because = {:?}", e);
+            log::info!("Will use default Difficulty because = {:?}", e);
             DifficultyConfig::default()
         });
 
-    let mut game: Game<Action> = GameBuilder::new(&mut surface)
-        // .for_scene(Box::new(ParticleScene::new(
-        //     PathBuf::from(base_path).join("particle/particle.json"),
-        //     false,
-        // )))
-        // .for_scene(Box::new(MainMenu::default()))
+    let input_config_path = base_path.join("config/input.json");
+    let input_config: Result<InputConfig, _> = load_config(&input_config_path);
+
+    let audio_config_path = base_path.join("config/audio.json");
+    let audio_config: Result<AudioConfig, _> = load_config(&audio_config_path);
+
+    let saved_data = read_saved_data();
+
+    let mut builder: GameBuilder<Action> = GameBuilder::new(&mut surface)
         .for_scene(Box::new(LoadingScene::new(
             vec![],
             vec![
@@ -78,11 +87,21 @@ fn main_loop(mut surface: GlfwSurface) {
             ],
             MainMenu::default(),
         )))
+        .with_resource(saved_data)
         .with_resource(player_config)
         .with_resource(engine_config)
         .with_resource(difficulty_config)
-        .with_resource(Inventory::default())
-        .build();
+        .with_resource(Inventory::default());
 
+    if let Ok(input_config) = input_config {
+        let (km, mm) = input_config.input_maps();
+        builder = builder.with_input_config(km, mm);
+    }
+
+    if let Ok(audio_config) = audio_config {
+        builder = builder.with_audio_config(audio_config);
+    }
+
+    let mut game: Game<Action> = builder.build();
     game.run();
 }

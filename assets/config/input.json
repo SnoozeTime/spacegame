@@ -1,0 +1,26 @@
+{
+  "MoveUp": {
+    "Key": "W"
+  },
+  "Pickup": {
+    "Key": "F"
+  },
+  "MoveRight": {
+    "Key": "D"
+  },
+  "MoveLeft": {
+    "Key": "A"
+  },
+  "Boost": {
+    "Key": "Space"
+  },
+  "RotateRight": {
+    "Key": "E"
+  },
+  "RotateLeft": {
+    "Key": "Q"
+  },
+  "Shoot": {
+    "Mouse": "Button1"
+  }
+}

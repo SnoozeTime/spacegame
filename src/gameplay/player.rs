@@ -77,7 +77,7 @@ impl Stats {
 
     fn should_shoot_missile<R: Rng>(&self, rand: &mut R) -> bool {
         let pick: u32 = rand.gen_range(0, 101);
-        pick <= self.missile_percent
+        pick < self.missile_percent
     }
 }
 

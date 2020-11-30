@@ -15,6 +15,7 @@ pub mod gameplay;
 pub mod prefab;
 pub mod render;
 pub mod resources;
+pub mod save;
 pub mod scene;
 pub mod ui;
 pub const WIDTH: u32 = 1600;

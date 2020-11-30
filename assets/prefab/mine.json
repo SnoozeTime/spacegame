@@ -24,7 +24,7 @@
       "dirty": false
     },
     "sprite": {
-      "id": "Proto-ship.png"
+      "id": "spaceships/explosion-05.png"
     },
     "bounding_box": {
       "half_extend": [
@@ -41,7 +41,7 @@
       "current": 2.0,
       "hittable": true,
       "invulnerability_timer": {
-        "deadline": 1.0,
+        "deadline": 0.5,
         "elapsed": 0.0,
         "enabled": false
       }
@@ -50,9 +50,9 @@
     "enemy": {
       "enemy_type": {
         "Mine": {
-          "trigger_distance": 100.0,
+          "trigger_distance": 200.0,
           "explosion_timer": {
-            "deadline": 1.0,
+            "deadline": 2.0,
             "elapsed": 0.0,
             "enabled": false
           }

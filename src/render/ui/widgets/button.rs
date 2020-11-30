@@ -3,8 +3,6 @@ use crate::render::ui::gui::{HorizontalAlign, VerticalAlign};
 use crate::render::ui::text::Text;
 use crate::render::ui::{DrawData, Gui, Panel};
 use glfw::MouseButton;
-use glyph_brush::rusttype::Scale;
-use glyph_brush::{GlyphCruncher, Layout, Section};
 
 pub struct Button {
     /// Text of the button

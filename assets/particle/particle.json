@@ -1,26 +1,16 @@
 {
   "enabled": true,
-  "source": {
-    "Line":[[
-      1000.0,
-      0.0
-    ],
-      [
-        1000.0,
-        0.0
-      ]
-      ]
-  },
+  "source": "Point",
   "shape": {
     "Texture": "flare7.png"
   },
   "velocity_range": [
-    50.0,
-    100.0
+    500.0,
+    1000.0
   ],
   "angle_range": [
     0,
-    1.4
+    6.4
   ],
   "scale": {
     "Constant":[
@@ -29,10 +19,10 @@
     ]
   },
   "scale_over_lifetime": {
-    "xs": [0.0, 0.5, 1.0],
-    "ys": [1.0, 0.5, 0.0]
+    "xs": [0.0, 0.9, 1.0],
+    "ys": [1.0, 1.0, 0.0]
   },
-  "particle_number": 0.1,
+  "particle_number": 10.0,
   "colors": {
 
   "xs": [0.0, 0.5, 1.0],
@@ -55,7 +45,7 @@
     }
     ]
   },
-  "particle_life": 1000,
+  "particle_life": 5,
   "burst": false
 
 }

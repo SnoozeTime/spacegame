@@ -39,6 +39,7 @@ impl Prefab for PlayerPrefab {
         components.add(particles);
         components.add(Trail {
             should_display: true,
+            offset: 20.0,
         });
         components.add(Player {
             weapon: Weapon::Simple,

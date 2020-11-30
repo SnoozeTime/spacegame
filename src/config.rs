@@ -1,5 +1,9 @@
+use crate::core::input::ser::Input;
+use crate::gameplay::Action;
+use glfw::{Key, MouseButton};
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 
@@ -13,21 +17,15 @@ where
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {
-    pub thrust: f32,
     pub lateral_thrust: f32,
-    pub damping: f32,
     pub rotation_delta: f32,
-    pub max_speed: f32,
 }
 
 impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
-            thrust: 1000.0,
             lateral_thrust: 600.0,
-            damping: 100.0,
             rotation_delta: 0.05,
-            max_speed: 200.0,
         }
     }
 }
@@ -41,4 +39,40 @@ impl PlayerConfig {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct GameEngineConfig {
     pub show_gizmos: bool,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct InputConfig(pub HashMap<Action, Input>);
+
+impl InputConfig {
+    pub fn input_maps(self) -> (HashMap<Key, Action>, HashMap<MouseButton, Action>) {
+        let mut btn_map = HashMap::new();
+        let mut key_map = HashMap::new();
+
+        for (action, input) in self.0 {
+            match input {
+                Input::Key(k) => key_map.insert(k.into(), action),
+                Input::Mouse(btn) => btn_map.insert(btn.into(), action),
+            };
+        }
+
+        (key_map, btn_map)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AudioConfig {
+    pub background_volume: u32,
+    pub effects_volume: u32,
+    pub channel_nb: usize,
+}
+
+impl Default for AudioConfig {
+    fn default() -> Self {
+        Self {
+            background_volume: 100,
+            effects_volume: 100,
+            channel_nb: 15,
+        }
+    }
 }

@@ -2,8 +2,8 @@ use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::bullet::{Bullet, Missile};
-use crate::gameplay::explosion::ExplosionDetails;
-use crate::gameplay::health::{Health, HitDetails};
+use crate::gameplay::explosion::{ExplosionDetails, ExplosionType};
+use crate::gameplay::health::Health;
 use crate::gameplay::physics::DynamicBody;
 use crate::render::path::debug;
 use crate::resources::Resources;
@@ -384,7 +384,10 @@ pub fn process_collisions(
                         .expect("Missile should have a transform");
                     events.push(GameEvent::Explosion(
                         e2,
-                        ExplosionDetails { radius: 100.0 },
+                        ExplosionDetails {
+                            radius: 100.0,
+                            ty: ExplosionType::Second,
+                        },
                         e2_transform.translation,
                     ));
                 }
@@ -395,7 +398,10 @@ pub fn process_collisions(
                         .expect("Missile should have a transform");
                     events.push(GameEvent::Explosion(
                         e1,
-                        ExplosionDetails { radius: 100.0 },
+                        ExplosionDetails {
+                            radius: 100.0,
+                            ty: ExplosionType::Second,
+                        },
                         e1_transform.translation,
                     ));
                 }
@@ -454,27 +460,6 @@ fn process_bullet_collision(
             events.push(GameEvent::Delete(bullet_entity));
             events.push(GameEvent::Hit(health_entity, b.details));
         }
-    }
-
-    events
-}
-
-fn process_missile_collision(
-    world: &mut World,
-    health_entity: hecs::Entity,
-    missile_entity: hecs::Entity,
-) -> Vec<GameEvent> {
-    let mut events = vec![];
-
-    if let Ok(mut _b) = world.get_mut::<Missile>(missile_entity) {
-        events.push(GameEvent::Delete(missile_entity));
-        events.push(GameEvent::Hit(
-            health_entity,
-            HitDetails {
-                hit_points: 1.0,
-                is_crit: false,
-            },
-        ));
     }
 
     events

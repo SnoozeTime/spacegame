@@ -125,13 +125,9 @@ impl HealthSystem {
         for ev in chan.read(&mut self.rdr_id) {
             if let GameEvent::Hit(e, hit_details) = ev {
                 debug!("Process HIT event for {:?}", e);
-
                 let mut hit_points = hit_details.hit_points;
-
                 let mut explosion = false;
-
                 let mut insert_blink = false;
-                let mut is_enemy = false;
                 {
                     let invulnerable = world.get::<Invulnerable>(*e);
                     if invulnerable.is_ok() {
@@ -147,7 +143,6 @@ impl HealthSystem {
                     let t = t.unwrap();
 
                     let enemy_drop = if let Ok(mut enemy) = world.get_mut::<Enemy>(*e) {
-                        is_enemy = true;
                         // if should explode on contact. BOUM
                         if let EnemyType::Mine {
                             ref mut explosion_timer,

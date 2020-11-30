@@ -1,9 +1,11 @@
 use crate::{HEIGHT, WIDTH};
 use glfw::{Key, MouseButton, WindowEvent};
+use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-pub trait InputAction: Hash + Eq + PartialEq + Clone {
+pub mod ser;
+pub trait InputAction: Hash + Eq + PartialEq + Clone + DeserializeOwned {
     fn get_default_key_mapping() -> HashMap<Key, Self>;
     fn get_default_mouse_mapping() -> HashMap<MouseButton, Self>;
 }

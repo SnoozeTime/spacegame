@@ -2,7 +2,7 @@
   "nb_pickups": 3,
   "waves": [
     {
-      "to_instantiate": ["mine_lander", "mine_lander", "base_enemy_3"]
+      "to_instantiate": ["spammer", "spammer", "spammer", "kamikaze", "kamikaze", "kamikaze", "kamikaze"]
     },
     {
       "to_instantiate": ["mine_lander", "carrier", "base_enemy", "base_enemy", "base_enemy"]
@@ -11,7 +11,7 @@
       "to_instantiate": ["boss1", "mine_lander", "base_enemy", "base_enemy", "base_enemy", "base_enemy"]
     },
     {
-      "to_instantiate": ["base_enemy_3", "base_enemy_2", "boss1", "base_enemy_2"]
+      "to_instantiate": ["last_boss", "kamikaze", "kamikaze", "kamikaze", "kamikaze", "kamikaze", "kamikaze", "kamikaze", "kamikaze"]
     }
   ],
   "backgrounds": [

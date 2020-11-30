@@ -58,14 +58,14 @@ impl WaveDifficulty {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum DifficultyCurve {
-    Linear(f32),
+    Linear(f32, f32),
     Constant(f32),
 }
 
 impl DifficultyCurve {
-    pub fn next_value(&self, current_value: f32) -> f32 {
+    pub fn y(&self, x: f32) -> f32 {
         match self {
-            Self::Linear(slope) => current_value as f32 + slope,
+            Self::Linear(origin, slope) => origin + slope * x,
             Self::Constant(v) => *v,
         }
     }
@@ -81,24 +81,18 @@ pub struct DifficultyConfig {
 impl Default for DifficultyConfig {
     fn default() -> Self {
         Self {
-            level_1_curve: DifficultyCurve::Linear(1.0),
-            level_2_curve: DifficultyCurve::Linear(0.5),
-            level_3_curve: DifficultyCurve::Linear(0.2),
+            level_1_curve: DifficultyCurve::Linear(0.0, 1.0),
+            level_2_curve: DifficultyCurve::Linear(-2.0, 0.5),
+            level_3_curve: DifficultyCurve::Linear(-5.0, 0.2),
         }
     }
 }
 
 impl DifficultyConfig {
-    pub fn next_difficulty(&self, current_difficulty: &WaveDifficulty) -> WaveDifficulty {
-        let next_level_1 = self
-            .level_1_curve
-            .next_value(current_difficulty.level_1_enemies);
-        let next_level_2 = self
-            .level_2_curve
-            .next_value(current_difficulty.level_2_enemies);
-        let next_level_3 = self
-            .level_3_curve
-            .next_value(current_difficulty.level_3_enemies);
+    pub fn difficulty(&self, wave_nb: usize) -> WaveDifficulty {
+        let next_level_1 = self.level_1_curve.y(wave_nb as f32);
+        let next_level_2 = self.level_2_curve.y(wave_nb as f32);
+        let next_level_3 = self.level_3_curve.y(wave_nb as f32);
         WaveDifficulty {
             level_1_enemies: next_level_1,
             level_2_enemies: next_level_2,

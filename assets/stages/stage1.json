@@ -8,10 +8,10 @@
             "to_instantiate": ["base_enemy", "kamikaze"]
         },
         {
-            "to_instantiate": ["base_enemy", "satellite", "base_enemy"]
+            "to_instantiate": ["base_enemy", "wanderer", "base_enemy"]
         },
         {
-            "to_instantiate": ["boss1"]
+            "to_instantiate": ["boss1", "base_enemy" ,"base_enemy"]
         }
     ],
     "next_stage": "stage2.json",

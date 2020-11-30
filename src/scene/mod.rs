@@ -15,7 +15,7 @@ use crate::gameplay::health::{Health, HealthSystem, Shield};
 use crate::gameplay::inventory::Inventory;
 use crate::gameplay::level::{Stage, StageDescription};
 use crate::gameplay::physics::{PhysicConfig, PhysicSystem};
-use crate::gameplay::pickup::{process_pickups, spawn_pickup};
+use crate::gameplay::pickup::{process_pickups, spawn_pickup, Pickup};
 use crate::gameplay::player::get_player;
 use crate::gameplay::trail::update_trails;
 use crate::gameplay::{bullet, collision, enemy, player};
@@ -24,9 +24,11 @@ use crate::render::particle::ParticleEmitter;
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::{Button, Gui, HorizontalAlign, VerticalAlign};
 use crate::resources::Resources;
+use crate::save::{get_wave_record, save_new_wave_record, save_unlocked};
 use crate::scene::main_menu::MainMenu;
 use crate::scene::pause::PauseScene;
 use crate::scene::story::StoryScene;
+use crate::ui::draw_cursor;
 use glfw::{Key, WindowEvent};
 use hecs::World;
 use log::info;
@@ -40,6 +42,7 @@ pub mod main_menu;
 pub mod particle_scene;
 pub mod pause;
 pub mod story;
+pub mod wave_selection;
 
 enum MainSceneState {
     Running,
@@ -64,18 +67,20 @@ pub struct MainScene {
     info_text_timer: Timer,
 
     is_infinite: bool,
+    starting_wave_nb: usize,
 }
 
 impl Default for MainScene {
     fn default() -> Self {
-        Self::new(false)
+        Self::new(false, 1)
     }
 }
 
 impl MainScene {
-    pub fn new(is_infinite: bool) -> Self {
+    pub fn new(is_infinite: bool, starting_wave_nb: usize) -> Self {
         Self {
             is_infinite,
+            starting_wave_nb,
             player: None,
             info_text: None,
             restart: false,
@@ -113,7 +118,7 @@ impl Scene<WindowEvent> for MainScene {
             let content = std::fs::read_to_string(p).unwrap();
             serde_json::from_str(&content).unwrap()
         };
-        let stage = Stage::new(world, resources, stage_desc);
+        let stage = Stage::new(world, resources, stage_desc, self.starting_wave_nb);
         self.stage = Some(stage);
 
         self.player = Some({
@@ -197,6 +202,7 @@ impl Scene<WindowEvent> for MainScene {
         // remove all the bullets :)
         let bullets: Vec<_> = world.query::<&Bullet>().iter().map(|(e, _)| e).collect();
         let missiles: Vec<_> = world.query::<&Missile>().iter().map(|(e, _)| e).collect();
+        let pickups: Vec<_> = world.query::<&Pickup>().iter().map(|(e, _)| e).collect();
         bullets.iter().for_each(|&e| {
             if let Err(e) = world.despawn(e) {
                 error!("Error while despawn bullet = {:?}", e);
@@ -205,6 +211,11 @@ impl Scene<WindowEvent> for MainScene {
         missiles.iter().for_each(|&e| {
             if let Err(e) = world.despawn(e) {
                 error!("Error while despawn missiles = {:?}", e);
+            }
+        });
+        pickups.iter().for_each(|&e| {
+            if let Err(e) = world.despawn(e) {
+                error!("Error while despawn pickups = {:?}", e);
             }
         });
     }
@@ -260,7 +271,10 @@ impl Scene<WindowEvent> for MainScene {
         } else if self.return_to_menu {
             SceneResult::ReplaceScene(Box::new(MainMenu::default()))
         } else if self.restart {
-            SceneResult::ReplaceScene(Box::new(MainScene::default()))
+            SceneResult::ReplaceScene(Box::new(MainScene::new(
+                self.is_infinite,
+                self.starting_wave_nb,
+            )))
         } else {
             SceneResult::Noop
         }
@@ -274,6 +288,7 @@ impl Scene<WindowEvent> for MainScene {
         gui_context: &GuiContext,
     ) -> Option<Gui> {
         let mut gui = gui_context.new_frame();
+        draw_cursor(&mut gui);
 
         match self.state {
             MainSceneState::Paused => (),
@@ -326,7 +341,7 @@ impl Scene<WindowEvent> for MainScene {
                 if let Some(stage_text) = self.stage.as_ref().and_then(|s| s.display()) {
                     let center =
                         gui_context.window_dim.to_vec2() / 2.0 - glam::Vec2::unit_y() * 100.0;
-                    gui.colored_label(center, stage_text, RgbaColor::new(255, 255, 255, 255))
+                    gui.centered_label(center, stage_text)
                 }
 
                 // extra info (pick ups...)
@@ -349,6 +364,12 @@ impl Scene<WindowEvent> for MainScene {
                                 gui.window_dim.height as f32 - 40.0,
                             ),
                             format!("Wave {}", stage.wave_number),
+                            RgbaColor::new(255, 255, 255, 255),
+                        );
+
+                        gui.colored_label(
+                            glam::vec2(gui.window_dim.width as f32 - 200.0, 10.0),
+                            format!("Wave Record {}", get_wave_record(resources)),
                             RgbaColor::new(255, 255, 255, 255),
                         )
                     }
@@ -384,26 +405,7 @@ impl Scene<WindowEvent> for MainScene {
                     self.return_to_menu = true;
                 }
             }
-            MainSceneState::GameWon => {
-                // In case of game over, let's just show the message and buttons to return back home.
-                let center = gui_context.window_dim.to_vec2() / 2.0 - glam::Vec2::unit_y() * 100.0;
-                gui.colored_label(
-                    center,
-                    "You won!".to_string(),
-                    RgbaColor::new(255, 255, 255, 255),
-                );
-
-                if game_button("Restart", center + glam::Vec2::unit_y() * 50.0, &mut gui) {
-                    self.restart = true;
-                }
-                if game_button(
-                    "Return to menu",
-                    center + glam::Vec2::unit_y() * 100.0,
-                    &mut gui,
-                ) {
-                    self.return_to_menu = true;
-                }
-            }
+            MainSceneState::GameWon => {}
         }
         Some(gui)
     }
@@ -413,10 +415,27 @@ impl Scene<WindowEvent> for MainScene {
         match ev {
             GameEvent::GameOver => {
                 self.state = MainSceneState::GameOver;
+
+                // if infinite, let's set new wave record if it's more than current.
+                if self.is_infinite {
+                    if let Err(e) = save_new_wave_record(
+                        resources,
+                        self.stage
+                            .as_ref()
+                            .expect("Should have a stage...")
+                            .wave_number,
+                    ) {
+                        error!("could not save data = {:?}", e);
+                    }
+                }
+
                 drain_scratch = true;
             }
             GameEvent::YouWin => {
                 drain_scratch = true;
+                if let Err(e) = save_unlocked(resources) {
+                    error!("could not save data = {:?}", e);
+                }
                 self.state = MainSceneState::GameWon
             }
             GameEvent::EnemyDied(e, pos, (low_scrap, high_scrap), pickup_drop) => {
@@ -456,7 +475,7 @@ impl Scene<WindowEvent> for MainScene {
                 if let Some(stage) = self.stage.as_mut() {
                     stage.clean(world);
                 }
-                let stage = Stage::new(world, resources, stage_desc);
+                let stage = Stage::new(world, resources, stage_desc, 0);
                 self.stage = Some(stage);
 
                 drain_scratch = true;

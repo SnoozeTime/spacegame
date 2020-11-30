@@ -6,7 +6,9 @@ use spacegame::core::animation::{Animation, AnimationController};
 use spacegame::core::timer::Timer;
 use spacegame::core::transform::Transform;
 use spacegame::gameplay::collision::{BoundingBox, CollisionLayer};
-use spacegame::gameplay::enemy::{Boss1, Enemy, EnemyType, MovementBehavior, Satellite, Spammer};
+use spacegame::gameplay::enemy::{
+    Boss1, Enemy, EnemyType, LastBoss, MovementBehavior, Satellite, Spammer,
+};
 use spacegame::gameplay::health::Health;
 use spacegame::gameplay::physics::DynamicBody;
 use spacegame::gameplay::player::{Player, Stats};
@@ -48,7 +50,7 @@ fn gen_player() {
                 collision_layer: CollisionLayer::PLAYER,
                 collision_mask: None,
             },
-            health: Health::new(10.0, Timer::of_seconds(1.0)),
+            health: Health::new(10.0, Timer::of_seconds(0.5)),
             shield: None,
             trail: emitter,
             stats: Stats {
@@ -87,20 +89,20 @@ fn gen_mine() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "Proto-ship.png".to_string(),
+                id: "spaceships/explosion-05.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
                 collision_layer: CollisionLayer::MINE,
                 collision_mask: None,
             },
-            health: Some(Health::new(2.0, Timer::of_seconds(1.0))),
+            health: Some(Health::new(2.0, Timer::of_seconds(0.5))),
             shield: None,
             enemy: Enemy {
                 enemy_type: EnemyType::Mine {
-                    trigger_distance: 100.0,
+                    trigger_distance: 200.0,
                     explosion_timer: {
-                        let mut timer = Timer::of_seconds(1.0);
+                        let mut timer = Timer::of_seconds(2.0);
                         timer.stop();
                         timer
                     },
@@ -171,7 +173,7 @@ fn gen_mine_lander() {
                 collision_layer: CollisionLayer::ENEMY,
                 collision_mask: None,
             },
-            health: Some(Health::new(3.0, Timer::of_seconds(1.0))),
+            health: Some(Health::new(3.0, Timer::of_seconds(0.5))),
             shield: None,
             enemy: Enemy {
                 enemy_type: EnemyType::MineLander(Timer::of_seconds(4.0)),
@@ -216,7 +218,7 @@ fn gen_wanderer() {
                 collision_layer: CollisionLayer::ENEMY,
                 collision_mask: None,
             },
-            health: Some(Health::new(3.0, Timer::of_seconds(1.0))),
+            health: Some(Health::new(3.0, Timer::of_seconds(0.5))),
             shield: None,
             enemy: Enemy {
                 enemy_type: EnemyType::Wanderer(Timer::of_seconds(4.0)),
@@ -318,7 +320,7 @@ fn gen_carrier() {
                 collision_layer: CollisionLayer::ENEMY,
                 collision_mask: None,
             },
-            health: Some(Health::new(15.0, Timer::of_seconds(0.3))),
+            health: Some(Health::new(15.0, Timer::of_seconds(0.5))),
             shield: None,
             enemy: Enemy {
                 enemy_type: EnemyType::Carrier {
@@ -543,6 +545,56 @@ fn gen_spammer() {
     std::fs::write("assets/prefab/spammer.json", spammer);
 }
 
+fn gen_last_boss() {
+    let boss = {
+        let scale = 64.0;
+        let enemy_prefab = EnemyPrefab {
+            animation: None,
+            dynamic_body: DynamicBody {
+                impulses: vec![],
+                forces: vec![],
+                velocity: glam::Vec2::zero(),
+                max_velocity: 1500.0,
+                mass: 10.0,
+                max_force: 500.0,
+            },
+            transform: Transform {
+                translation: Default::default(),
+                scale: scale * glam::Vec2::one(),
+                rotation: 0.0,
+                dirty: false,
+            },
+            sprite: Sprite {
+                id: "spaceships/large_purple_01.png".to_string(),
+            },
+            bounding_box: BoundingBox {
+                half_extend: scale / 2.0 * glam::Vec2::one(),
+                collision_layer: CollisionLayer::ENEMY,
+                collision_mask: None,
+            },
+            health: Some(Health::new(20.0, Timer::of_seconds(0.5))),
+            shield: None,
+            enemy: Enemy {
+                enemy_type: EnemyType::LastBoss(LastBoss {
+                    shoot_timer: Timer::of_seconds(0.3),
+                    nb_shot: 10,
+                    current_shot: 0,
+                    salve_timer: Timer::of_seconds(5.0),
+                }),
+                scrap_drop: (20, 100),
+                pickup_drop_percent: 100,
+                movement: MovementBehavior::RandomPath(glam::Vec2::zero(), false),
+            },
+            trail: None,
+        };
+
+        let prefab = &enemy_prefab as &dyn Prefab;
+        serde_json::to_string_pretty(prefab).unwrap()
+    };
+
+    std::fs::write("assets/prefab/last_boss.json", boss);
+}
+
 fn main() {
     gen_wanderer();
     gen_player();
@@ -554,6 +606,7 @@ fn main() {
     gen_spammer();
     gen_kamikaze();
     gen_carrier();
+    gen_last_boss();
     let satellite = {
         let scale = 40.0;
         let enemy_prefab = EnemyPrefab {
@@ -627,7 +680,7 @@ fn main() {
                 collision_layer: CollisionLayer::ENEMY,
                 collision_mask: None,
             },
-            health: Some(Health::new(10.0, Timer::of_seconds(1.0))),
+            health: Some(Health::new(10.0, Timer::of_seconds(0.5))),
             shield: None,
             enemy: Enemy {
                 enemy_type: EnemyType::Boss1(Boss1 {

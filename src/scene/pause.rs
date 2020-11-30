@@ -3,11 +3,10 @@
 
 use crate::core::colors::RgbaColor;
 use crate::core::scene::{Scene, SceneResult};
-use crate::event::GameEvent;
 use crate::render::ui::{Gui, GuiContext};
 use crate::resources::Resources;
 use crate::scene::main_menu::MainMenu;
-use crate::ui::menu_button;
+use crate::ui::{draw_cursor, menu_button};
 use bitflags::_core::time::Duration;
 use glfw::{Key, WindowEvent};
 use hecs::World;
@@ -42,8 +41,10 @@ impl Scene<WindowEvent> for PauseScene {
         gui_context: &GuiContext,
     ) -> Option<Gui> {
         let mut gui = gui_context.new_frame();
+        draw_cursor(&mut gui);
+
         let window_dim = gui.window_dim.to_vec2();
-        let anchor = glam::vec2(window_dim.x() / 2.0, window_dim.y() / 2.0);
+        let anchor = window_dim / 2.0 - 40.0 * glam::Vec2::unit_x();
         gui.panel(
             glam::vec2(0.0, 0.0),
             window_dim,

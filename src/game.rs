@@ -1,5 +1,6 @@
 #[cfg(feature = "hot-reload")]
 use crate::assets::HotReloader;
+use crate::config::AudioConfig;
 use crate::core::audio::AudioSystem;
 use crate::core::camera::{Camera, ProjectionMatrix};
 use crate::core::input::{Input, InputAction};
@@ -15,25 +16,30 @@ use crate::render::ui::gui::GuiContext;
 use crate::render::Renderer;
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
-use glfw::{Context, WindowEvent};
+use glfw::{Context, Key, MouseButton, WindowEvent};
 use log::info;
 use luminance_glfw::GlfwSurface;
 use shrev::{EventChannel, ReaderId};
 use std::any::Any;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::thread;
 use std::time::{Duration, Instant};
 
 /// GameBuilder is used to create a new game. Game struct has a lot of members that do not need to be
 /// exposed so gamebuilder provides a simpler way to get started.
-pub struct GameBuilder<'a, A> {
+pub struct GameBuilder<'a, A>
+where
+    A: InputAction,
+{
     surface: &'a mut GlfwSurface,
     scene: Option<Box<dyn Scene<WindowEvent>>>,
     resources: Resources,
-    audio_system: AudioSystem,
     phantom: PhantomData<A>,
     seed: Option<Seed>,
+    input_config: Option<(HashMap<Key, A>, HashMap<MouseButton, A>)>,
     gui_context: GuiContext,
+    audio_config: AudioConfig,
 }
 
 impl<'a, A> GameBuilder<'a, A>
@@ -55,23 +61,36 @@ where
         resources.insert(CollisionWorld::default());
         resources.insert(DebugQueue::default());
 
-        // audio system.
-        let audio_system = AudioSystem::new(&resources, 15).expect("Cannot create audio system");
-
         Self {
             gui_context: GuiContext::new(WindowDim::new(WIDTH, HEIGHT)),
             surface,
             scene: None,
             resources,
+            input_config: None,
             phantom: PhantomData::default(),
             seed: None,
-            audio_system,
+            audio_config: AudioConfig::default(),
         }
     }
 
     /// Set up the first scene.
     pub fn for_scene(mut self, scene: Box<dyn Scene<WindowEvent>>) -> Self {
         self.scene = Some(scene);
+        self
+    }
+
+    pub fn with_input_config(
+        mut self,
+        key_map: HashMap<Key, A>,
+        btn_map: HashMap<MouseButton, A>,
+    ) -> Self {
+        self.input_config = Some((key_map, btn_map));
+        self
+    }
+
+    /// Specific config for audio
+    pub fn with_audio_config(mut self, audio_config: AudioConfig) -> Self {
+        self.audio_config = audio_config;
         self
     }
 
@@ -88,10 +107,13 @@ where
 
     pub fn build(mut self) -> Game<'a, A> {
         let renderer = Renderer::new(self.surface, &self.gui_context);
-
         // Need some input :D
-        let input: Input<A> =
-            Input::new(A::get_default_key_mapping(), A::get_default_mouse_mapping());
+        let input: Input<A> = {
+            let (key_mapping, btn_mapping) = self
+                .input_config
+                .unwrap_or((A::get_default_key_mapping(), A::get_default_mouse_mapping()));
+            Input::new(key_mapping, btn_mapping)
+        };
         self.resources.insert(input);
         let mut world = hecs::World::new();
 
@@ -125,12 +147,16 @@ where
 
         info!("Finished building game");
 
+        // audio system.
+        let audio_system = AudioSystem::new(&self.resources, self.audio_config)
+            .expect("Cannot create audio system");
+
         Game {
             surface: self.surface,
             renderer,
             scene_stack,
             world,
-            audio_system: self.audio_system,
+            audio_system,
             resources: self.resources,
             rdr_id,
             garbage_collector,

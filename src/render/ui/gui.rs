@@ -22,7 +22,9 @@ pub struct GuiContext {
 
 impl GuiContext {
     pub fn new(window_dim: WindowDim) -> Self {
-        let fonts = GlyphBrushBuilder::using_font_bytes(FONT_DATA).build();
+        let fonts = GlyphBrushBuilder::using_font_bytes(FONT_DATA)
+            .initial_cache_size((512, 512))
+            .build();
 
         Self {
             fonts: Rc::new(RefCell::new(fonts)),

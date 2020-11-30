@@ -1,6 +1,9 @@
-use crate::assets::sprite::{SamplerDef, SpriteSyncLoader};
+use crate::assets::sprite::SamplerDef;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[cfg(feature = "packed")]
+use crate::assets::sprite::SpriteSyncLoader;
 
 #[derive(Serialize, Deserialize)]
 pub struct PackedSpriteAsset {

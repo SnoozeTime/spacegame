@@ -1,10 +1,9 @@
 use crate::core::colors::RgbaColor;
-use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::core::window::WindowDim;
 use crate::event::GameEvent;
 use crate::gameplay::collision::{BoundingBox, CollisionLayer};
-use crate::gameplay::health::{Health, HitDetails};
+use crate::gameplay::health::HitDetails;
 use crate::gameplay::physics::DynamicBody;
 use crate::gameplay::steering::seek;
 use crate::render::sprite::{Sprite, Tint};
@@ -37,7 +36,7 @@ impl BulletType {
 
     fn get_bullet_speed(&self) -> f32 {
         match *self {
-            BulletType::Fast => 10.0,
+            BulletType::Fast => 6.0,
             BulletType::Round1 => 3.0,
             BulletType::Round2 => 5.0,
             _ => 5.0,
@@ -83,7 +82,7 @@ pub fn process_missiles(world: &World, resources: &Resources) {
                 body.add_force(steering);
 
                 // rotate toward the player
-                let dir = glam::Mat2::from_angle(std::f32::consts::FRAC_PI_2 + t.rotation)
+                let dir = glam::Mat2::from_angle(-std::f32::consts::FRAC_PI_2 + t.rotation)
                     * glam::Vec2::unit_y();
                 let angle_to_perform = (target_pos.translation - t.translation).angle_between(dir);
                 t.rotation -= 0.05 * angle_to_perform;
@@ -239,7 +238,7 @@ pub fn spawn_missile(
         Transform {
             translation: initial_position,
             rotation: angle,
-            scale: glam::vec2(7.0, 7.0),
+            scale: glam::vec2(12.0, 12.0),
             dirty: false,
         },
         DynamicBody {
