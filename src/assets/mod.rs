@@ -25,28 +25,28 @@ pub fn create_asset_managers<S>(_surface: &mut S, resources: &mut Resources)
 where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
-    let base_path = std::env::var("ASSET_PATH").unwrap_or("".to_string());
+    let base_path = PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("assets/".to_string()));
 
     #[cfg(not(feature = "packed"))]
     let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
-        sprite::SpriteSyncLoader::new(PathBuf::from(&base_path).join("assets/sprites")),
+        sprite::SpriteSyncLoader::new(base_path.join("sprites")),
     ));
 
     #[cfg(feature = "packed")]
     let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
-        sprite::SpritePackLoader::new(PathBuf::from(&base_path).join("assets/sprites")),
+        sprite::SpritePackLoader::new(base_path.join("sprites")),
     ));
 
     let prefab_loader: PrefabManager<S> = AssetManager::from_loader(Box::new(
-        prefab::PrefabSyncLoader::new(PathBuf::from(&base_path).join("assets/prefab")),
+        prefab::PrefabSyncLoader::new(base_path.join("prefab")),
     ));
 
     let audio_loader: AssetManager<S, Audio> = AssetManager::from_loader(Box::new(
-        audio::AudioSyncLoader::new(PathBuf::from(&base_path).join("assets")),
+        audio::AudioSyncLoader::new(base_path.clone()),
     ));
 
     let shader_loader: ShaderManager<S> = AssetManager::from_loader(Box::new(
-        shader::ShaderLoader::new(PathBuf::from(&base_path).join("assets/shaders")),
+        shader::ShaderLoader::new(base_path.join("shaders")),
     ));
     resources.insert(sprite_manager);
     resources.insert(prefab_loader);
@@ -355,7 +355,7 @@ where
 {
     pub fn new() -> Self {
         let base_path =
-            PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("".to_string())).join("assets");
+            PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("assets/".to_string()));
 
         let (tx, rx) = std::sync::mpsc::channel();
 
