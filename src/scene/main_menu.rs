@@ -1,6 +1,7 @@
 use crate::core::audio;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::transform::Transform;
+use crate::paths::get_assets_path;
 use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::render::particle::ParticleEmitter;
 use crate::render::ui::gui::GuiContext;
@@ -15,7 +16,6 @@ use crate::ui::{disabled_menu_button, draw_cursor, menu_button};
 use bitflags::_core::time::Duration;
 use glfw::WindowEvent;
 use hecs::World;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 enum GameMode {
@@ -33,9 +33,9 @@ pub struct MainMenu {
 impl Scene<WindowEvent> for MainMenu {
     fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         //generate_terrain(world, resources);
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let emitter = ParticleEmitter::load_from_path(
-            PathBuf::from(&base_path).join("particle").join("menu.json"),
+            base_path.join("particle").join("menu.json"),
         )
         .unwrap();
 

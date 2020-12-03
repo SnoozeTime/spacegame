@@ -19,6 +19,7 @@ use crate::gameplay::pickup::{process_pickups, spawn_pickup, Pickup};
 use crate::gameplay::player::get_player;
 use crate::gameplay::trail::update_trails;
 use crate::gameplay::{bullet, collision, enemy, player};
+use crate::paths::get_assets_path;
 use crate::render::mesh::{Material, MeshRender};
 use crate::render::particle::ParticleEmitter;
 use crate::render::ui::gui::GuiContext;
@@ -34,7 +35,6 @@ use hecs::World;
 use log::info;
 use luminance_glfw::GlfwSurface;
 use rand::Rng;
-use std::path::PathBuf;
 use std::time::Duration;
 
 pub mod loading;
@@ -103,9 +103,9 @@ impl Scene<WindowEvent> for MainScene {
         self.explosion_system = Some(ExplosionSystem::new(resources));
 
         //generate_terrain(world, resources);
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/trail.json"))
                 .unwrap(),
         )
         .unwrap();
@@ -114,7 +114,7 @@ impl Scene<WindowEvent> for MainScene {
         let stage_desc: StageDescription = if self.is_infinite {
             StageDescription::infinite()
         } else {
-            let p = PathBuf::from(&base_path).join("stages/stage1.json");
+            let p = base_path.join("stages/stage1.json");
             let content = std::fs::read_to_string(p).unwrap();
             serde_json::from_str(&content).unwrap()
         };
@@ -466,9 +466,9 @@ impl Scene<WindowEvent> for MainScene {
                 self.info_text = Some(info);
             }
             GameEvent::NextStage(stage_name) => {
-                let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+                let base_path = get_assets_path();
                 let stage_desc: StageDescription = {
-                    let p = PathBuf::from(&base_path).join("stages").join(stage_name);
+                    let p = base_path.join("stages").join(stage_name);
                     let content = std::fs::read_to_string(p).unwrap();
                     serde_json::from_str(&content).unwrap()
                 };

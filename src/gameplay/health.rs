@@ -3,13 +3,13 @@ use crate::core::transform::Transform;
 use crate::event::GameEvent;
 use crate::gameplay::enemy::{Enemy, EnemyType};
 use crate::gameplay::player::Player;
+use crate::paths::get_assets_path;
 use crate::render::particle::ParticleEmitter;
 use crate::render::sprite::Blink;
 use crate::resources::Resources;
 use log::{debug, trace};
 use serde_derive::{Deserialize, Serialize};
 use shrev::{EventChannel, ReaderId};
-use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -99,9 +99,9 @@ pub struct HealthSystem {
 
 impl HealthSystem {
     pub fn new(resources: &mut Resources) -> Self {
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(base_path).join("particle/explosion.json"))
+            &std::fs::read_to_string(base_path.join("particle/explosion.json"))
                 .unwrap(),
         )
         .unwrap();

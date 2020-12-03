@@ -2,7 +2,6 @@
 use log::info;
 use luminance_glfw::GlfwSurface;
 use luminance_windowing::{CursorMode, WindowOpt};
-use std::path::PathBuf;
 use std::process::exit;
 
 use spacegame::game::{Game, GameBuilder};
@@ -11,6 +10,7 @@ use spacegame::config::{load_config, AudioConfig, GameEngineConfig, InputConfig,
 use spacegame::gameplay::inventory::Inventory;
 use spacegame::gameplay::level::difficulty::DifficultyConfig;
 use spacegame::gameplay::Action;
+use spacegame::paths::get_assets_path;
 use spacegame::save::read_saved_data;
 use spacegame::scene::loading::LoadingScene;
 #[allow(unused_imports)]
@@ -40,7 +40,7 @@ fn main_loop(mut surface: GlfwSurface) {
     dotenv::dotenv().ok();
     pretty_env_logger::init();
 
-    let base_path = PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("assets/".to_string()));
+    let base_path = get_assets_path();
     let player_config_path = base_path.join("config/player_controller.json");
     let player_config: PlayerConfig = load_config(&player_config_path).unwrap_or_else(|e| {
         log::info!("Will use default PlayerConfig because = {:?}", e);

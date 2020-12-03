@@ -2,6 +2,7 @@ use crate::assets::audio::Audio;
 use crate::assets::prefab::PrefabManager;
 use crate::assets::shader::ShaderManager;
 use crate::assets::sprite::SpriteAsset;
+use crate::paths::get_assets_path;
 use crate::resources::Resources;
 use bitflags::_core::marker::PhantomData;
 use log::debug;
@@ -11,7 +12,6 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::hash_map::Keys;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -25,7 +25,7 @@ pub fn create_asset_managers<S>(_surface: &mut S, resources: &mut Resources)
 where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
-    let base_path = PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("assets/".to_string()));
+    let base_path = get_assets_path();
 
     #[cfg(not(feature = "packed"))]
     let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
@@ -354,8 +354,7 @@ where
     S: GraphicsContext<Backend = GL33> + 'static,
 {
     pub fn new() -> Self {
-        let base_path =
-            PathBuf::from(std::env::var("ASSET_PATH").unwrap_or("assets/".to_string()));
+        let base_path = get_assets_path();
 
         let (tx, rx) = std::sync::mpsc::channel();
 
