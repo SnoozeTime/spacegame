@@ -1,5 +1,5 @@
 use crate::resources::Resources;
-use crate::paths::get_assets_path;
+use crate::paths::get_save_path;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ pub fn save_new_wave_record(resources: &Resources, new_record: usize) -> Result<
         d.wave_record = new_record;
     }
 
-    let base_path = get_assets_path();
+    let base_path = get_save_path();
     let save_path = base_path.join("data.bin");
     let data = bincode::serialize(&*d)?;
     std::fs::write(save_path, data)?;
@@ -53,7 +53,7 @@ pub fn save_unlocked(resources: &Resources) -> Result<(), anyhow::Error> {
         .expect("Should have SavedData...");
     d.is_infinite_unlocked = true;
 
-    let base_path = get_assets_path();
+    let base_path = get_save_path();
     let save_path = base_path.join("data.bin");
     let data = bincode::serialize(&*d)?;
     std::fs::write(save_path, data)?;
@@ -61,7 +61,7 @@ pub fn save_unlocked(resources: &Resources) -> Result<(), anyhow::Error> {
 }
 
 pub fn read_saved_data() -> SavedData {
-    let base_path = get_assets_path();
+    let base_path = get_save_path();
     let save_path = base_path.join("data.bin");
 
     if let Ok(data) = std::fs::read(&save_path) {
