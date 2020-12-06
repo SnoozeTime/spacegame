@@ -12,17 +12,17 @@ use spacegame::gameplay::enemy::{
 use spacegame::gameplay::health::Health;
 use spacegame::gameplay::physics::DynamicBody;
 use spacegame::gameplay::player::{Player, Stats};
+use spacegame::paths::get_assets_path;
 use spacegame::prefab::enemies::EnemyPrefab;
 use spacegame::prefab::player::PlayerPrefab;
 use spacegame::render::particle::ParticleEmitter;
 use spacegame::render::sprite::Sprite;
-use std::path::PathBuf;
 
 fn gen_player() {
     let player = {
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/trail.json"))
                 .unwrap(),
         )
         .unwrap();
@@ -240,9 +240,9 @@ fn gen_wanderer() {
 fn gen_base_enemy() {
     let base_enemy = {
         let scale = 24.0;
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
                 .unwrap(),
         )
         .unwrap();
@@ -291,9 +291,9 @@ fn gen_base_enemy() {
 fn gen_carrier() {
     let base_enemy = {
         let scale = 128.0;
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
                 .unwrap(),
         )
         .unwrap();
@@ -345,9 +345,9 @@ fn gen_carrier() {
 fn gen_kamikaze() {
     let base_enemy = {
         let scale = 20.0;
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
                 .unwrap(),
         )
         .unwrap();
@@ -396,9 +396,9 @@ fn gen_kamikaze() {
 fn gen_base_enemy_2() {
     let base_enemy = {
         let scale = 24.0;
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
                 .unwrap(),
         )
         .unwrap();
@@ -447,9 +447,9 @@ fn gen_base_enemy_2() {
 fn gen_base_enemy_3() {
     let base_enemy = {
         let scale = 24.0;
-        let base_path = std::env::var("ASSET_PATH").unwrap_or("assets/".to_string());
+        let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(PathBuf::from(&base_path).join("particle/enemy_trail.json"))
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
                 .unwrap(),
         )
         .unwrap();

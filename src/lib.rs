@@ -12,6 +12,7 @@ pub mod core;
 pub mod event;
 pub mod game;
 pub mod gameplay;
+pub mod paths;
 pub mod prefab;
 pub mod render;
 pub mod resources;
