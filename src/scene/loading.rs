@@ -3,12 +3,10 @@ use crate::assets::prefab::PrefabManager;
 use crate::assets::{AssetManager, Handle};
 use crate::core::scene::{Scene, SceneResult};
 use crate::resources::Resources;
-use bitflags::_core::time::Duration;
-use glfw::WindowEvent;
+use core::time::Duration;
 use hecs::World;
-use luminance_glfw::GlfwSurface;
 
-pub struct LoadingScene<S: Scene<WindowEvent>> {
+pub struct LoadingScene<S: Scene> {
     prefabs_to_load: Vec<String>,
     audio_to_load: Vec<String>,
     next_scene: Option<S>,
@@ -18,7 +16,7 @@ pub struct LoadingScene<S: Scene<WindowEvent>> {
 
 impl<S> LoadingScene<S>
 where
-    S: Scene<WindowEvent> + 'static,
+    S: Scene + 'static,
 {
     pub fn new(prefabs_to_load: Vec<String>, audio_to_load: Vec<String>, next_scene: S) -> Self {
         Self {
@@ -31,9 +29,9 @@ where
     }
 }
 
-impl<S> Scene<WindowEvent> for LoadingScene<S>
+impl<S> Scene for LoadingScene<S>
 where
-    S: Scene<WindowEvent> + 'static,
+    S: Scene + 'static,
 {
     fn on_create(&mut self, _world: &mut World, resources: &mut Resources) {
         // Pre-load :)
@@ -52,12 +50,7 @@ where
             .collect();
     }
 
-    fn update(
-        &mut self,
-        _dt: Duration,
-        _world: &mut World,
-        resources: &Resources,
-    ) -> SceneResult<WindowEvent> {
+    fn update(&mut self, _dt: Duration, _world: &mut World, resources: &Resources) -> SceneResult {
         let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
         let audio_manager = resources.fetch::<AssetManager<Audio>>().unwrap();
         // loaded.

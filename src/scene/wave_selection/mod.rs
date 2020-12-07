@@ -1,10 +1,10 @@
+use crate::core::input::ser::{InputEvent, VirtualAction, VirtualKey};
 use crate::core::scene::{Scene, SceneResult};
 use crate::render::ui::{Gui, GuiContext};
 use crate::resources::Resources;
 use crate::save::get_wave_record;
 use crate::scene::MainScene;
-use bitflags::_core::time::Duration;
-use glfw::{Key, WindowEvent};
+use core::time::Duration;
 use hecs::World;
 
 #[derive(Default)]
@@ -34,13 +34,8 @@ impl WaveSelectionScene {
     }
 }
 
-impl Scene<WindowEvent> for WaveSelectionScene {
-    fn update(
-        &mut self,
-        _dt: Duration,
-        _world: &mut World,
-        _resources: &Resources,
-    ) -> SceneResult<WindowEvent> {
+impl Scene for WaveSelectionScene {
+    fn update(&mut self, _dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
         if self.start {
             SceneResult::ReplaceScene(Box::new(MainScene::new(true, self.possible[self.selected])))
         } else {
@@ -73,21 +68,21 @@ impl Scene<WindowEvent> for WaveSelectionScene {
         Some(gui)
     }
 
-    fn process_input(&mut self, _world: &mut World, input: WindowEvent, _resources: &Resources) {
+    fn process_input(&mut self, _world: &mut World, input: InputEvent, _resources: &Resources) {
         match input {
-            WindowEvent::Key(Key::Left, _, glfw::Action::Release, _) => {
+            InputEvent::KeyEvent(VirtualKey::Left, VirtualAction::Release) => {
                 if self.selected > 0 {
                     self.selected -= 1;
                 }
             }
 
-            WindowEvent::Key(Key::Right, _, glfw::Action::Release, _) => {
+            InputEvent::KeyEvent(VirtualKey::Right, VirtualAction::Release) => {
                 if self.selected < self.possible.len() - 1 {
                     self.selected += 1;
                 }
             }
 
-            WindowEvent::Key(Key::Enter, _, glfw::Action::Release, _) => {
+            InputEvent::KeyEvent(VirtualKey::Enter, VirtualAction::Release) => {
                 self.start = true;
             }
             _ => (),

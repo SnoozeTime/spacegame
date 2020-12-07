@@ -1,7 +1,6 @@
 use crate::assets::{Asset, AssetManager, Loader};
 use crate::core::transform::Transform;
 use hecs::{Entity, World};
-use luminance::context::GraphicsContext;
 use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

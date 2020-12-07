@@ -1183,6 +1183,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "luminance-web-sys"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "641868612e0ff329bdb697bfb8a86ac70eda2a1feb719ea458425df34ea0235a"
+dependencies = [
+ "luminance",
+ "luminance-webgl",
+ "luminance-windowing",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "luminance-webgl"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2113,6 +2126,7 @@ dependencies = [
  "luminance-front",
  "luminance-gl",
  "luminance-glfw",
+ "luminance-web-sys",
  "luminance-webgl",
  "luminance-windowing",
  "lyon",

@@ -1,6 +1,5 @@
-use crate::core::input::ser::Input;
+use crate::core::input::ser::{Input, VirtualButton, VirtualKey};
 use crate::gameplay::Action;
-use glfw::{Key, MouseButton};
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -45,14 +44,14 @@ pub struct GameEngineConfig {
 pub struct InputConfig(pub HashMap<Action, Input>);
 
 impl InputConfig {
-    pub fn input_maps(self) -> (HashMap<Key, Action>, HashMap<MouseButton, Action>) {
+    pub fn input_maps(self) -> (HashMap<VirtualKey, Action>, HashMap<VirtualButton, Action>) {
         let mut btn_map = HashMap::new();
         let mut key_map = HashMap::new();
 
         for (action, input) in self.0 {
             match input {
-                Input::Key(k) => key_map.insert(k.into(), action),
-                Input::Mouse(btn) => btn_map.insert(btn.into(), action),
+                Input::Key(k) => key_map.insert(k, action),
+                Input::Mouse(btn) => btn_map.insert(btn, action),
             };
         }
 

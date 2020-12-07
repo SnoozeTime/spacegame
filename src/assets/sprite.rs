@@ -1,16 +1,15 @@
 use super::{Asset, Loader};
 
 use crate::assets::AssetError;
-use downcast_rs::__std::path::PathBuf;
 use image::ImageError;
 use log::{error, info};
-use luminance::context::GraphicsContext;
 use luminance::depth_test::DepthComparison;
 use luminance::pixel::NormRGBA8UI;
 use luminance::texture::{Dim2, GenMipmaps, MagFilter, MinFilter, Sampler, Wrap};
 use luminance_front::texture::Texture;
 use serde_derive::{Deserialize, Serialize};
 use std::path::Path;
+use std::path::PathBuf;
 
 mod packed;
 use crate::render::Context;
@@ -264,7 +263,7 @@ impl DepthComparisonDef {
 }
 
 pub fn load_texels<P: AsRef<Path>>(path: P) -> Result<(u32, u32, Vec<u8>), ImageError> {
-    let img = image::open(path).map(|img| img.flipv().to_rgba())?;
+    let img = image::open(path).map(|img| img.flipv().to_rgba8())?;
     let (width, height) = img.dimensions();
     Ok((width, height, img.into_raw()))
 }

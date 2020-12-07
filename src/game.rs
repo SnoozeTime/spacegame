@@ -3,6 +3,7 @@ use crate::assets::HotReloader;
 use crate::config::AudioConfig;
 use crate::core::audio::AudioSystem;
 use crate::core::camera::{Camera, ProjectionMatrix};
+use crate::core::input::ser::{InputEvent, VirtualButton, VirtualKey};
 use crate::core::input::{Input, InputAction};
 use crate::core::random::{RandomGenerator, Seed};
 use crate::core::scene::{Scene, SceneStack};
@@ -13,12 +14,10 @@ use crate::gameplay::collision::CollisionWorld;
 use crate::gameplay::delete::GarbageCollector;
 use crate::render::path::debug::DebugQueue;
 use crate::render::ui::gui::GuiContext;
-use crate::render::Renderer;
+use crate::render::{Context, Renderer};
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
-use glfw::{Context, Key, MouseButton, WindowEvent};
 use log::info;
-use luminance_glfw::GlfwSurface;
 use shrev::{EventChannel, ReaderId};
 use std::any::Any;
 use std::collections::HashMap;
@@ -32,12 +31,12 @@ pub struct GameBuilder<'a, A>
 where
     A: InputAction,
 {
-    surface: &'a mut crate::render::Context,
-    scene: Option<Box<dyn Scene<WindowEvent>>>,
+    surface: &'a mut Context,
+    scene: Option<Box<dyn Scene>>,
     resources: Resources,
     phantom: PhantomData<A>,
     seed: Option<Seed>,
-    input_config: Option<(HashMap<Key, A>, HashMap<MouseButton, A>)>,
+    input_config: Option<(HashMap<VirtualKey, A>, HashMap<VirtualButton, A>)>,
     gui_context: GuiContext,
     audio_config: AudioConfig,
 }
@@ -46,7 +45,7 @@ impl<'a, A> GameBuilder<'a, A>
 where
     A: InputAction + 'static,
 {
-    pub fn new(surface: &'a mut GlfwSurface) -> Self {
+    pub fn new(surface: &'a mut Context) -> Self {
         // resources will need at least an event channel and an input
         let mut resources = Resources::default();
         let chan: EventChannel<GameEvent> = EventChannel::new();
@@ -74,15 +73,15 @@ where
     }
 
     /// Set up the first scene.
-    pub fn for_scene(mut self, scene: Box<dyn Scene<WindowEvent>>) -> Self {
+    pub fn for_scene(mut self, scene: Box<dyn Scene>) -> Self {
         self.scene = Some(scene);
         self
     }
 
     pub fn with_input_config(
         mut self,
-        key_map: HashMap<Key, A>,
-        btn_map: HashMap<MouseButton, A>,
+        key_map: HashMap<VirtualKey, A>,
+        btn_map: HashMap<VirtualButton, A>,
     ) -> Self {
         self.input_config = Some((key_map, btn_map));
         self
@@ -180,11 +179,11 @@ where
 ///
 pub struct Game<'a, A> {
     /// for drawing stuff
-    surface: &'a mut GlfwSurface,
+    surface: &'a mut Context,
     renderer: Renderer,
 
     /// All the scenes. Current scene will be used in the main loop.
-    scene_stack: SceneStack<WindowEvent>,
+    scene_stack: SceneStack,
 
     /// Play music and sound effects
     audio_system: AudioSystem,
@@ -223,21 +222,30 @@ where
             // 1. Poll the events and update the Input resource
             // ------------------------------------------------
             let mut resize = false;
-            self.surface.window.glfw.poll_events();
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
-                input.prepare();
-                self.gui_context.reset_inputs();
-                for (_, event) in self.surface.events_rx.try_iter() {
-                    match event {
-                        WindowEvent::Close => break 'app,
-                        WindowEvent::FramebufferSize(_, _) => resize = true,
-                        ev => {
-                            self.gui_context.process_event(ev.clone());
-                            if let Some(scene) = self.scene_stack.current_mut() {
-                                scene.process_input(&mut self.world, ev.clone(), &self.resources);
+                use glfw::WindowEvent;
+                self.surface.window.glfw.poll_events();
+                {
+                    let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
+                    input.prepare();
+                    self.gui_context.reset_inputs();
+                    for (_, event) in self.surface.events_rx.try_iter() {
+                        match event {
+                            WindowEvent::Close => break 'app,
+                            WindowEvent::FramebufferSize(_, _) => resize = true,
+                            ev => {
+                                self.gui_context.process_event(ev.clone());
+                                let ev: InputEvent = ev.into();
+                                if let Some(scene) = self.scene_stack.current_mut() {
+                                    scene.process_input(
+                                        &mut self.world,
+                                        ev.clone(),
+                                        &self.resources,
+                                    );
+                                }
+                                input.process_event(ev)
                             }
-                            input.process_event(ev)
                         }
                     }
                 }
@@ -299,7 +307,11 @@ where
                 self.renderer
                     .render(self.surface, &mut back_buffer, &self.world, &self.resources);
             if render.is_ok() {
-                self.surface.window.swap_buffers();
+                #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+                {
+                    use glfw::Context;
+                    self.surface.window.swap_buffers();
+                }
             } else {
                 break 'app;
             }

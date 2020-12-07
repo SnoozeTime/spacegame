@@ -30,6 +30,8 @@ pub type Context = luminance_glfw::GlfwSurface;
 /// Build for web (wasm) will use webgl
 #[cfg(target_arch = "wasm32")]
 pub type Backend = luminance_webgl::webgl2::WebGL2;
+#[cfg(target_arch = "wasm32")]
+pub type Context = luminance_web_sys::WebSysWebGL2Surface;
 
 pub struct Renderer {
     /// Render sprites on screen.

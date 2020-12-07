@@ -1,5 +1,4 @@
 use crate::assets::{Asset, Loader};
-use luminance::context::GraphicsContext;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};

@@ -4,7 +4,6 @@ use crate::core::random::RandomGenerator;
 use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::resources::Resources;
 use hecs::Entity;
-use luminance_glfw::GlfwSurface;
 use rand::seq::SliceRandom;
 use serde_derive::{Deserialize, Serialize};
 

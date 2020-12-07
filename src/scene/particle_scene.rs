@@ -12,7 +12,6 @@ use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
 use bitflags::_core::time::Duration;
 use glam::Vec2;
-use glfw::WindowEvent;
 use hecs::{Entity, World};
 use std::path::PathBuf;
 
@@ -41,7 +40,7 @@ impl ParticleScene {
     }
 }
 
-impl Scene<WindowEvent> for ParticleScene {
+impl Scene for ParticleScene {
     fn on_create(&mut self, world: &mut World, _resources: &mut Resources) {
         let t = Transform {
             translation: Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
@@ -52,12 +51,7 @@ impl Scene<WindowEvent> for ParticleScene {
         self.entity = Some(world.spawn((self.particle_emitter.clone(), t)));
     }
 
-    fn update(
-        &mut self,
-        _dt: Duration,
-        world: &mut World,
-        resources: &Resources,
-    ) -> SceneResult<WindowEvent> {
+    fn update(&mut self, _dt: Duration, world: &mut World, resources: &Resources) -> SceneResult {
         if self.reload {
             // remove entity, reload emitter from file and spawn the new emitter.
             let _ = world.despawn(self.entity.unwrap());

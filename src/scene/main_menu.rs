@@ -13,8 +13,7 @@ use crate::scene::story::StoryScene;
 use crate::scene::wave_selection::WaveSelectionScene;
 use crate::scene::MainScene;
 use crate::ui::{disabled_menu_button, draw_cursor, menu_button};
-use bitflags::_core::time::Duration;
-use glfw::WindowEvent;
+use core::time::Duration;
 use hecs::World;
 
 #[derive(Debug, Clone)]
@@ -30,14 +29,12 @@ pub struct MainMenu {
     emitter_entity: Option<hecs::Entity>,
 }
 
-impl Scene<WindowEvent> for MainMenu {
+impl Scene for MainMenu {
     fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         //generate_terrain(world, resources);
         let base_path = get_assets_path();
-        let emitter = ParticleEmitter::load_from_path(
-            base_path.join("particle").join("menu.json"),
-        )
-        .unwrap();
+        let emitter =
+            ParticleEmitter::load_from_path(base_path.join("particle").join("menu.json")).unwrap();
 
         self.emitter_entity = Some(world.spawn((emitter, Transform::default())));
 
@@ -52,12 +49,7 @@ impl Scene<WindowEvent> for MainMenu {
         }
     }
 
-    fn update(
-        &mut self,
-        _dt: Duration,
-        _world: &mut World,
-        resources: &Resources,
-    ) -> SceneResult<WindowEvent> {
+    fn update(&mut self, _dt: Duration, _world: &mut World, resources: &Resources) -> SceneResult {
         let mut prefabs: Vec<String> = ENEMY_PREFABS.iter().map(|e| e.to_string()).collect();
 
         prefabs.push("player".to_string());

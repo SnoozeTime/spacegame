@@ -3,6 +3,7 @@ use crate::assets::Handle;
 use crate::core::animation::AnimationSystem;
 use crate::core::audio;
 use crate::core::colors::RgbaColor;
+use crate::core::input::ser::{InputEvent, VirtualAction, VirtualKey};
 use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
@@ -30,10 +31,8 @@ use crate::scene::main_menu::MainMenu;
 use crate::scene::pause::PauseScene;
 use crate::scene::story::StoryScene;
 use crate::ui::draw_cursor;
-use glfw::{Key, WindowEvent};
 use hecs::World;
 use log::info;
-use luminance_glfw::GlfwSurface;
 use rand::Rng;
 use std::time::Duration;
 
@@ -96,7 +95,7 @@ impl MainScene {
     }
 }
 
-impl Scene<WindowEvent> for MainScene {
+impl Scene for MainScene {
     fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         info!("Create MainScene");
         self.health_system = Some(HealthSystem::new(resources));
@@ -219,12 +218,7 @@ impl Scene<WindowEvent> for MainScene {
         });
     }
 
-    fn update(
-        &mut self,
-        dt: Duration,
-        world: &mut World,
-        resources: &Resources,
-    ) -> SceneResult<WindowEvent> {
+    fn update(&mut self, dt: Duration, world: &mut World, resources: &Resources) -> SceneResult {
         log::debug!("UPDATE SYSTEMS");
         self.info_text_timer.tick(dt);
         if self.info_text_timer.finished() {
@@ -490,8 +484,8 @@ impl Scene<WindowEvent> for MainScene {
         }
     }
 
-    fn process_input(&mut self, _world: &mut World, input: WindowEvent, _resources: &Resources) {
-        if let WindowEvent::Key(Key::Escape, _0, glfw::Action::Press, _2) = input {
+    fn process_input(&mut self, _world: &mut World, input: InputEvent, _resources: &Resources) {
+        if let InputEvent::KeyEvent(VirtualKey::Escape, VirtualAction::Pressed) = input {
             self.state = MainSceneState::Paused;
         }
     }

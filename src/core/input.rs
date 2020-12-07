@@ -1,13 +1,13 @@
+use crate::core::input::ser::{InputEvent, VirtualAction, VirtualButton, VirtualKey};
 use crate::{HEIGHT, WIDTH};
-use glfw::{Key, MouseButton, WindowEvent};
 use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 pub mod ser;
 pub trait InputAction: Hash + Eq + PartialEq + Clone + DeserializeOwned {
-    fn get_default_key_mapping() -> HashMap<Key, Self>;
-    fn get_default_mouse_mapping() -> HashMap<MouseButton, Self>;
+    fn get_default_key_mapping() -> HashMap<VirtualKey, Self>;
+    fn get_default_mouse_mapping() -> HashMap<VirtualButton, Self>;
 }
 
 pub struct Axis<A>
@@ -29,15 +29,18 @@ where
 
     mouse_pos: glam::Vec2,
 
-    key_mapping: HashMap<Key, A>,
-    mouse_mapping: HashMap<MouseButton, A>,
+    key_mapping: HashMap<VirtualKey, A>,
+    mouse_mapping: HashMap<VirtualButton, A>,
 }
 
 impl<A> Input<A>
 where
     A: InputAction,
 {
-    pub fn new(key_mapping: HashMap<Key, A>, mouse_mapping: HashMap<MouseButton, A>) -> Self {
+    pub fn new(
+        key_mapping: HashMap<VirtualKey, A>,
+        mouse_mapping: HashMap<VirtualButton, A>,
+    ) -> Self {
         Self {
             action_state: HashMap::default(),
             just_pressed: HashSet::default(),
@@ -50,31 +53,34 @@ where
     pub fn prepare(&mut self) {
         self.just_pressed.clear();
     }
-    pub fn process_event(&mut self, ev: WindowEvent) {
+    pub fn process_event(&mut self, ev: InputEvent) {
         match ev {
-            WindowEvent::Key(key, _, glfw::Action::Press, _) => {
+            InputEvent::KeyEvent(key, VirtualAction::Pressed) => {
                 if let Some(action) = self.key_mapping.get(&key).cloned() {
                     self.action_state.insert(action.clone(), true);
                     self.just_pressed.insert(action);
                 }
             }
-            WindowEvent::Key(key, _, glfw::Action::Release, _) => {
+
+            InputEvent::KeyEvent(key, VirtualAction::Release) => {
                 if let Some(action) = self.key_mapping.get(&key).cloned() {
                     self.action_state.insert(action, false);
                 }
             }
-            WindowEvent::MouseButton(btn, glfw::Action::Press, _) => {
+
+            InputEvent::MouseEvent(btn, VirtualAction::Pressed) => {
                 if let Some(action) = self.mouse_mapping.get(&btn).cloned() {
                     self.action_state.insert(action.clone(), true);
                     self.just_pressed.insert(action);
                 }
             }
-            WindowEvent::MouseButton(btn, glfw::Action::Release, _) => {
+
+            InputEvent::MouseEvent(btn, VirtualAction::Release) => {
                 if let Some(action) = self.mouse_mapping.get(&btn).cloned() {
                     self.action_state.insert(action, false);
                 }
             }
-            WindowEvent::CursorPos(x, y) => self.mouse_pos = glam::vec2(x as f32, y as f32),
+            InputEvent::CursorPos(x, y) => self.mouse_pos = glam::vec2(x as f32, y as f32),
             _ => {}
         }
     }

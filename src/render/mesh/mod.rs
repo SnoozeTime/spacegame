@@ -12,7 +12,7 @@ use luminance::shader::Uniform;
 use luminance::tess::Mode;
 use luminance::texture::Dim2;
 use luminance_derive::{Semantics, UniformInterface, Vertex};
-use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess};
+use luminance_front::{pipeline::Pipeline, shading_gate::ShadingGate, tess::Tess};
 use std::time::Instant;
 
 // Vertex definition

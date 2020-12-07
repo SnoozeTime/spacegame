@@ -1,10 +1,9 @@
 use crate::assets::{Asset, AssetError, AssetManager, Loader};
 use crate::render::mesh::{ShaderUniform, VertexSemantics};
 use crate::render::Context;
-use luminance::context::GraphicsContext;
+use luminance_front::context::GraphicsContext;
 use luminance_front::shader::Program;
 use std::path::{Path, PathBuf};
-
 /// Load with this handle. Filenames for the vertex and fragment shaders
 pub type ShaderHandle = (String, String);
 

@@ -19,7 +19,6 @@ use crate::render::path::debug;
 use crate::resources::Resources;
 use hecs::World;
 use log::{debug, trace};
-use luminance_glfw::GlfwSurface;
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;

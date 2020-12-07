@@ -1,12 +1,12 @@
+use crate::core::input::ser::{InputEvent, VirtualAction, VirtualKey};
 use crate::core::scene::{Scene, SceneResult};
 use crate::core::timer::Timer;
 use crate::render::ui::{Gui, GuiContext};
 use crate::resources::Resources;
 use bitflags::_core::time::Duration;
-use glfw::{Key, WindowEvent};
 use hecs::World;
 
-pub struct StoryScene<S: Scene<WindowEvent>> {
+pub struct StoryScene<S: Scene> {
     sentences: Vec<String>,
     current_sentence: usize,
     timer_before_instruction: Timer,
@@ -15,7 +15,7 @@ pub struct StoryScene<S: Scene<WindowEvent>> {
 
 impl<S> StoryScene<S>
 where
-    S: Scene<WindowEvent> + 'static,
+    S: Scene + 'static,
 {
     pub fn new(sentences: Vec<String>, next_scene: S) -> Self {
         assert!(sentences.len() > 0);
@@ -28,16 +28,11 @@ where
     }
 }
 
-impl<S> Scene<WindowEvent> for StoryScene<S>
+impl<S> Scene for StoryScene<S>
 where
-    S: Scene<WindowEvent> + 'static,
+    S: Scene + 'static,
 {
-    fn update(
-        &mut self,
-        dt: Duration,
-        _world: &mut World,
-        _resources: &Resources,
-    ) -> SceneResult<WindowEvent> {
+    fn update(&mut self, dt: Duration, _world: &mut World, _resources: &Resources) -> SceneResult {
         self.timer_before_instruction.tick(dt);
 
         if self.current_sentence == self.sentences.len() {
@@ -71,8 +66,8 @@ where
         Some(gui)
     }
 
-    fn process_input(&mut self, _world: &mut World, input: WindowEvent, _resources: &Resources) {
-        if let WindowEvent::Key(Key::Enter, _, glfw::Action::Press, _) = input {
+    fn process_input(&mut self, _world: &mut World, input: InputEvent, _resources: &Resources) {
+        if let InputEvent::KeyEvent(VirtualKey::Enter, VirtualAction::Pressed) = input {
             self.current_sentence += 1;
             self.timer_before_instruction.reset();
         }
