@@ -6,13 +6,15 @@ edition = "2018"
 default-run = "spacegame"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-luminance = "0.42"
-luminance-glfw = "0.14"
-luminance-gl = "0.15.0"
+luminance = "0.43"
 luminance-windowing = "0.9"
 luminance-derive = "0.6"
-glfw = "0.40"
+luminance-front = "0.3"
+
 image = "0.23.11"
 
 # ecs
@@ -43,9 +45,6 @@ lyon = "0.16.2"
 typetag = "0.1"
 anyhow = "1.0.34"
 
-# Sound
-rodio = "0.13.0"
-
 # hash for assets' ID
 md5 = "0.7.0"
 base64 = "0.13.0"
@@ -62,6 +61,21 @@ dirs = "3.0"
 version = "0.9.5"
 features = ["serde"]
 
+# -------------------------------
+# GRAPHICAL BACKEND AND AUDIO
+# -------------------------------
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+luminance-gl = "0.16.1"
+rodio = "0.13.0"
+glfw = "0.41"
+luminance-glfw = "0.14"
+#luminance-glutin = "0.11"
+#luminance-windowing = "0.9"
+#glfw = "0.41"
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+luminance-webgl = "0.3.2"
 
 [features]
 default = ["hot-reload"]
@@ -70,3 +84,6 @@ hot-reload = []
 
 # If activate, will try to find the packed asset at compile time and include them in the binary.
 packed = []
+
+# Build for web!
+web = []

@@ -1,29 +1,23 @@
 use crate::assets::{Asset, AssetError, AssetManager, Loader};
 use crate::render::mesh::{ShaderUniform, VertexSemantics};
+use crate::render::Context;
 use luminance::context::GraphicsContext;
-use luminance::shader::Program;
-use luminance_gl::GL33;
+use luminance_front::shader::Program;
 use std::path::{Path, PathBuf};
 
 /// Load with this handle. Filenames for the vertex and fragment shaders
 pub type ShaderHandle = (String, String);
 
-pub type ShaderManager<S> = AssetManager<S, ShaderAsset<S>, ShaderHandle>;
+pub type ShaderManager = AssetManager<ShaderAsset, ShaderHandle>;
 
 /// Content of the shaders
-pub struct ShaderAsset<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+pub struct ShaderAsset {
     pub vertex_shader: String,
     pub fragment_shader: String,
-    pub shader: Option<Program<S::Backend, VertexSemantics, (), ShaderUniform>>,
+    pub shader: Option<Program<VertexSemantics, (), ShaderUniform>>,
 }
 
-impl<S> Default for ShaderAsset<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+impl Default for ShaderAsset {
     fn default() -> Self {
         Self {
             vertex_shader: "".to_string(),
@@ -50,11 +44,8 @@ impl ShaderLoader {
     }
 }
 
-impl<S> Loader<S, ShaderAsset<S>, ShaderHandle> for ShaderLoader
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    fn load(&mut self, asset_name: (String, String)) -> Asset<ShaderAsset<S>> {
+impl Loader<ShaderAsset, ShaderHandle> for ShaderLoader {
+    fn load(&mut self, asset_name: (String, String)) -> Asset<ShaderAsset> {
         info!("Will load {:?}", asset_name);
         let vertex_shader_filename = self.base_path.join(asset_name.0);
         let fragment_shader_filename = self.base_path.join(asset_name.1);
@@ -86,7 +77,7 @@ where
         asset
     }
 
-    fn upload_to_gpu(&self, ctx: &mut S, inner: &mut ShaderAsset<S>) -> Result<(), AssetError> {
+    fn upload_to_gpu(&self, ctx: &mut Context, inner: &mut ShaderAsset) -> Result<(), AssetError> {
         let shader = ctx
             .new_shader_program::<VertexSemantics, (), ShaderUniform>()
             .from_strings(&inner.vertex_shader, None, None, &inner.fragment_shader)?

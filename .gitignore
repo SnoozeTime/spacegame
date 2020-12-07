@@ -6,4 +6,9 @@ assets/scifi_effects
 2packed.bin
 assets/music
 assets/sounds
+game_packedpacked.bin
 game_packed
+game_to_release
+dist
+pkg
+node_modules

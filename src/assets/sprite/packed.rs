@@ -32,9 +32,9 @@ mod implementation {
     use super::*;
     use crate::assets::sprite::SpriteAsset;
     use crate::assets::{Asset, AssetError, Loader};
+    use crate::render::Context;
     use luminance::context::GraphicsContext;
     use luminance::texture::{GenMipmaps, Texture};
-    use luminance_gl::GL33;
     use std::path::PathBuf;
 
     impl SpritePackLoader {
@@ -46,11 +46,8 @@ mod implementation {
         }
     }
 
-    impl<S> Loader<S, SpriteAsset<S>, String> for SpritePackLoader
-    where
-        S: GraphicsContext<Backend = GL33>,
-    {
-        fn load(&mut self, asset_name: String) -> Asset<SpriteAsset<S>> {
+    impl Loader<SpriteAsset, String> for SpritePackLoader {
+        fn load(&mut self, asset_name: String) -> Asset<SpriteAsset> {
             let mut asset = Asset::new();
             if let Some(sprite) = self.packed.content.get(&asset_name) {
                 asset.set_loaded(SpriteAsset::Loading(
@@ -66,7 +63,11 @@ mod implementation {
             asset
         }
 
-        fn upload_to_gpu(&self, ctx: &mut S, inner: &mut SpriteAsset<S>) -> Result<(), AssetError> {
+        fn upload_to_gpu(
+            &self,
+            ctx: &mut Context,
+            inner: &mut SpriteAsset,
+        ) -> Result<(), AssetError> {
             let tex = if let SpriteAsset::Loading(w, h, data, sampler) = inner {
                 let mut tex = Texture::new(ctx, [*w, *h], 0, sampler.clone())?;
                 tex.upload_raw(GenMipmaps::No, data)?;

@@ -10,10 +10,9 @@ use crate::render::ui::{text, Gui, GuiContext, UiRenderer};
 use crate::resources::Resources;
 use glyph_brush::GlyphBrush;
 use luminance::context::GraphicsContext;
-use luminance::framebuffer::Framebuffer;
 use luminance::pipeline::{PipelineError, PipelineState, Render};
 use luminance::texture::Dim2;
-use luminance_gl::GL33;
+use luminance_front::framebuffer::Framebuffer;
 use std::time::Duration;
 
 pub mod mesh;
@@ -22,26 +21,28 @@ pub mod path;
 pub mod sprite;
 pub mod ui;
 
-pub struct Renderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+/// Build for desktop will use opengl
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+pub type Backend = luminance_gl::GL33;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+pub type Context = luminance_glfw::GlfwSurface;
+
+/// Build for web (wasm) will use webgl
+#[cfg(target_arch = "wasm32")]
+pub type Backend = luminance_webgl::webgl2::WebGL2;
+
+pub struct Renderer {
     /// Render sprites on screen.
-    sprite_renderer: SpriteRenderer<S>,
-    mesh_renderer: MeshRenderer<S>,
+    sprite_renderer: SpriteRenderer,
+    mesh_renderer: MeshRenderer,
     /// particles :)
-    particle_renderer: ParticleSystem<S>,
-
-    ui_renderer: UiRenderer<S>,
-
-    path_renderer: PathRenderer<S>,
+    particle_renderer: ParticleSystem,
+    ui_renderer: UiRenderer,
+    path_renderer: PathRenderer,
 }
 
-impl<S> Renderer<S>
-where
-    S: GraphicsContext<Backend = GL33> + 'static,
-{
-    pub fn new(surface: &mut S, gui_context: &GuiContext) -> Renderer<S> {
+impl Renderer {
+    pub fn new(surface: &mut Context, gui_context: &GuiContext) -> Renderer {
         let sprite_renderer = sprite::SpriteRenderer::new(surface);
         let particle_renderer = ParticleSystem::new(surface);
         let ui_renderer = UiRenderer::new(surface, gui_context);
@@ -58,7 +59,7 @@ where
 
     pub fn prepare_ui(
         &mut self,
-        surface: &mut S,
+        surface: &mut Context,
         gui: Option<Gui>,
         resources: &Resources,
         fonts: &mut GlyphBrush<'static, text::Instance>,
@@ -69,18 +70,16 @@ where
 
     pub fn render(
         &mut self,
-        surface: &mut S,
-        back_buffer: &mut Framebuffer<S::Backend, Dim2, (), ()>,
+        surface: &mut Context,
+        back_buffer: &mut Framebuffer<Dim2, (), ()>,
         world: &hecs::World,
         resources: &Resources,
     ) -> Render<PipelineError> {
         let projection_matrix = resources.fetch::<ProjectionMatrix>().unwrap().0;
         let view = crate::core::camera::get_view_matrix(world).unwrap();
 
-        let mut textures = resources
-            .fetch_mut::<AssetManager<S, SpriteAsset<S>>>()
-            .unwrap();
-        let mut shaders = resources.fetch_mut::<ShaderManager<S>>().unwrap();
+        let mut textures = resources.fetch_mut::<AssetManager<SpriteAsset>>().unwrap();
+        let mut shaders = resources.fetch_mut::<ShaderManager>().unwrap();
         surface
             .new_pipeline_gate()
             .pipeline(
@@ -124,7 +123,7 @@ where
 
     pub fn update(
         &mut self,
-        _surface: &mut S,
+        _surface: &mut Context,
         world: &hecs::World,
         dt: Duration,
         resources: &Resources,

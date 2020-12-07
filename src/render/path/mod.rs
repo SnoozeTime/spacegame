@@ -1,13 +1,13 @@
 use crate::render::path::debug::DebugQueue;
+use crate::render::Context;
 use crate::resources::Resources;
 use luminance::context::GraphicsContext;
 use luminance::pipeline::PipelineError;
 use luminance::render_state::RenderState;
-use luminance::shader::{Program, Uniform};
-use luminance::shading_gate::ShadingGate;
-use luminance::tess::{Mode, Tess};
+use luminance::shader::Uniform;
+use luminance::tess::Mode;
 use luminance_derive::{Semantics, UniformInterface, Vertex};
-use luminance_gl::GL33;
+use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess};
 
 pub mod debug;
 
@@ -40,10 +40,7 @@ pub struct ShaderUniform {
     view: Uniform<[[f32; 4]; 4]>,
 }
 
-pub fn new_shader<B>(surface: &mut B) -> Program<GL33, VertexSemantics, (), ShaderUniform>
-where
-    B: GraphicsContext<Backend = GL33>,
-{
+pub fn new_shader(surface: &mut Context) -> Program<VertexSemantics, (), ShaderUniform> {
     surface
         .new_shader_program::<VertexSemantics, (), ShaderUniform>()
         .from_strings(VS, None, None, FS)
@@ -51,19 +48,13 @@ where
         .ignore_warnings()
 }
 
-pub struct PathRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    tesses: Vec<Tess<S::Backend, Vertex, u16>>,
-    shader: Program<S::Backend, VertexSemantics, (), ShaderUniform>,
+pub struct PathRenderer {
+    tesses: Vec<Tess<Vertex, u16>>,
+    shader: Program<VertexSemantics, (), ShaderUniform>,
 }
 
-impl<S> PathRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn new(surface: &mut S) -> Self {
+impl PathRenderer {
+    pub fn new(surface: &mut Context) -> Self {
         let shader = new_shader(surface);
         Self {
             shader,
@@ -71,7 +62,7 @@ where
         }
     }
 
-    pub fn prepare(&mut self, surface: &mut S, resources: &Resources) {
+    pub fn prepare(&mut self, surface: &mut Context, resources: &Resources) {
         self.tesses.clear();
 
         if let Some(mut debug_queue) = resources.fetch_mut::<DebugQueue>() {
@@ -92,7 +83,7 @@ where
         &mut self,
         projection: &glam::Mat4,
         view: &glam::Mat4,
-        shd_gate: &mut ShadingGate<S::Backend>,
+        shd_gate: &mut ShadingGate,
     ) -> Result<(), PipelineError> {
         let tesses = &self.tesses;
         let render_state = &RenderState::default();

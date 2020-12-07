@@ -37,16 +37,14 @@ where
 {
     fn on_create(&mut self, _world: &mut World, resources: &mut Resources) {
         // Pre-load :)
-        let mut prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+        let mut prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
         self.prefab_handles = self
             .prefabs_to_load
             .iter()
             .map(|name| prefab_manager.load(name.clone()))
             .collect();
 
-        let mut audio_manager = resources
-            .fetch_mut::<AssetManager<GlfwSurface, Audio>>()
-            .unwrap();
+        let mut audio_manager = resources.fetch_mut::<AssetManager<Audio>>().unwrap();
         self.audio_handles = self
             .audio_to_load
             .iter()
@@ -60,10 +58,8 @@ where
         _world: &mut World,
         resources: &Resources,
     ) -> SceneResult<WindowEvent> {
-        let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
-        let audio_manager = resources
-            .fetch::<AssetManager<GlfwSurface, Audio>>()
-            .unwrap();
+        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
+        let audio_manager = resources.fetch::<AssetManager<Audio>>().unwrap();
         // loaded.
         let mut nb_loaded = self
             .prefab_handles

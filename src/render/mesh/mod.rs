@@ -2,17 +2,17 @@ use crate::assets::shader::ShaderManager;
 use crate::assets::Handle;
 use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
+use crate::render::Context;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
-use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
+use luminance::pipeline::{PipelineError, TextureBinding};
 use luminance::pixel::NormUnsigned;
 use luminance::render_state::RenderState;
 use luminance::shader::Uniform;
-use luminance::shading_gate::ShadingGate;
-use luminance::tess::{Mode, Tess};
+use luminance::tess::Mode;
 use luminance::texture::Dim2;
 use luminance_derive::{Semantics, UniformInterface, Vertex};
-use luminance_gl::GL33;
+use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess};
 use std::time::Instant;
 
 // Vertex definition
@@ -84,11 +84,8 @@ pub enum Material {
 }
 
 /// Render meshes with materials.
-pub struct MeshRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    tess: Tess<S::Backend, Vertex, u32>,
+pub struct MeshRenderer {
+    tess: Tess<Vertex, u32>,
     /// used to send elapsed time to shader.
     creation_time: Instant,
 }
@@ -98,11 +95,8 @@ pub struct MeshRender {
     pub material: Material,
 }
 
-impl<S> MeshRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn new(surface: &mut S) -> Self {
+impl MeshRenderer {
+    pub fn new(surface: &mut Context) -> Self {
         let color = RgbaColor::new(255, 0, 0, 255).to_normalized();
 
         let (vertices, indices) = (
@@ -146,12 +140,12 @@ where
     }
     pub fn render(
         &mut self,
-        _pipeline: &Pipeline<S::Backend>,
-        shd_gate: &mut ShadingGate<S::Backend>,
+        _pipeline: &Pipeline,
+        shd_gate: &mut ShadingGate,
         proj_matrix: &glam::Mat4,
         view: &glam::Mat4,
         world: &hecs::World,
-        shader_manager: &mut ShaderManager<S>,
+        shader_manager: &mut ShaderManager,
     ) -> Result<(), PipelineError> {
         // let handle = Handle(("simple-vs.glsl".to_string(), "simple-fs.glsl".to_string()));
 

@@ -3,13 +3,11 @@ use crate::resources::Resources;
 use glyph_brush::GlyphBrush;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
-use luminance::pipeline::{Pipeline, PipelineError};
+use luminance::pipeline::PipelineError;
 use luminance::render_state::RenderState;
-use luminance::shader::Program;
-use luminance::shading_gate::ShadingGate;
-use luminance::tess::{Mode, Tess};
+use luminance::tess::Mode;
 use luminance_derive::{Semantics, Vertex};
-use luminance_gl::GL33;
+use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess};
 
 pub mod gui;
 pub use gui::*;
@@ -38,10 +36,7 @@ pub struct Vertex {
 const VS: &'static str = include_str!("ui-vs.glsl");
 const FS: &'static str = include_str!("ui-fs.glsl");
 
-pub fn new_shader<B>(surface: &mut B) -> Program<GL33, VertexSemantics, (), ()>
-where
-    B: GraphicsContext<Backend = GL33>,
-{
+pub fn new_shader(surface: &mut super::Context) -> Program<VertexSemantics, (), ()> {
     surface
         .new_shader_program::<VertexSemantics, (), ()>()
         .from_strings(VS, None, None, FS)
@@ -51,14 +46,11 @@ where
 
 const FONT_DATA: &'static [u8] = include_bytes!("../../../assets/fonts/FFFFORWA.TTF");
 
-pub struct UiRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    tesses: Vec<Tess<S::Backend, Vertex, u32>>,
-    shader: Program<S::Backend, VertexSemantics, (), ()>,
+pub struct UiRenderer {
+    tesses: Vec<Tess<Vertex, u32>>,
+    shader: Program<VertexSemantics, (), ()>,
     render_state: RenderState,
-    text_renderer: TextRenderer<S>,
+    text_renderer: TextRenderer,
 }
 
 pub enum DrawData {
@@ -66,11 +58,8 @@ pub enum DrawData {
     Text(Text, glam::Vec2),
 }
 
-impl<S> UiRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn new(surface: &mut S, gui_context: &GuiContext) -> Self {
+impl UiRenderer {
+    pub fn new(surface: &mut super::Context, gui_context: &GuiContext) -> Self {
         let shader = new_shader(surface);
 
         let render_state = RenderState::default()
@@ -99,7 +88,7 @@ where
     /// Recreate the texture
     pub fn prepare(
         &mut self,
-        surface: &mut S,
+        surface: &mut super::Context,
         gui: Option<Gui>,
         resources: &Resources,
         fonts: &mut GlyphBrush<'static, text::Instance>,
@@ -133,8 +122,8 @@ where
 
     pub fn render(
         &mut self,
-        pipeline: &Pipeline<S::Backend>,
-        shd_gate: &mut ShadingGate<S::Backend>,
+        pipeline: &Pipeline,
+        shd_gate: &mut ShadingGate,
     ) -> Result<(), PipelineError> {
         let tesses = &self.tesses;
         let render_state = &self.render_state;

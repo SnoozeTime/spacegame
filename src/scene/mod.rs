@@ -105,8 +105,7 @@ impl Scene<WindowEvent> for MainScene {
         //generate_terrain(world, resources);
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/trail.json")).unwrap(),
         )
         .unwrap();
         emitter.init_pool();
@@ -122,7 +121,7 @@ impl Scene<WindowEvent> for MainScene {
         self.stage = Some(stage);
 
         self.player = Some({
-            let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+            let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
             let asset = prefab_manager
                 .get(&Handle("player".to_string()))
                 .expect("Player asset should have been loaded");

@@ -1,6 +1,5 @@
 use crate::assets::{Asset, Loader};
 use luminance::context::GraphicsContext;
-use luminance_gl::GL33;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -29,10 +28,7 @@ impl AudioSyncLoader {
     }
 }
 
-impl<S> Loader<S, Audio, String> for AudioSyncLoader
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+impl Loader<Audio, String> for AudioSyncLoader {
     fn load(&mut self, asset_name: String) -> Asset<Audio> {
         let mut asset = Asset::new();
         let path = self.base_path.join(asset_name);

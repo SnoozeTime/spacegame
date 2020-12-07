@@ -2,11 +2,10 @@ use crate::assets::{Asset, AssetManager, Loader};
 use crate::core::transform::Transform;
 use hecs::{Entity, World};
 use luminance::context::GraphicsContext;
-use luminance_gl::GL33;
 use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-pub type PrefabManager<S> = AssetManager<S, Box<dyn Prefab>>;
+pub type PrefabManager = AssetManager<Box<dyn Prefab>>;
 
 #[typetag::serde]
 pub trait Prefab: std::fmt::Debug {
@@ -61,10 +60,7 @@ impl PrefabSyncLoader {
     }
 }
 
-impl<S> Loader<S, Box<dyn Prefab>, String> for PrefabSyncLoader
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+impl Loader<Box<dyn Prefab>, String> for PrefabSyncLoader {
     fn load(&mut self, asset_name: String) -> Asset<Box<dyn Prefab>> {
         let mut asset = Asset::new();
         let asset_path = self.base_path.join(&asset_name).with_extension("json");

@@ -1,22 +1,23 @@
 use crate::core::colors::RgbaColor;
 use crate::core::window::WindowDim;
 use crate::render::ui::gui::{HorizontalAlign, VerticalAlign};
+use crate::render::Context;
 use crate::resources::Resources;
 use glyph_brush::rusttype::*;
 use glyph_brush::BrushError::TextureTooSmall;
 use glyph_brush::{BrushAction, GlyphBrush, Layout, Section};
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
-use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
+use luminance::pipeline::{PipelineError, TextureBinding};
 use luminance::pixel::{NormR8UI, NormUnsigned};
 use luminance::render_state::RenderState;
-use luminance::shader::{Program, Uniform};
-use luminance::shading_gate::ShadingGate;
+use luminance::shader::Uniform;
 use luminance::tess::Mode;
-use luminance::tess::Tess;
-use luminance::texture::{Dim2, GenMipmaps, Sampler, Texture};
+use luminance::texture::{Dim2, GenMipmaps, Sampler};
 use luminance_derive::{Semantics, UniformInterface, Vertex};
-use luminance_gl::GL33;
+use luminance_front::{
+    pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess, texture::Texture,
+};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Semantics)]
 pub enum VertexSemantics {
@@ -79,10 +80,7 @@ pub struct ScreenPosition {
 const VS: &'static str = include_str!("text-vs.glsl");
 const FS: &'static str = include_str!("text-fs.glsl");
 
-pub fn new_shader<B>(surface: &mut B) -> Program<GL33, VertexSemantics, (), ShaderInterface>
-where
-    B: GraphicsContext<Backend = GL33>,
-{
+pub fn new_shader(surface: &mut Context) -> Program<VertexSemantics, (), ShaderInterface> {
     surface
         .new_shader_program::<VertexSemantics, (), ShaderInterface>()
         .from_strings(VS, None, None, FS)
@@ -90,21 +88,15 @@ where
         .ignore_warnings()
 }
 
-pub struct TextRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    texture: Texture<S::Backend, Dim2, NormR8UI>,
-    pub(crate) tess: Option<Tess<S::Backend, (), (), Instance>>,
+pub struct TextRenderer {
+    texture: Texture<Dim2, NormR8UI>,
+    pub(crate) tess: Option<Tess<(), (), Instance>>,
     render_state: RenderState,
-    shader: Program<S::Backend, VertexSemantics, (), ShaderInterface>,
+    shader: Program<VertexSemantics, (), ShaderInterface>,
 }
 
-impl<S> TextRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn new(surface: &mut S, glyph_brush: &mut GlyphBrush<'static, Instance>) -> Self {
+impl TextRenderer {
+    pub fn new(surface: &mut Context, glyph_brush: &mut GlyphBrush<'static, Instance>) -> Self {
         let render_state = RenderState::default()
             .set_blending(Blending {
                 equation: Equation::Additive,
@@ -112,7 +104,7 @@ where
                 dst: Factor::Zero,
             })
             .set_depth_test(None);
-        let tex: Texture<S::Backend, Dim2, NormR8UI> = Texture::new(
+        let tex: Texture<Dim2, NormR8UI> = Texture::new(
             surface,
             [
                 glyph_brush.texture_dimensions().0,
@@ -133,7 +125,7 @@ where
 
     pub fn prepare(
         &mut self,
-        surface: &mut S,
+        surface: &mut Context,
         text_data: Vec<(Text, glam::Vec2)>,
         glyph_brush: &mut GlyphBrush<'static, Instance>,
         resources: &Resources,
@@ -203,8 +195,8 @@ where
 
     pub fn render(
         &mut self,
-        pipeline: &Pipeline<S::Backend>,
-        shd_gate: &mut ShadingGate<S::Backend>,
+        pipeline: &Pipeline,
+        shd_gate: &mut ShadingGate,
     ) -> Result<(), PipelineError> {
         let tex = &mut self.texture;
         let shader = &mut self.shader;

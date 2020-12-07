@@ -3,11 +3,11 @@ use crate::assets::prefab::PrefabManager;
 use crate::assets::shader::ShaderManager;
 use crate::assets::sprite::SpriteAsset;
 use crate::paths::get_assets_path;
+use crate::render::Context;
 use crate::resources::Resources;
 use bitflags::_core::marker::PhantomData;
 use log::debug;
 use luminance::context::GraphicsContext;
-use luminance_gl::GL33;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::hash_map::Keys;
 use std::collections::HashMap;
@@ -16,66 +16,62 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "web")))]
 pub mod audio;
+
 pub mod prefab;
 pub mod shader;
 pub mod sprite;
 
-pub fn create_asset_managers<S>(_surface: &mut S, resources: &mut Resources)
-where
-    S: GraphicsContext<Backend = GL33> + 'static,
-{
+pub fn create_asset_managers(_surface: &mut Context, resources: &mut Resources) {
     let base_path = get_assets_path();
 
     #[cfg(not(feature = "packed"))]
-    let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
+    let sprite_manager: AssetManager<SpriteAsset> = AssetManager::from_loader(Box::new(
         sprite::SpriteSyncLoader::new(base_path.join("sprites")),
     ));
 
     #[cfg(feature = "packed")]
-    let sprite_manager: AssetManager<S, SpriteAsset<S>> = AssetManager::from_loader(Box::new(
+    let sprite_manager: AssetManager<SpriteAsset> = AssetManager::from_loader(Box::new(
         sprite::SpritePackLoader::new(base_path.join("sprites")),
     ));
 
-    let prefab_loader: PrefabManager<S> = AssetManager::from_loader(Box::new(
+    let prefab_loader: PrefabManager = AssetManager::from_loader(Box::new(
         prefab::PrefabSyncLoader::new(base_path.join("prefab")),
     ));
 
-    let audio_loader: AssetManager<S, Audio> = AssetManager::from_loader(Box::new(
-        audio::AudioSyncLoader::new(base_path.clone()),
-    ));
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        let audio_loader: AssetManager<Audio> =
+            AssetManager::from_loader(Box::new(audio::AudioSyncLoader::new(base_path.clone())));
+        resources.insert(audio_loader);
+    }
 
-    let shader_loader: ShaderManager<S> = AssetManager::from_loader(Box::new(
+    let shader_loader: ShaderManager = AssetManager::from_loader(Box::new(
         shader::ShaderLoader::new(base_path.join("shaders")),
     ));
     resources.insert(sprite_manager);
     resources.insert(prefab_loader);
-    resources.insert(audio_loader);
     resources.insert(shader_loader);
 }
 
-pub fn update_asset_managers<S>(surface: &mut S, resources: &Resources)
-where
-    S: GraphicsContext<Backend = GL33> + 'static,
-{
+pub fn update_asset_managers(surface: &mut Context, resources: &Resources) {
     {
-        let mut sprite_manager = resources
-            .fetch_mut::<AssetManager<S, SpriteAsset<S>>>()
-            .unwrap();
+        let mut sprite_manager = resources.fetch_mut::<AssetManager<SpriteAsset>>().unwrap();
         sprite_manager.upload_all(surface);
     }
 
     {
-        let mut prefab_loader = resources.fetch_mut::<PrefabManager<S>>().unwrap();
+        let mut prefab_loader = resources.fetch_mut::<PrefabManager>().unwrap();
         prefab_loader.upload_all(surface);
     }
     {
-        let mut audio_loader = resources.fetch_mut::<AssetManager<S, Audio>>().unwrap();
+        let mut audio_loader = resources.fetch_mut::<AssetManager<Audio>>().unwrap();
         audio_loader.upload_all(surface);
     }
 
     {
-        let mut shader_loader = resources.fetch_mut::<ShaderManager<S>>().unwrap();
+        let mut shader_loader = resources.fetch_mut::<ShaderManager>().unwrap();
         shader_loader.upload_all(surface);
     }
 }
@@ -232,22 +228,20 @@ impl<T: Default, E> LoadingStatus<T, E> {
     }
 }
 
-pub struct AssetManager<S, T: Default, H = String>
+pub struct AssetManager<T: Default, H = String>
 where
-    S: GraphicsContext<Backend = GL33>,
     H: Clone,
 {
     // might want to use a LRU instead...
     store: HashMap<Handle<H>, Asset<T>>,
-    loader: Box<dyn Loader<S, T, H>>,
+    loader: Box<dyn Loader<T, H>>,
 }
 
-impl<S, T: Default, H> AssetManager<S, T, H>
+impl<T: Default, H> AssetManager<T, H>
 where
-    S: GraphicsContext<Backend = GL33>,
     H: Clone + Eq + PartialEq + Hash,
 {
-    pub fn from_loader(loader: Box<dyn Loader<S, T, H>>) -> Self {
+    pub fn from_loader(loader: Box<dyn Loader<T, H>>) -> Self {
         Self {
             store: HashMap::new(),
             loader,
@@ -271,7 +265,7 @@ where
         handle
     }
 
-    pub fn upload_all(&mut self, ctx: &mut S) {
+    pub fn upload_all(&mut self, ctx: &mut Context) {
         // once every now and then, check the resources ready to be uploaded by the current thread.
         for asset in self.store.values() {
             let asset = &mut *asset.asset.lock().unwrap();
@@ -323,15 +317,14 @@ where
     }
 }
 
-pub trait Loader<S, T, H = String>
+pub trait Loader<T, H = String>
 where
-    S: GraphicsContext<Backend = GL33>,
     H: Clone,
 {
     /// Get an asset from an handle
     fn load(&mut self, asset_name: H) -> Asset<T>;
 
-    fn upload_to_gpu(&self, _ctx: &mut S, _inner: &mut T) -> Result<(), AssetError> {
+    fn upload_to_gpu(&self, _ctx: &mut Context, _inner: &mut T) -> Result<(), AssetError> {
         Ok(())
     }
 }
@@ -339,20 +332,13 @@ where
 /// Good for development. Will listen to the asset folder and ask the asset managers to reload their
 /// data if needed
 #[cfg(feature = "hot-reload")]
-pub struct HotReloader<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+pub struct HotReloader {
     rx: Receiver<Result<notify::Event, notify::Error>>,
     _watcher: RecommendedWatcher,
-    _phantom: PhantomData<S>,
 }
 
 #[cfg(feature = "hot-reload")]
-impl<S> HotReloader<S>
-where
-    S: GraphicsContext<Backend = GL33> + 'static,
-{
+impl HotReloader {
     pub fn new() -> Self {
         let base_path = get_assets_path();
 
@@ -372,7 +358,6 @@ where
         Self {
             rx,
             _watcher: watcher,
-            _phantom: PhantomData::default(),
         }
     }
 
@@ -396,7 +381,7 @@ where
         }
 
         if should_reload {
-            if let Some(mut shader_manager) = resources.fetch_mut::<ShaderManager<S>>() {
+            if let Some(mut shader_manager) = resources.fetch_mut::<ShaderManager>() {
                 let keys = { shader_manager.keys().map(|k| k.clone()).collect::<Vec<_>>() };
                 for k in keys {
                     shader_manager.reload(k.0);

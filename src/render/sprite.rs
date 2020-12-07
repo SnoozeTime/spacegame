@@ -1,19 +1,18 @@
 use log::debug;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
-use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
+use luminance::pipeline::{PipelineError, TextureBinding};
 use luminance::pixel::NormUnsigned;
 use luminance::render_state::RenderState;
-use luminance::shader::{Program, Uniform};
-use luminance::tess::{Mode, Tess};
+use luminance::shader::Uniform;
+use luminance::tess::Mode;
 use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
-use luminance_gl::gl33::GL33;
 
 use crate::assets::{sprite::SpriteAsset, AssetManager, Handle};
 use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
-use luminance::shading_gate::ShadingGate;
+use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess};
 use serde_derive::{Deserialize, Serialize};
 use std::time::Instant;
 
@@ -57,9 +56,9 @@ pub struct ShaderUniform {
     amplitude: Uniform<f32>,
 }
 
-pub fn new_shader<B>(surface: &mut B) -> Program<GL33, (), (), ShaderUniform>
+pub fn new_shader<B>(surface: &mut B) -> Program<(), (), ShaderUniform>
 where
-    B: GraphicsContext<Backend = GL33>,
+    B: GraphicsContext<Backend = luminance_front::Backend>,
 {
     surface
         .new_shader_program::<(), (), ShaderUniform>()
@@ -68,24 +67,18 @@ where
         .ignore_warnings()
 }
 
-pub struct SpriteRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+pub struct SpriteRenderer {
     render_st: RenderState,
-    tess: Tess<S::Backend, ()>,
+    tess: Tess<()>,
 
     /// used to send elapsed time to shader.
     creation_time: Instant,
 
-    shader: Program<S::Backend, (), (), ShaderUniform>,
+    shader: Program<(), (), ShaderUniform>,
 }
 
-impl<S> SpriteRenderer<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn new(surface: &mut S) -> SpriteRenderer<S> {
+impl SpriteRenderer {
+    pub fn new(surface: &mut super::Context) -> SpriteRenderer {
         let render_st = RenderState::default()
             .set_depth_test(None)
             .set_blending_separate(
@@ -116,12 +109,12 @@ where
 
     pub fn render(
         &mut self,
-        pipeline: &Pipeline<S::Backend>,
-        shd_gate: &mut ShadingGate<S::Backend>,
+        pipeline: &Pipeline,
+        shd_gate: &mut ShadingGate,
         proj_matrix: &glam::Mat4,
         view: &glam::Mat4,
         world: &hecs::World,
-        textures: &mut AssetManager<S, SpriteAsset<S>>,
+        textures: &mut AssetManager<SpriteAsset>,
     ) -> Result<(), PipelineError> {
         let shader = &mut self.shader;
         let render_state = &self.render_st;

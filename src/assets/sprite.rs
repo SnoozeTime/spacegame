@@ -7,27 +7,22 @@ use log::{error, info};
 use luminance::context::GraphicsContext;
 use luminance::depth_test::DepthComparison;
 use luminance::pixel::NormRGBA8UI;
-use luminance::texture::{Dim2, GenMipmaps, MagFilter, MinFilter, Sampler, Texture, Wrap};
-use luminance_gl::GL33;
+use luminance::texture::{Dim2, GenMipmaps, MagFilter, MinFilter, Sampler, Wrap};
+use luminance_front::texture::Texture;
 use serde_derive::{Deserialize, Serialize};
 use std::path::Path;
 
 mod packed;
+use crate::render::Context;
 pub use packed::*;
 
-pub enum SpriteAsset<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    Uploaded(Texture<S::Backend, Dim2, NormRGBA8UI>),
+pub enum SpriteAsset {
+    Uploaded(Texture<Dim2, NormRGBA8UI>),
     Loading(u32, u32, Vec<u8>, Sampler),
 }
 
-impl<S> SpriteAsset<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn texture(&mut self) -> Option<&mut Texture<S::Backend, Dim2, NormRGBA8UI>> {
+impl SpriteAsset {
+    pub fn texture(&mut self) -> Option<&mut Texture<Dim2, NormRGBA8UI>> {
         match self {
             SpriteAsset::Loading(_, _, _, _) => None,
             SpriteAsset::Uploaded(tex) => Some(tex),
@@ -35,10 +30,7 @@ where
     }
 }
 
-impl<S> Default for SpriteAsset<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
+impl Default for SpriteAsset {
     fn default() -> Self {
         SpriteAsset::Loading(0, 0, vec![], Sampler::default())
     }
@@ -107,11 +99,8 @@ impl SpriteSyncLoader {
     }
 }
 
-impl<S> Loader<S, SpriteAsset<S>, String> for SpriteSyncLoader
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    fn load(&mut self, asset_name: String) -> Asset<SpriteAsset<S>> {
+impl Loader<SpriteAsset> for SpriteSyncLoader {
+    fn load(&mut self, asset_name: String) -> Asset<SpriteAsset> {
         let mut asset = Asset::new();
         let asset_path = self.base_path.join(&asset_name);
         let metadata = self.load_metadata(&asset_name);
@@ -129,7 +118,7 @@ where
         asset
     }
 
-    fn upload_to_gpu(&self, ctx: &mut S, inner: &mut SpriteAsset<S>) -> Result<(), AssetError> {
+    fn upload_to_gpu(&self, ctx: &mut Context, inner: &mut SpriteAsset) -> Result<(), AssetError> {
         let tex = if let SpriteAsset::Loading(w, h, data, sampler) = inner {
             let mut tex = Texture::new(ctx, [*w, *h], 0, sampler.clone())?;
             tex.upload_raw(GenMipmaps::No, data)?;

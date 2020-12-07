@@ -32,7 +32,7 @@ pub struct GameBuilder<'a, A>
 where
     A: InputAction,
 {
-    surface: &'a mut GlfwSurface,
+    surface: &'a mut crate::render::Context,
     scene: Option<Box<dyn Scene<WindowEvent>>>,
     resources: Resources,
     phantom: PhantomData<A>,
@@ -181,7 +181,7 @@ where
 pub struct Game<'a, A> {
     /// for drawing stuff
     surface: &'a mut GlfwSurface,
-    renderer: Renderer<GlfwSurface>,
+    renderer: Renderer,
 
     /// All the scenes. Current scene will be used in the main loop.
     scene_stack: SceneStack<WindowEvent>,
@@ -206,7 +206,7 @@ pub struct Game<'a, A> {
     phantom: PhantomData<A>,
 
     #[cfg(feature = "hot-reload")]
-    hot_reloader: HotReloader<GlfwSurface>,
+    hot_reloader: HotReloader,
 }
 
 impl<'a, A> Game<'a, A>

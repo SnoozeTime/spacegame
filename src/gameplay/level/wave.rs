@@ -52,7 +52,7 @@ impl Wave {
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
         let to_instantiate = &self.wave_desc.to_instantiate;
         let enemies = &mut self.enemies;
-        let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
         for prefab_name in to_instantiate {
             let pos = no_asteroids.choose(random.rng());
             if let Some(prefab) = prefab_manager.get(&Handle(prefab_name.clone())) {

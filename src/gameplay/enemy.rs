@@ -529,7 +529,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
     }
 
     {
-        let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
         for (prefab, pos) in to_spawn {
             if let Some(prefab) = prefab_manager.get(&Handle(prefab)) {
                 prefab.execute(|prefab| {
@@ -564,7 +564,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
     }
 
     {
-        let prefab_manager = resources.fetch_mut::<PrefabManager<GlfwSurface>>().unwrap();
+        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
         for (_e, pos, nb) in spaceship_to_spawn {

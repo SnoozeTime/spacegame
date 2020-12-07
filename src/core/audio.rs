@@ -51,9 +51,7 @@ impl AudioSystem {
 
     pub fn process(&mut self, resources: &Resources) {
         let channel = resources.fetch::<EventChannel<GameEvent>>().unwrap();
-        let audio_manager = resources
-            .fetch::<AssetManager<GlfwSurface, Audio>>()
-            .unwrap();
+        let audio_manager = resources.fetch::<AssetManager<Audio>>().unwrap();
         for ev in channel.read(&mut self.rdr_id) {
             match ev {
                 GameEvent::PlayBackgroundMusic(name) => {

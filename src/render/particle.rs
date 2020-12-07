@@ -8,15 +8,16 @@ use crate::resources::Resources;
 use hecs::World;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
-use luminance::pipeline::{Pipeline, PipelineError, TextureBinding};
+use luminance::pipeline::{PipelineError, TextureBinding};
 use luminance::pixel::NormUnsigned;
 use luminance::render_state::RenderState;
-use luminance::shader::{Program, Uniform};
-use luminance::shading_gate::ShadingGate;
-use luminance::tess::{Mode, Tess};
+use luminance::shader::Uniform;
+
+use luminance::tess::Mode;
 use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
-use luminance_gl::GL33;
+use luminance_front::tess::Tess;
+use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate};
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use shrev::EventChannel;
@@ -316,10 +317,7 @@ const VS: &'static str = include_str!("particle-vs.glsl");
 const FS: &'static str = include_str!("particle-fs.glsl");
 const FS_TEXTURE: &'static str = include_str!("particle-texture-fs.glsl");
 
-pub fn new_shader<B>(surface: &mut B) -> Program<GL33, (), (), ParticleShaderInterface>
-where
-    B: GraphicsContext<Backend = GL33>,
-{
+pub fn new_shader(surface: &mut super::Context) -> Program<(), (), ParticleShaderInterface> {
     surface
         .new_shader_program::<(), (), ParticleShaderInterface>()
         .from_strings(VS, None, None, FS)
@@ -327,12 +325,9 @@ where
         .ignore_warnings()
 }
 
-pub fn new_texture_shader<B>(
-    surface: &mut B,
-) -> Program<GL33, (), (), TextureParticleShaderInterface>
-where
-    B: GraphicsContext<Backend = GL33>,
-{
+pub fn new_texture_shader(
+    surface: &mut super::Context,
+) -> Program<(), (), TextureParticleShaderInterface> {
     surface
         .new_shader_program::<(), (), TextureParticleShaderInterface>()
         .from_strings(VS, None, None, FS_TEXTURE)
@@ -361,20 +356,14 @@ pub struct TextureParticleShaderInterface {
     tex: Uniform<TextureBinding<Dim2, NormUnsigned>>,
 }
 
-pub struct ParticleSystem<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    tess: Tess<S::Backend, ()>,
-    shader: Program<S::Backend, (), (), ParticleShaderInterface>,
-    texture_shader: Program<S::Backend, (), (), TextureParticleShaderInterface>,
+pub struct ParticleSystem {
+    tess: Tess<()>,
+    shader: Program<(), (), ParticleShaderInterface>,
+    texture_shader: Program<(), (), TextureParticleShaderInterface>,
 }
 
-impl<S> ParticleSystem<S>
-where
-    S: GraphicsContext<Backend = GL33>,
-{
-    pub fn new(surface: &mut S) -> Self {
+impl ParticleSystem {
+    pub fn new(surface: &mut super::Context) -> Self {
         let tess = surface
             .new_tess()
             .set_vertex_nb(4)
@@ -401,13 +390,13 @@ where
 
     pub fn render(
         &mut self,
-        pipeline: &Pipeline<S::Backend>,
-        shd_gate: &mut ShadingGate<S::Backend>,
+        pipeline: &Pipeline,
+        shd_gate: &mut ShadingGate,
         projection: &glam::Mat4,
         view: &glam::Mat4,
         world: &World,
 
-        textures: &mut AssetManager<S, SpriteAsset<S>>,
+        textures: &mut AssetManager<SpriteAsset>,
     ) -> Result<(), PipelineError> {
         let tess = &self.tess;
         let render_st = RenderState::default()
