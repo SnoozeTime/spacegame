@@ -2,19 +2,19 @@ use crate::core::colors::RgbaColor;
 use crate::core::window::WindowDim;
 use crate::render::ui::text::Text;
 use crate::render::ui::{text, Button, DrawData, Panel, FONT_DATA};
-use glfw::{Action, MouseButton, WindowEvent};
 use glyph_brush::GlyphBrushBuilder;
 use serde_derive::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::core::input::ser::{InputEvent, VirtualAction, VirtualButton};
 use glyph_brush::rusttype::Scale;
 use glyph_brush::{GlyphBrush, GlyphCruncher, Layout, Section};
 
 pub struct GuiContext {
     pub(crate) window_dim: WindowDim,
     pub(crate) mouse_pos: glam::Vec2,
-    pub(crate) mouse_clicked: Vec<MouseButton>,
+    pub(crate) mouse_clicked: Vec<VirtualButton>,
     pub(crate) style: Style,
 
     pub(crate) fonts: Rc<RefCell<GlyphBrush<'static, text::Instance>>>,
@@ -39,10 +39,10 @@ impl GuiContext {
         self.mouse_clicked.clear();
     }
 
-    pub fn process_event(&mut self, window_event: WindowEvent) {
-        match window_event {
-            WindowEvent::MouseButton(btn, Action::Press, _) => self.mouse_clicked.push(btn),
-            WindowEvent::CursorPos(x, y) => {
+    pub fn process_event(&mut self, ev: InputEvent) {
+        match ev {
+            InputEvent::MouseEvent(btn, VirtualAction::Pressed) => self.mouse_clicked.push(btn),
+            InputEvent::CursorPos(x, y) => {
                 self.mouse_pos.set_x(x as f32);
                 self.mouse_pos.set_y(y as f32);
             }
@@ -65,7 +65,7 @@ pub struct Gui {
     pub(crate) draw_data: Vec<DrawData>,
     pub(crate) window_dim: WindowDim,
     pub(crate) mouse_pos: glam::Vec2,
-    pub(crate) mouse_clicked: Vec<MouseButton>,
+    pub(crate) mouse_clicked: Vec<VirtualButton>,
     pub(crate) style: Style,
     pub(crate) fonts: Rc<RefCell<GlyphBrush<'static, text::Instance>>>,
 }
@@ -74,7 +74,7 @@ impl Gui {
     pub fn new(
         window_dim: WindowDim,
         mouse_pos: glam::Vec2,
-        mouse_clicked: Vec<MouseButton>,
+        mouse_clicked: Vec<VirtualButton>,
         style: Style,
         fonts: Rc<RefCell<GlyphBrush<'static, text::Instance>>>,
     ) -> Self {

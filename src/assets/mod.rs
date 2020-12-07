@@ -14,7 +14,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
-#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "web")))]
+// #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "web")))]
 pub mod audio;
 
 pub mod prefab;
@@ -38,12 +38,9 @@ pub fn create_asset_managers(_surface: &mut Context, resources: &mut Resources) 
         prefab::PrefabSyncLoader::new(base_path.join("prefab")),
     ));
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        let audio_loader: AssetManager<Audio> =
-            AssetManager::from_loader(Box::new(audio::AudioSyncLoader::new(base_path.clone())));
-        resources.insert(audio_loader);
-    }
+    let audio_loader: AssetManager<Audio> =
+        AssetManager::from_loader(Box::new(audio::AudioSyncLoader::new(base_path.clone())));
+    resources.insert(audio_loader);
 
     let shader_loader: ShaderManager = AssetManager::from_loader(Box::new(
         shader::ShaderLoader::new(base_path.join("shaders")),

@@ -1,8 +1,8 @@
 use crate::core::colors::RgbaColor;
+use crate::core::input::ser::VirtualButton;
 use crate::render::ui::gui::{HorizontalAlign, VerticalAlign};
 use crate::render::ui::text::Text;
 use crate::render::ui::{DrawData, Gui, Panel};
-use glfw::MouseButton;
 
 pub struct Button {
     /// Text of the button
@@ -131,7 +131,7 @@ impl Button {
             text_position,
         ));
 
-        if ui.mouse_clicked.contains(&MouseButton::Button1) {
+        if ui.mouse_clicked.contains(&VirtualButton::Button1) {
             return is_above;
         }
 
