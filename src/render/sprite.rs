@@ -12,9 +12,9 @@ use luminance_derive::UniformInterface;
 use crate::assets::{sprite::SpriteAsset, AssetManager, Handle};
 use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
+use instant::Instant;
 use luminance_front::{pipeline::Pipeline, shader::Program, shading_gate::ShadingGate, tess::Tess};
 use serde_derive::{Deserialize, Serialize};
-use std::time::Instant;
 
 const VS: &'static str = include_str!("texture-vs.glsl");
 const FS: &'static str = include_str!("texture-fs.glsl");
@@ -79,9 +79,19 @@ pub struct SpriteRenderer {
 
 impl SpriteRenderer {
     pub fn new(surface: &mut super::Context) -> SpriteRenderer {
-        let render_st = RenderState::default()
-            .set_depth_test(None)
-            .set_blending_separate(
+        //gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        let mut render_st = RenderState::default().set_depth_test(None);
+
+        if cfg!(target_arch = "wasm32") {
+            render_st = render_st.set_blending(Blending {
+                equation: Equation::Additive,
+                src: Factor::SrcAlpha,
+                dst: Factor::SrcAlphaComplement,
+            });
+        }
+
+        if cfg!(not(target_arch = "wasm32")) {
+            render_st = render_st.set_blending_separate(
                 Blending {
                     equation: Equation::Additive,
                     src: Factor::SrcAlpha,
@@ -93,17 +103,25 @@ impl SpriteRenderer {
                     dst: Factor::Zero,
                 },
             );
+        }
+
+        info!("Create Tess");
         let tess = surface
             .new_tess()
             .set_vertex_nb(4)
             .set_mode(Mode::TriangleFan)
             .build()
             .expect("Tess creation");
+
+        info!("Create Shader");
+        let shader = new_shader(surface);
+
+        info!("Return SpriteRenderer");
         SpriteRenderer {
             render_st,
             tess,
             creation_time: Instant::now(),
-            shader: new_shader(surface),
+            shader,
         }
     }
 

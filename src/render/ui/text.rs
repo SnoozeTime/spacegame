@@ -97,13 +97,24 @@ pub struct TextRenderer {
 
 impl TextRenderer {
     pub fn new(surface: &mut Context, glyph_brush: &mut GlyphBrush<'static, Instance>) -> Self {
-        let render_state = RenderState::default()
-            .set_blending(Blending {
+        let mut render_state = RenderState::default().set_depth_test(None);
+
+        if cfg!(target_arch = "wasm32") {
+            render_state = render_state.set_blending(Blending {
+                equation: Equation::Additive,
+                src: Factor::One,
+                dst: Factor::SrcAlphaComplement,
+            });
+        }
+
+        if cfg!(not(target_arch = "wasm32")) {
+            render_state = render_state.set_blending(Blending {
                 equation: Equation::Additive,
                 src: Factor::SrcAlpha,
                 dst: Factor::Zero,
-            })
-            .set_depth_test(None);
+            });
+        }
+
         let tex: Texture<Dim2, NormR8UI> = Texture::new(
             surface,
             [
@@ -205,7 +216,6 @@ impl TextRenderer {
             shd_gate.shade(shader, |mut iface, uni, mut rdr_gate| {
                 let bound_tex = pipeline.bind_texture(tex)?;
                 iface.set(&uni.tex, bound_tex.binding());
-                //iface.set(&uni.transform, proj);
                 rdr_gate.render(render_state, |mut tess_gate| tess_gate.render(tess))
             })?;
         }

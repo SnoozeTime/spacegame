@@ -1,11 +1,11 @@
-use crate::assets::prefab::PrefabManager;
-use crate::assets::Handle;
+use crate::assets::{AssetManager, Handle};
 use crate::core::animation::AnimationSystem;
 use crate::core::audio;
 use crate::core::colors::RgbaColor;
 use crate::core::input::ser::{InputEvent, VirtualAction, VirtualKey};
 use crate::core::random::RandomGenerator;
 use crate::core::scene::{Scene, SceneResult};
+use crate::core::serialization::SerializedEntity;
 use crate::core::timer::Timer;
 use crate::core::transform::{HasChildren, HasParent, LocalTransform, Transform};
 use crate::event::GameEvent;
@@ -36,12 +36,17 @@ use log::info;
 use rand::Rng;
 use std::time::Duration;
 
+pub mod debug_scene;
 pub mod loading;
 pub mod main_menu;
 pub mod particle_scene;
 pub mod pause;
 pub mod story;
 pub mod wave_selection;
+
+const STAGE_1: &[u8] = include_bytes!("../../assets/stages/stage1.json");
+const STAGE_2: &[u8] = include_bytes!("../../assets/stages/stage2.json");
+const STAGE_3: &[u8] = include_bytes!("../../assets/stages/stage3.json");
 
 enum MainSceneState {
     Running,
@@ -51,6 +56,8 @@ enum MainSceneState {
 }
 
 pub struct MainScene {
+    stage_index: usize,
+    all_stages: Vec<StageDescription>,
     stage: Option<Stage>,
     health_system: Option<HealthSystem>,
     physic_system: PhysicSystem,
@@ -78,6 +85,7 @@ impl Default for MainScene {
 impl MainScene {
     pub fn new(is_infinite: bool, starting_wave_nb: usize) -> Self {
         Self {
+            stage_index: 0,
             is_infinite,
             starting_wave_nb,
             player: None,
@@ -91,6 +99,7 @@ impl MainScene {
             explosion_system: None,
             physic_system: PhysicSystem::new(PhysicConfig { damping: 0.99 }),
             info_text_timer: Timer::of_seconds(3.0),
+            all_stages: vec![],
         }
     }
 }
@@ -101,26 +110,29 @@ impl Scene for MainScene {
         self.health_system = Some(HealthSystem::new(resources));
         self.explosion_system = Some(ExplosionSystem::new(resources));
 
-        //generate_terrain(world, resources);
-        let base_path = get_assets_path();
-        let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/trail.json")).unwrap(),
-        )
-        .unwrap();
-        emitter.init_pool();
-
-        let stage_desc: StageDescription = if self.is_infinite {
-            StageDescription::infinite()
+        let stage_descs: Vec<StageDescription> = if self.is_infinite {
+            vec![StageDescription::infinite()]
         } else {
-            let p = base_path.join("stages/stage1.json");
-            let content = std::fs::read_to_string(p).unwrap();
-            serde_json::from_str(&content).unwrap()
+            vec![
+                serde_json::from_slice(STAGE_1).unwrap(),
+                serde_json::from_slice(STAGE_2).unwrap(),
+                serde_json::from_slice(STAGE_3).unwrap(),
+            ]
         };
-        let stage = Stage::new(world, resources, stage_desc, self.starting_wave_nb);
+        let stage = Stage::new(
+            world,
+            resources,
+            stage_descs[0].clone(),
+            self.starting_wave_nb,
+        );
         self.stage = Some(stage);
+        self.all_stages = stage_descs;
+        self.stage_index = 0;
 
         self.player = Some({
-            let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
+            let prefab_manager = resources
+                .fetch_mut::<AssetManager<SerializedEntity>>()
+                .unwrap();
             let asset = prefab_manager
                 .get(&Handle("player".to_string()))
                 .expect("Player asset should have been loaded");
@@ -130,42 +142,42 @@ impl Scene for MainScene {
                 .expect("Should be able to spawn player")
         });
 
-        let player_scale = { world.get::<Transform>(self.player.unwrap()).unwrap().scale * 2.0 };
-
-        // add the shield to the player...
-        let shield_entity = world.spawn((
-            Transform {
-                translation: Default::default(),
-                scale: player_scale,
-                rotation: 0.0,
-                dirty: true,
-            },
-            LocalTransform {
-                translation: Default::default(),
-                scale: Default::default(),
-                rotation: 0.0,
-                dirty: true,
-            },
-            HasParent {
-                entity: self.player.unwrap(),
-            },
-            MeshRender {
-                enabled: true,
-                material: Material::Shader {
-                    vertex_shader_id: "simple-vs.glsl".to_string(),
-                    fragment_shader_id: "simple-fs.glsl".to_string(),
-                },
-            },
-        ));
-
-        world
-            .insert_one(
-                self.player.unwrap(),
-                HasChildren {
-                    children: vec![shield_entity],
-                },
-            )
-            .expect("Should be able to add shield");
+        // let player_scale = { world.get::<Transform>(self.player.unwrap()).unwrap().scale * 2.0 };
+        //
+        // // add the shield to the player...
+        // let shield_entity = world.spawn((
+        //     Transform {
+        //         translation: Default::default(),
+        //         scale: player_scale,
+        //         rotation: 0.0,
+        //         dirty: true,
+        //     },
+        //     LocalTransform {
+        //         translation: Default::default(),
+        //         scale: Default::default(),
+        //         rotation: 0.0,
+        //         dirty: true,
+        //     },
+        //     HasParent {
+        //         entity: self.player.unwrap(),
+        //     },
+        //     MeshRender {
+        //         enabled: true,
+        //         material: Material::Shader {
+        //             vertex_shader_id: "simple-vs.glsl".to_string(),
+        //             fragment_shader_id: "simple-fs.glsl".to_string(),
+        //         },
+        //     },
+        // ));
+        //
+        // world
+        //     .insert_one(
+        //         self.player.unwrap(),
+        //         HasChildren {
+        //             children: vec![shield_entity],
+        //         },
+        //     )
+        //     .expect("Should be able to add shield");
 
         // "music/Finding-Flora.wav"
         audio::play_background_music(resources, "music/Finding-Flora.wav");
@@ -458,18 +470,15 @@ impl Scene for MainScene {
                 self.info_text_timer.start();
                 self.info_text = Some(info);
             }
-            GameEvent::NextStage(stage_name) => {
-                let base_path = get_assets_path();
-                let stage_desc: StageDescription = {
-                    let p = base_path.join("stages").join(stage_name);
-                    let content = std::fs::read_to_string(p).unwrap();
-                    serde_json::from_str(&content).unwrap()
-                };
-                if let Some(stage) = self.stage.as_mut() {
-                    stage.clean(world);
+            GameEvent::NextStage(_stage_name) => {
+                self.stage_index += 1;
+                if let Some(desc) = self.all_stages.get(self.stage_index) {
+                    if let Some(stage) = self.stage.as_mut() {
+                        stage.clean(world);
+                    }
+                    let stage = Stage::new(world, resources, desc.clone(), 0);
+                    self.stage = Some(stage);
                 }
-                let stage = Stage::new(world, resources, stage_desc, 0);
-                self.stage = Some(stage);
 
                 drain_scratch = true;
             }

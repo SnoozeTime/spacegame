@@ -315,6 +315,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8d976903543e0c48546a91908f21588a680a8c8f984df9a5d69feccb2b2a211"
+dependencies = [
+ "cfg-if 0.1.10",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "const_fn"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -382,6 +392,7 @@ dependencies = [
  "parking_lot",
  "stdweb",
  "thiserror",
+ "wasm-bindgen",
  "web-sys",
  "winapi 0.3.9",
 ]
@@ -716,6 +727,7 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
  "wasi 0.9.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -945,6 +957,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
  "cfg-if 1.0.0",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -1327,25 +1342,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157b4208e3059a8f9e78d559edc658e13df41410cb3ae03979c83130067fdd87"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "minimp3"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9684a8c55935322fdab159b5d7a6163b33f6e7d32c4a8a54fe53d1bcfad738db"
-dependencies = [
- "minimp3-sys",
- "slice-deque",
-]
-
-[[package]]
-name = "minimp3-sys"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e21c73734c69dc95696c9ed8926a2b393171d98b3f5f5935686a26a487ab9b90"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1914,14 +1910,12 @@ checksum = "cabe4fa914dec5870285fa7f71f602645da47c486e68486d2b4ceb4a343e90ac"
 [[package]]
 name = "rodio"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9683532495146e98878d4948fa1a1953f584cd923f2a5f5c26b7a8701b56943"
+source = "git+https://github.com/RustAudio/rodio#e1aea73ba0f7c93a4b38dfe5bf05f2337badfe21"
 dependencies = [
  "claxon",
  "cpal",
  "hound",
  "lewton",
- "minimp3",
 ]
 
 [[package]]
@@ -2088,17 +2082,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
-name = "slice-deque"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31ef6ee280cdefba6d2d0b4b78a84a1c1a3f3a4cec98c2d4231c8bc225de0f25"
-dependencies = [
- "libc",
- "mach",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2112,6 +2095,7 @@ dependencies = [
  "base64 0.13.0",
  "bincode",
  "bitflags",
+ "console_error_panic_hook",
  "dirs",
  "dotenv",
  "downcast-rs",
@@ -2120,6 +2104,8 @@ dependencies = [
  "glyph_brush",
  "hecs",
  "image",
+ "instant",
+ "js-sys",
  "log",
  "luminance",
  "luminance-derive",
@@ -2141,6 +2127,10 @@ dependencies = [
  "shrev",
  "thiserror",
  "typetag",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-logger",
+ "web-sys",
 ]
 
 [[package]]
@@ -2451,6 +2441,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cd364751395ca0f68cafb17666eee36b63077fb5ecd972bbcd74c90c4bf736e"
 dependencies = [
  "cfg-if 1.0.0",
+ "serde",
+ "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -2467,6 +2459,18 @@ dependencies = [
  "quote",
  "syn",
  "wasm-bindgen-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-futures"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fe9756085a84584ee9457a002b7cdfe0bfff169f45d2591d8be1345a6780e35"
+dependencies = [
+ "cfg-if 1.0.0",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -2497,6 +2501,17 @@ name = "wasm-bindgen-shared"
 version = "0.2.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e7811dd7f9398f14cc76efd356f98f03aa30419dea46aa810d71e819fc97158"
+
+[[package]]
+name = "wasm-logger"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "074649a66bb306c8f2068c9016395fa65d8e08d2affcbf95acf3c24c3ab19718"
+dependencies = [
+ "log",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "web-sys"

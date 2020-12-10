@@ -1,0 +1,137 @@
+{
+  "transform": {
+    "translation": [
+      0.0,
+      0.0
+    ],
+    "scale": [
+      128.0,
+      128.0
+    ],
+    "rotation": 0.0,
+    "dirty": false
+  },
+  "dynamic_body": {
+    "forces": [],
+    "impulses": [],
+    "velocity": [
+      0.0,
+      0.0
+    ],
+    "max_velocity": 50.0,
+    "mass": 10.0,
+    "max_force": 500.0
+  },
+  "sprite": {
+    "id": "spaceships/large_red_01.png"
+  },
+  "bounding_box": {
+    "half_extend": [
+      64.0,
+      64.0
+    ],
+    "collision_layer": {
+      "bits": 2
+    },
+    "collision_mask": null
+  },
+  "health": {
+    "max": 15.0,
+    "current": 15.0,
+    "hittable": true,
+    "invulnerability_timer": {
+      "deadline": 0.5,
+      "elapsed": 0.0,
+      "enabled": false
+    }
+  },
+  "trail": {
+    "should_display": true,
+    "offset": 0.0
+  },
+  "emitter": {
+    "enabled": true,
+    "source": "Point",
+    "shape": {
+      "Texture": "flare7.png"
+    },
+    "velocity_range": [
+      0.0,
+      10.0
+    ],
+    "angle_range": [
+      1.0472,
+      2.26893
+    ],
+    "scale": {
+      "Constant": [
+        5.01,
+        5.0
+      ]
+    },
+    "scale_over_lifetime": {
+      "xs": [
+        0.0,
+        0.5,
+        1.0
+      ],
+      "ys": [
+        1.0,
+        0.5,
+        0.0
+      ]
+    },
+    "particle_number": 1.0,
+    "colors": {
+      "xs": [
+        0.0,
+        0.5,
+        1.0
+      ],
+      "ys": [
+        {
+          "r": 0.5529,
+          "g": 0.004,
+          "b": 0.004,
+          "a": 1.0
+        },
+        {
+          "r": 0.5529,
+          "g": 0.004,
+          "b": 0.004,
+          "a": 0.5
+        },
+        {
+          "r": 0.5529,
+          "g": 0.004,
+          "b": 0.004,
+          "a": 0.0
+        }
+      ]
+    },
+    "particle_life": 30,
+    "position_offset": [
+      0.0,
+      0.0
+    ],
+    "burst": false
+  },
+  "enemy": {
+    "enemy_type": {
+      "Carrier": {
+        "time_between_deploy": {
+          "deadline": 12.0,
+          "elapsed": 0.0,
+          "enabled": false
+        },
+        "nb_of_spaceships": 4
+      }
+    },
+    "scrap_drop": [
+      10,
+      40
+    ],
+    "pickup_drop_percent": 70,
+    "movement": "Follow"
+  }
+}

@@ -13,12 +13,19 @@ pub struct AudioSystem {
 impl AudioSystem {
     pub fn new(resources: &Resources, config: AudioConfig) -> Result<Self, anyhow::Error> {
         let mut channel = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();
-        Ok(Self {
-            backend: backend::AudioBackend::new(&config)?,
+
+        match backend::AudioBackend::new(&config).map(|backend| Self {
+            backend,
             config,
             current_background: None,
             rdr_id: channel.register_reader(),
-        })
+        }) {
+            Ok(system) => Ok(system),
+            Err(e) => {
+                error!("{:?}", e);
+                panic!("BOO")
+            }
+        }
     }
 
     pub fn process(&mut self, resources: &Resources) {
@@ -52,7 +59,6 @@ pub fn play_sound(resources: &Resources, name: &str) {
     channel.single_write(GameEvent::PlaySound(name.to_string()));
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod backend {
     use crate::assets::audio::Audio;
     use crate::assets::{AssetManager, Handle};
@@ -176,32 +182,5 @@ mod backend {
                 }
             }
         }
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-mod backend {
-    use crate::config::AudioConfig;
-    use crate::resources::{Resource, Resources};
-
-    pub struct AudioBackend {}
-
-    impl AudioBackend {
-        pub fn new(config: &AudioConfig) -> Result<Self, anyhow::Error> {
-            Ok(Self {})
-        }
-
-        pub fn play_background_music(
-            &mut self,
-            _name: &str,
-            _config: &AudioConfig,
-            _resources: &Resources,
-        ) -> Option<String> {
-            None
-        }
-
-        pub fn play_sound(&mut self, _name: &str, _resources: &Resources) {}
-
-        pub fn repeat_bg(&mut self, _current_bg: &Option<String>, _resources: &Resources) {}
     }
 }

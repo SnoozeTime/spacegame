@@ -1,0 +1,122 @@
+{
+  "transform": {
+    "translation": [
+      0.0,
+      0.0
+    ],
+    "scale": [
+      20.0,
+      20.0
+    ],
+    "rotation": 0.0,
+    "dirty": false
+  },
+  "dynamic_body": {
+    "forces": [],
+    "impulses": [],
+    "velocity": [
+      0.0,
+      0.0
+    ],
+    "max_velocity": 0.0,
+    "mass": 1.0,
+    "max_force": 500.0
+  },
+  "sprite": {
+    "id": "spaceships/explosion-05.png"
+  },
+  "bounding_box": {
+    "half_extend": [
+      10.0,
+      10.0
+    ],
+    "collision_layer": {
+      "bits": 128
+    },
+    "collision_mask": null
+  },
+  "health": {
+    "max": 2.0,
+    "current": 2.0,
+    "hittable": true,
+    "invulnerability_timer": {
+      "deadline": 0.5,
+      "elapsed": 0.0,
+      "enabled": false
+    }
+  },
+  "enemy": {
+    "enemy_type": {
+      "Mine": {
+        "trigger_distance": 200.0,
+        "explosion_timer": {
+          "deadline": 2.0,
+          "elapsed": 0.0,
+          "enabled": false
+        }
+      }
+    },
+    "scrap_drop": [
+      0,
+      0
+    ],
+    "pickup_drop_percent": 0,
+    "movement": "Nothing"
+  },
+  "animation": {
+    "animations": {
+      "boum": {
+        "keyframes": [
+          [
+            "windshield_wiper/00.png",
+            0
+          ],
+          [
+            "windshield_wiper/01.png",
+            1
+          ],
+          [
+            "windshield_wiper/02.png",
+            2
+          ],
+          [
+            "windshield_wiper/03.png",
+            3
+          ],
+          [
+            "windshield_wiper/04.png",
+            4
+          ],
+          [
+            "windshield_wiper/05.png",
+            5
+          ],
+          [
+            "windshield_wiper/06.png",
+            6
+          ],
+          [
+            "windshield_wiper/07.png",
+            7
+          ],
+          [
+            "windshield_wiper/08.png",
+            8
+          ],
+          [
+            "windshield_wiper/09.png",
+            9
+          ],
+          [
+            "windshield_wiper/10.png",
+            10
+          ]
+        ],
+        "current_index": 0,
+        "elapsed_frame": 0
+      }
+    },
+    "current_animation": null,
+    "delete_on_finished": false
+  }
+}

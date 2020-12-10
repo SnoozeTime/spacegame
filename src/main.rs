@@ -67,7 +67,7 @@ fn main_loop(mut surface: GlfwSurface) {
 
     let saved_data = read_saved_data();
 
-    let mut builder: GameBuilder<Action> = GameBuilder::new(&mut surface)
+    let mut builder: GameBuilder<Action> = GameBuilder::new()
         .for_scene(Box::new(LoadingScene::new(
             vec![],
             vec![
@@ -85,6 +85,7 @@ fn main_loop(mut surface: GlfwSurface) {
                 "sounds/explosion.wav".to_string(),
                 "sounds/powerUp2.mp3".to_string(),
             ],
+            vec![],
             MainMenu::default(),
         )))
         .with_resource(saved_data)
@@ -102,6 +103,6 @@ fn main_loop(mut surface: GlfwSurface) {
         builder = builder.with_audio_config(audio_config);
     }
 
-    let mut game: Game<Action> = builder.build();
-    game.run();
+    let mut game: Game<Action> = builder.build(&mut surface);
+    game.run(&mut surface);
 }

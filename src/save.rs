@@ -1,5 +1,5 @@
-use crate::resources::Resources;
 use crate::paths::get_save_path;
+use crate::resources::Resources;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -11,7 +11,11 @@ pub struct SavedData {
 impl Default for SavedData {
     fn default() -> Self {
         Self {
-            is_infinite_unlocked: false,
+            is_infinite_unlocked: if cfg!(target_arch = "wasm32") {
+                true
+            } else {
+                false
+            },
             wave_record: 0,
         }
     }
@@ -39,11 +43,7 @@ pub fn save_new_wave_record(resources: &Resources, new_record: usize) -> Result<
     if new_record > d.wave_record {
         d.wave_record = new_record;
     }
-
-    let base_path = get_save_path();
-    let save_path = base_path.join("data.bin");
-    let data = bincode::serialize(&*d)?;
-    std::fs::write(save_path, data)?;
+    save_data(&*d)?;
     Ok(())
 }
 
@@ -52,14 +52,11 @@ pub fn save_unlocked(resources: &Resources) -> Result<(), anyhow::Error> {
         .fetch_mut::<SavedData>()
         .expect("Should have SavedData...");
     d.is_infinite_unlocked = true;
-
-    let base_path = get_save_path();
-    let save_path = base_path.join("data.bin");
-    let data = bincode::serialize(&*d)?;
-    std::fs::write(save_path, data)?;
+    save_data(&*d)?;
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn read_saved_data() -> SavedData {
     let base_path = get_save_path();
     let save_path = base_path.join("data.bin");
@@ -75,4 +72,49 @@ pub fn read_saved_data() -> SavedData {
         error!("Cannot save game data = {:?}", e);
     }
     d
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn read_saved_data() -> SavedData {
+    let window = web_sys::window().unwrap();
+    let local_storage = window
+        .local_storage()
+        .expect("Should have access to local storage")
+        .unwrap();
+
+    if let Ok(Some(data)) = local_storage.get_item("saved_data") {
+        if let Ok(saved) = serde_json::from_str(&data) {
+            return saved;
+        }
+    }
+
+    let d = SavedData::default();
+    local_storage
+        .set_item("saved_data", &serde_json::to_string(&d).unwrap())
+        .unwrap();
+    d
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn save_data(d: &SavedData) -> Result<(), anyhow::Error> {
+    let base_path = get_save_path();
+    let save_path = base_path.join("data.bin");
+    let data = bincode::serialize(d)?;
+    std::fs::write(save_path, data)?;
+
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn save_data(d: &SavedData) -> Result<(), anyhow::Error> {
+    let window = web_sys::window().unwrap();
+    let local_storage = window
+        .local_storage()
+        .expect("Should have access to local storage")
+        .unwrap();
+
+    local_storage
+        .set_item("saved_data", &serde_json::to_string(d).unwrap())
+        .unwrap();
+    Ok(())
 }

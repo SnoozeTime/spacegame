@@ -57,6 +57,7 @@ bincode = "1.3.1"
 # Save directories
 dirs = "3.0"
 
+
 [dependencies.glam]
 version = "0.9.5"
 features = ["serde"]
@@ -66,9 +67,12 @@ features = ["serde"]
 # -------------------------------
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
 luminance-gl = "0.16.1"
-rodio = "0.13.0"
+rodio = { git = "https://github.com/RustAudio/rodio" , default-features = false, features = ["vorbis", "flac", "wav"] }
 glfw = "0.41"
 luminance-glfw = "0.14"
+instant = "0.1.9"
+rand = "0.7.3"
+
 #luminance-glutin = "0.11"
 #luminance-windowing = "0.9"
 #glfw = "0.41"
@@ -77,9 +81,42 @@ luminance-glfw = "0.14"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 luminance-webgl = "0.3.2"
 luminance-web-sys = "0.2.2"
+wasm-bindgen = { version = "0.2.63", features = ["serde-serialize"]}
+wasm-logger = "0.2.0"
+instant = { version = "0.1.9", features = [ "wasm-bindgen" ] }
+rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+wasm-bindgen-futures = "0.4.19"
+js-sys = "0.3.46"
+rodio = { git = "https://github.com/RustAudio/rodio" , default-features = false, features = ["vorbis", "flac", "wav", "wasm-bindgen"] }
+console_error_panic_hook = "0.1.6"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+version = "0.3.44"
+features = ["console", "Window",
+    'Storage',
+    'Document',
+    'Element',
+    'HtmlElement',
+    'HtmlCanvasElement',
+    'WebGlBuffer',
+    'WebGl2RenderingContext',
+    'WebGlVertexArrayObject',
+    'WebGlProgram',
+    'WebGlTexture',
+    'WebGlUniformLocation',
+    'HtmlImageElement',
+    'WebGlShader',
+    'Headers',
+    'Request',
+    'RequestInit',
+    'RequestMode',
+    'Response',
+    'Window',
+    'Blob'
+]
 
 [features]
-default = ["hot-reload"]
+default = []
 # If activated, the assets will be reloaded from the asset folders whenever changed.
 hot-reload = []
 

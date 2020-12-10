@@ -7,6 +7,7 @@ pub mod input;
 pub mod noise;
 pub mod random;
 pub mod scene;
+pub mod serialization;
 pub mod timer;
 pub mod transform;
 pub mod window;

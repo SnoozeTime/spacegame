@@ -17,8 +17,8 @@ pub struct Curve<T>
 where
     T: CurveNode,
 {
-    xs: Vec<f32>,
-    ys: Vec<T>,
+    pub(crate) xs: Vec<f32>,
+    pub(crate) ys: Vec<T>,
 }
 
 impl<T> Default for Curve<T>

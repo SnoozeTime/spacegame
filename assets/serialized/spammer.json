@@ -1,0 +1,72 @@
+{
+  "transform": {
+    "translation": [
+      0.0,
+      0.0
+    ],
+    "scale": [
+      32.0,
+      32.0
+    ],
+    "rotation": 0.0,
+    "dirty": false
+  },
+  "dynamic_body": {
+    "forces": [],
+    "impulses": [],
+    "velocity": [
+      0.0,
+      0.0
+    ],
+    "max_velocity": 100.0,
+    "mass": 5.0,
+    "max_force": 500.0
+  },
+  "sprite": {
+    "id": "spaceships/green_04.png"
+  },
+  "bounding_box": {
+    "half_extend": [
+      16.0,
+      16.0
+    ],
+    "collision_layer": {
+      "bits": 2
+    },
+    "collision_mask": null
+  },
+  "health": {
+    "max": 3.0,
+    "current": 3.0,
+    "hittable": true,
+    "invulnerability_timer": {
+      "deadline": 1.0,
+      "elapsed": 0.0,
+      "enabled": false
+    }
+  },
+  "enemy": {
+    "enemy_type": {
+      "Spammer": {
+        "shoot_timer": {
+          "deadline": 1.0,
+          "elapsed": 0.0,
+          "enabled": false
+        },
+        "nb_shot": 3,
+        "current_shot": 0,
+        "salve_timer": {
+          "deadline": 6.0,
+          "elapsed": 0.0,
+          "enabled": false
+        }
+      }
+    },
+    "scrap_drop": [
+      20,
+      70
+    ],
+    "pickup_drop_percent": 10,
+    "movement": "Follow"
+  }
+}

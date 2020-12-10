@@ -1,6 +1,6 @@
-use crate::assets::prefab::PrefabManager;
-use crate::assets::Handle;
+use crate::assets::{AssetManager, Handle};
 use crate::core::random::RandomGenerator;
+use crate::core::serialization::SerializedEntity;
 use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::resources::Resources;
 use hecs::Entity;
@@ -51,7 +51,9 @@ impl Wave {
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
         let to_instantiate = &self.wave_desc.to_instantiate;
         let enemies = &mut self.enemies;
-        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
+        let prefab_manager = resources
+            .fetch_mut::<AssetManager<SerializedEntity>>()
+            .unwrap();
         for prefab_name in to_instantiate {
             let pos = no_asteroids.choose(random.rng());
             if let Some(prefab) = prefab_manager.get(&Handle(prefab_name.clone())) {

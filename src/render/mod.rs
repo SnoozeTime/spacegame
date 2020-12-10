@@ -45,8 +45,11 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(surface: &mut Context, gui_context: &GuiContext) -> Renderer {
+        info!("Sprite renderer");
         let sprite_renderer = sprite::SpriteRenderer::new(surface);
+        info!("Particle renderer");
         let particle_renderer = ParticleSystem::new(surface);
+        info!("GUI renderer");
         let ui_renderer = UiRenderer::new(surface, gui_context);
         let path_renderer = PathRenderer::new(surface);
         let mesh_renderer = MeshRenderer::new(surface);

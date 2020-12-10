@@ -59,7 +59,7 @@ impl InputConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct AudioConfig {
     pub background_volume: u32,
     pub effects_volume: u32,

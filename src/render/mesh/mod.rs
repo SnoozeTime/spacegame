@@ -3,6 +3,7 @@ use crate::assets::Handle;
 use crate::core::colors::RgbaColor;
 use crate::core::transform::Transform;
 use crate::render::Context;
+use instant::Instant;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::{PipelineError, TextureBinding};
@@ -13,7 +14,6 @@ use luminance::tess::Mode;
 use luminance::texture::Dim2;
 use luminance_derive::{Semantics, UniformInterface, Vertex};
 use luminance_front::{pipeline::Pipeline, shading_gate::ShadingGate, tess::Tess};
-use std::time::Instant;
 
 // Vertex definition
 // -----------------

@@ -1,8 +1,8 @@
-use crate::assets::prefab::PrefabManager;
-use crate::assets::Handle;
+use crate::assets::{AssetManager, Handle};
 use crate::core::animation::AnimationController;
 use crate::core::colors;
 use crate::core::random::RandomGenerator;
+use crate::core::serialization::SerializedEntity;
 use crate::core::timer::Timer;
 use crate::core::transform::Transform;
 use crate::event::GameEvent;
@@ -528,7 +528,9 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
     }
 
     {
-        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
+        let prefab_manager = resources
+            .fetch_mut::<AssetManager<SerializedEntity>>()
+            .unwrap();
         for (prefab, pos) in to_spawn {
             if let Some(prefab) = prefab_manager.get(&Handle(prefab)) {
                 prefab.execute(|prefab| {
@@ -563,7 +565,9 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
     }
 
     {
-        let prefab_manager = resources.fetch_mut::<PrefabManager>().unwrap();
+        let prefab_manager = resources
+            .fetch_mut::<AssetManager<SerializedEntity>>()
+            .unwrap();
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
 
         for (_e, pos, nb) in spaceship_to_spawn {

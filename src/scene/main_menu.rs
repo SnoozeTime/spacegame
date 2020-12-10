@@ -4,6 +4,7 @@ use crate::core::transform::Transform;
 use crate::paths::get_assets_path;
 use crate::prefab::enemies::ENEMY_PREFABS;
 use crate::render::particle::ParticleEmitter;
+use crate::render::sprite::Sprite;
 use crate::render::ui::gui::GuiContext;
 use crate::render::ui::Gui;
 use crate::resources::Resources;
@@ -29,13 +30,13 @@ pub struct MainMenu {
     emitter_entity: Option<hecs::Entity>,
 }
 
+const EMITTER_BYTES: &[u8] = include_bytes!("../../assets/particle/menu.json");
+
 impl Scene for MainMenu {
     fn on_create(&mut self, world: &mut hecs::World, resources: &mut Resources) {
         //generate_terrain(world, resources);
-        let base_path = get_assets_path();
-        let emitter =
-            ParticleEmitter::load_from_path(base_path.join("particle").join("menu.json")).unwrap();
-
+        let mut emitter: ParticleEmitter = serde_json::from_slice(EMITTER_BYTES).unwrap();
+        emitter.init_pool();
         self.emitter_entity = Some(world.spawn((emitter, Transform::default())));
 
         audio::play_background_music(resources, "music/spacelifeNo14.ogg");
@@ -52,11 +53,36 @@ impl Scene for MainMenu {
     fn update(&mut self, _dt: Duration, _world: &mut World, resources: &Resources) -> SceneResult {
         let mut prefabs: Vec<String> = ENEMY_PREFABS.iter().map(|e| e.to_string()).collect();
 
+        // let mut prefabs = vec!["base_enemy".to_string()];
         prefabs.push("player".to_string());
         if let Some(GameMode::Normal) = self.game_mode {
             SceneResult::ReplaceScene(Box::new(LoadingScene::new(
                 prefabs,
-                vec![],
+                vec![
+                    "music/spacelifeNo14.ogg".to_string(),
+                    "music/Finding-Flora.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_09.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_02.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_03.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_04.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_05.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_06.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_07.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_08.wav".to_string(),
+                    "sounds/explosion.wav".to_string(),
+                    // "sounds/powerUp2.mp3".to_string(),
+                ],
+                vec![
+                    "capsule.png".to_string(),
+                    "asteroid.png".to_string(),
+                    "back.png".to_string(),
+                    "left.png".to_string(),
+                    "right.png".to_string(),
+                    "top.png".to_string(),
+                    "spaceships/blue_05.png".to_string(),
+                    "spaceships/darkgrey_02.png".to_string(),
+                ],
                 StoryScene::new(
                     vec![
                         "Humans discovered an alien artefact deep inside the moon.".to_string(),
@@ -68,6 +94,20 @@ impl Scene for MainMenu {
         } else if let Some(GameMode::Infinite) = self.game_mode {
             SceneResult::ReplaceScene(Box::new(LoadingScene::new(
                 prefabs,
+                vec![
+                    "music/spacelifeNo14.ogg".to_string(),
+                    "music/Finding-Flora.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_09.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_01.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_02.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_03.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_04.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_05.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_06.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_07.wav".to_string(),
+                    "sounds/scifi_kit/Laser/Laser_08.wav".to_string(),
+                    "sounds/explosion.wav".to_string(),
+                ],
                 vec![],
                 WaveSelectionScene::new(resources),
             )))
@@ -117,14 +157,16 @@ impl Scene for MainMenu {
             );
         }
 
-        // EXIT BUTTON
-        if menu_button(
-            "Quit to Desktop",
-            anchor + 160.0 * glam::Vec2::unit_y(),
-            48.0,
-            &mut gui,
-        ) {
-            std::process::exit(0);
+        if cfg!(not(target_arch = "wasm32")) {
+            // EXIT BUTTON
+            if menu_button(
+                "Quit to Desktop",
+                anchor + 160.0 * glam::Vec2::unit_y(),
+                48.0,
+                &mut gui,
+            ) {
+                std::process::exit(0);
+            }
         }
 
         Some(gui)

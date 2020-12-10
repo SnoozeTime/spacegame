@@ -62,9 +62,18 @@ impl UiRenderer {
     pub fn new(surface: &mut super::Context, gui_context: &GuiContext) -> Self {
         let shader = new_shader(surface);
 
-        let render_state = RenderState::default()
-            .set_depth_test(None)
-            .set_blending_separate(
+        let mut render_state = RenderState::default().set_depth_test(None);
+
+        if cfg!(target_arch = "wasm32") {
+            render_state = render_state.set_blending(Blending {
+                equation: Equation::Additive,
+                src: Factor::One,
+                dst: Factor::SrcAlphaComplement,
+            });
+        }
+
+        if cfg!(not(target_arch = "wasm32")) {
+            render_state = render_state.set_blending_separate(
                 Blending {
                     equation: Equation::Additive,
                     src: Factor::SrcAlpha,
@@ -76,6 +85,7 @@ impl UiRenderer {
                     dst: Factor::Zero,
                 },
             );
+        }
 
         Self {
             tesses: vec![],

@@ -140,12 +140,14 @@ pub fn update_player(world: &mut World, dt: Duration, resources: &Resources) {
         // DESIRED VELOCITY IF FORWARD TO THE MOUSE CURSOR
         let target = screen_to_world(input.mouse_position(), projection_matrix, world);
 
+        trace!("Seek {:?}", target);
         let steering_force = steering::seek(
             transform.translation,
             dynamic.velocity,
             target,
             dynamic.max_velocity * delta_y.max(0.0),
         );
+        trace!("steering force {:?}", steering_force);
 
         // lateral force from the side-thrusters.
         let lateral_force = delta_x

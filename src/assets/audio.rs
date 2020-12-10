@@ -3,6 +3,12 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+#[cfg(target_arch = "wasm32")]
+mod web;
+
+#[cfg(target_arch = "wasm32")]
+pub use web::*;
+
 pub enum Audio {
     Empty,
     File(Vec<u8>),

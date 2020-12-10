@@ -1,5 +1,8 @@
 use serde_derive::{Deserialize, Serialize};
 
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen::prelude::*;
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum InputEvent {
     MouseEvent(VirtualButton, VirtualAction),
@@ -8,6 +11,7 @@ pub enum InputEvent {
     Nothing,
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum VirtualAction {
     Pressed,
@@ -16,6 +20,8 @@ pub enum VirtualAction {
 }
 
 /// Input keys. Copy of glfw just for serialization.
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum VirtualKey {
     Space,
@@ -69,6 +75,7 @@ pub enum VirtualKey {
     Unknown,
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum VirtualButton {
     Button1,

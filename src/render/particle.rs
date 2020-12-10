@@ -13,6 +13,7 @@ use luminance::pixel::NormUnsigned;
 use luminance::render_state::RenderState;
 use luminance::shader::Uniform;
 
+use crate::core::colors;
 use luminance::tess::Mode;
 use luminance::texture::Dim2;
 use luminance_derive::UniformInterface;
@@ -94,6 +95,7 @@ impl Particle {
 struct ParticlePool {
     particles: Vec<Particle>,
     free: Vec<usize>,
+    init: bool,
 }
 
 impl Default for ParticlePool {
@@ -101,6 +103,7 @@ impl Default for ParticlePool {
         Self {
             particles: vec![],
             free: vec![],
+            init: false,
         }
     }
 }
@@ -111,6 +114,7 @@ impl ParticlePool {
         Self {
             particles: (0..nb).map(|_| Particle::default()).collect(),
             free: (0..nb).collect(),
+            init: true,
         }
     }
 
@@ -206,7 +210,10 @@ impl Default for ParticleEmitter {
             scale_over_lifetime: None,
             particle_number: 1.0,
             nb_accumulator: 0.0,
-            colors: Default::default(),
+            colors: Curve {
+                xs: vec![0.0],
+                ys: vec![colors::RED],
+            },
             particle_life: 10,
             position_offset: Default::default(),
             burst: false,
@@ -243,6 +250,9 @@ impl ParticleEmitter {
     /// Update the position and velocity of all particles. If a particle is dead, respawn it :)
     /// Return true if should despawn the particle emitter.
     fn update(&mut self, position: glam::Vec2, dt: f32) -> bool {
+        if !self.particles.init {
+            self.init_pool()
+        }
         let mut rng = rand::thread_rng();
 
         // emit particles.
@@ -406,6 +416,7 @@ impl ParticleSystem {
                 src: Factor::One,
                 dst: Factor::SrcAlphaComplement,
             });
+
         for (_, emitter) in world.query::<&mut ParticleEmitter>().iter() {
             match &emitter.shape {
                 ParticleShape::Quad => {

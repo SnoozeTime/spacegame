@@ -4,6 +4,14 @@ use hecs::{Entity, World};
 use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+use serde::de::DeserializeOwned;
+
+#[cfg(target_arch = "wasm32")]
+mod web;
+
+#[cfg(target_arch = "wasm32")]
+pub use web::*;
+
 #[typetag::serde]
 pub trait Prefab: std::fmt::Debug {
     fn spawn(&self, world: &mut hecs::World) -> hecs::Entity;
@@ -44,11 +52,11 @@ impl Prefab for EmptyPrefab {
     }
 }
 
-pub struct PrefabSyncLoader {
+pub struct JsonSyncLoader {
     base_path: PathBuf,
 }
 
-impl PrefabSyncLoader {
+impl JsonSyncLoader {
     pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
         let base_path = base_path.as_ref();
         Self {
@@ -57,15 +65,18 @@ impl PrefabSyncLoader {
     }
 }
 
-impl Loader<Box<dyn Prefab>, String> for PrefabSyncLoader {
-    fn load(&mut self, asset_name: String) -> Asset<Box<dyn Prefab>> {
+impl<T> Loader<T> for JsonSyncLoader
+where
+    T: Default + DeserializeOwned,
+{
+    fn load(&mut self, asset_name: String) -> Asset<T> {
         let mut asset = Asset::new();
         let asset_path = self.base_path.join(&asset_name).with_extension("json");
         info!("Will load at path = {}", asset_path.display());
 
         match std::fs::read_to_string(asset_path) {
             Ok(asset_str) => {
-                let res: Result<Box<dyn Prefab>, _> = serde_json::from_str(&asset_str);
+                let res: Result<T, _> = serde_json::from_str(&asset_str);
                 match res {
                     Ok(val) => {
                         info!("Finished loading {}", asset_name);

@@ -1,0 +1,71 @@
+{
+  "transform": {
+    "translation": [
+      0.0,
+      0.0
+    ],
+    "scale": [
+      24.0,
+      24.0
+    ],
+    "rotation": 0.0,
+    "dirty": false
+  },
+  "dynamic_body": {
+    "forces": [],
+    "impulses": [],
+    "velocity": [
+      0.0,
+      0.0
+    ],
+    "max_velocity": 200.0,
+    "mass": 1.0,
+    "max_force": 500.0
+  },
+  "sprite": {
+    "id": "spaceships/red_03.png"
+  },
+  "bounding_box": {
+    "half_extend": [
+      12.0,
+      12.0
+    ],
+    "collision_layer": {
+      "bits": 2
+    },
+    "collision_mask": null
+  },
+  "health": {
+    "max": 3.0,
+    "current": 3.0,
+    "hittable": true,
+    "invulnerability_timer": {
+      "deadline": 0.5,
+      "elapsed": 0.0,
+      "enabled": false
+    }
+  },
+  "enemy": {
+    "enemy_type": {
+      "MineLander": {
+        "deadline": 4.0,
+        "elapsed": 0.0,
+        "enabled": false
+      }
+    },
+    "scrap_drop": [
+      10,
+      70
+    ],
+    "pickup_drop_percent": 2,
+    "movement": {
+      "RandomPath": [
+        [
+          0.0,
+          0.0
+        ],
+        false
+      ]
+    }
+  }
+}

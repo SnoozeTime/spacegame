@@ -12,6 +12,12 @@ use std::path::Path;
 use std::path::PathBuf;
 
 mod packed;
+#[cfg(target_arch = "wasm32")]
+mod web;
+
+#[cfg(target_arch = "wasm32")]
+pub use web::*;
+
 use crate::render::Context;
 pub use packed::*;
 

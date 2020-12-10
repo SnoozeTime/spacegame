@@ -2,8 +2,9 @@ use crate::core::transform::Transform;
 use crate::gameplay::physics::DynamicBody;
 use crate::render::particle::ParticleEmitter;
 use hecs::World;
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Trail {
     pub should_display: bool,
     pub offset: f32,

@@ -97,14 +97,11 @@ pub struct HealthSystem {
     explosion: ParticleEmitter,
 }
 
+const EMITTER_BYTES: &[u8] = include_bytes!("../../assets/particle/explosion.json");
+
 impl HealthSystem {
     pub fn new(resources: &mut Resources) -> Self {
-        let base_path = get_assets_path();
-        let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/explosion.json"))
-                .unwrap(),
-        )
-        .unwrap();
+        let mut emitter: ParticleEmitter = serde_json::from_slice(EMITTER_BYTES).unwrap();
         emitter.init_pool();
 
         let mut chan = resources.fetch_mut::<EventChannel<GameEvent>>().unwrap();

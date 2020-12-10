@@ -24,7 +24,7 @@ use crate::gameplay::level::difficulty::DifficultyConfig;
 use shrev::EventChannel;
 use wave::{Wave, WaveDescription};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StageDescription {
     pub waves: Vec<WaveDescription>,
     pub nb_pickups: usize,
@@ -98,6 +98,7 @@ impl Stage {
         mut stage_desc: StageDescription,
         starting_wave_nb: usize,
     ) -> Self {
+        info!("Stage - create background");
         // 1. CREATE THE BACKGROUND!
         // ----------------------------------
         let mut random = resources.fetch_mut::<RandomGenerator>().unwrap();
@@ -120,12 +121,16 @@ impl Stage {
 
         // 2. GENERATE ASTEROIDS!
         // -------------------------------
+        info!("Stage - generate terrain");
         let (asteroids, no_asteroids) = generate_terrain(world, &mut *random, 15);
 
         // 3. Stuff that the player can pick up for bonuses.
         // -------------------------------------------------
+        info!("Stage - place pickups");
         let pickups = spawn_pickups(world, &mut *random, &no_asteroids, stage_desc.nb_pickups);
+        //let pickups = vec![];
 
+        info!("Stage - generate waves");
         let waves = if stage_desc.is_infinite {
             // Generate the wave difficulty.
             let difficulty_config = resources.fetch::<DifficultyConfig>().unwrap();
@@ -135,21 +140,30 @@ impl Stage {
         };
         assert!(waves.len() > 0);
 
-        Self {
+        info!("Stage - create timers");
+
+        let timer_between_waves = Timer::of_seconds(5.0);
+        let timer_between_stages = Timer::of_seconds(10.0);
+        info!("Stage - create stage");
+
+        let stage = Self {
             background,
             asteroids,
             pickups,
-            wave_number: starting_wave_nb - 1,
+            wave_number: starting_wave_nb.saturating_sub(1),
             waves,
             finished: false,
             no_asteroids,
             current_wave: None,
             next_wave: Some(0),
-            timer_between_waves: Timer::of_seconds(5.0),
-            timer_between_stages: Timer::of_seconds(10.0),
+            timer_between_waves,
+            timer_between_stages,
             next_stage: stage_desc.next_stage,
             is_infinite: stage_desc.is_infinite,
-        }
+        };
+        info!("Stage - finished creating stage");
+
+        stage
     }
 
     fn gen_waves(

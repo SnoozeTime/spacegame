@@ -18,6 +18,8 @@ use crate::render::{Context, Renderer};
 use crate::resources::Resources;
 use crate::{HEIGHT, WIDTH};
 use log::info;
+use luminance_front::framebuffer::Framebuffer;
+use luminance_front::texture::Dim2;
 use shrev::{EventChannel, ReaderId};
 use std::any::Any;
 use std::collections::HashMap;
@@ -27,11 +29,10 @@ use std::time::{Duration, Instant};
 
 /// GameBuilder is used to create a new game. Game struct has a lot of members that do not need to be
 /// exposed so gamebuilder provides a simpler way to get started.
-pub struct GameBuilder<'a, A>
+pub struct GameBuilder<A>
 where
     A: InputAction,
 {
-    surface: &'a mut Context,
     scene: Option<Box<dyn Scene>>,
     resources: Resources,
     phantom: PhantomData<A>,
@@ -41,18 +42,15 @@ where
     audio_config: AudioConfig,
 }
 
-impl<'a, A> GameBuilder<'a, A>
+impl<A> GameBuilder<A>
 where
     A: InputAction + 'static,
 {
-    pub fn new(surface: &'a mut Context) -> Self {
+    pub fn new() -> Self {
         // resources will need at least an event channel and an input
         let mut resources = Resources::default();
         let chan: EventChannel<GameEvent> = EventChannel::new();
         resources.insert(chan);
-
-        // and some asset manager;
-        crate::assets::create_asset_managers(surface, &mut resources);
 
         // the proj matrix.
         resources.insert(ProjectionMatrix::new(WIDTH as f32, HEIGHT as f32));
@@ -62,7 +60,6 @@ where
 
         Self {
             gui_context: GuiContext::new(WindowDim::new(WIDTH, HEIGHT)),
-            surface,
             scene: None,
             resources,
             input_config: None,
@@ -104,9 +101,16 @@ where
         self
     }
 
-    pub fn build(mut self) -> Game<'a, A> {
-        let renderer = Renderer::new(self.surface, &self.gui_context);
+    pub fn build(mut self, surface: &mut Context) -> Game<A> {
+        info!("Building Renderer");
+        let renderer = Renderer::new(surface, &self.gui_context);
+
+        // and some asset manager;
+        info!("Creating asset managers");
+        crate::assets::create_asset_managers(surface, &mut self.resources);
+
         // Need some input :D
+        info!("Mapping inputs");
         let input: Input<A> = {
             let (key_mapping, btn_mapping) = self
                 .input_config
@@ -114,8 +118,11 @@ where
             Input::new(key_mapping, btn_mapping)
         };
         self.resources.insert(input);
+
+        info!("Creating world");
         let mut world = hecs::World::new();
 
+        info!("Random seed");
         // if a seed is provided, let's add it to the resources.
         if let Some(seed) = self.seed {
             self.resources.insert(RandomGenerator::new(seed));
@@ -123,6 +130,7 @@ where
             self.resources.insert(RandomGenerator::from_entropy());
         }
 
+        info!("Creating scene stack");
         let scene_stack = {
             let mut scenes = SceneStack::default();
             if let Some(scene) = self.scene {
@@ -131,6 +139,7 @@ where
             scenes
         };
 
+        info!("Setting up reader from event channel");
         let rdr_id = {
             let mut chan = self
                 .resources
@@ -138,24 +147,32 @@ where
                 .unwrap();
             chan.register_reader()
         };
-
+        info!("Creating garbage collector");
         let garbage_collector = GarbageCollector::new(&mut self.resources);
 
         // we need a camera :)
+        info!("Creating camera");
         world.spawn((Camera::new(),));
+
+        // audio system.
+        info!("Creating audio system");
+        let audio_system = if cfg!(target_arch = "wasm32") {
+            None
+        } else {
+            Some(
+                AudioSystem::new(&self.resources, self.audio_config)
+                    .expect("Cannot create audio system"),
+            )
+        };
 
         info!("Finished building game");
 
-        // audio system.
-        let audio_system = AudioSystem::new(&self.resources, self.audio_config)
-            .expect("Cannot create audio system");
-
         Game {
-            surface: self.surface,
             renderer,
             scene_stack,
             world,
             audio_system,
+            audio_config: self.audio_config,
             resources: self.resources,
             rdr_id,
             garbage_collector,
@@ -177,19 +194,19 @@ where
 /// # Generic parameters:
 /// - A: Action that is derived from the inputs. (e.g. Move Left)
 ///
-pub struct Game<'a, A> {
+pub struct Game<A> {
     /// for drawing stuff
-    surface: &'a mut Context,
     renderer: Renderer,
 
     /// All the scenes. Current scene will be used in the main loop.
     scene_stack: SceneStack,
 
     /// Play music and sound effects
-    audio_system: AudioSystem,
+    audio_config: AudioConfig,
+    audio_system: Option<AudioSystem>,
 
     /// Resources (assets, inputs...)
-    resources: Resources,
+    pub(crate) resources: Resources,
 
     /// Current entities.
     world: hecs::World,
@@ -208,132 +225,34 @@ pub struct Game<'a, A> {
     hot_reloader: HotReloader,
 }
 
-impl<'a, A> Game<'a, A>
+impl<A> Game<A>
 where
     A: InputAction + 'static,
 {
+    /// In case of wasm, the audio system must be created after user interaction (auto play policy
+    /// of browsers)
+    pub fn create_audio_system(&mut self) {
+        if self.audio_system.is_none() {
+            self.audio_system = Some(
+                AudioSystem::new(&self.resources, self.audio_config)
+                    .expect("Cannot create audio system"),
+            );
+        }
+    }
+
     /// Run the game. This is the main loop.
-    pub fn run(&mut self) {
+    pub fn run(&mut self, surface: &mut Context) {
         let mut current_time = Instant::now();
         let dt = Duration::from_millis(16);
-        let mut back_buffer = self.surface.back_buffer().unwrap();
+        let mut back_buffer = surface.back_buffer().unwrap();
 
         'app: loop {
-            // 1. Poll the events and update the Input resource
-            // ------------------------------------------------
-            let mut resize = false;
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                use glfw::WindowEvent;
-                self.surface.window.glfw.poll_events();
-                {
-                    let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
-                    input.prepare();
-                    self.gui_context.reset_inputs();
-                    for (_, event) in self.surface.events_rx.try_iter() {
-                        match event {
-                            WindowEvent::Close => break 'app,
-                            WindowEvent::FramebufferSize(_, _) => resize = true,
-                            ev => {
-                                self.gui_context.process_event(ev.clone());
-                                let ev: InputEvent = ev.into();
-                                if let Some(scene) = self.scene_stack.current_mut() {
-                                    scene.process_input(
-                                        &mut self.world,
-                                        ev.clone(),
-                                        &self.resources,
-                                    );
-                                }
-                                input.process_event(ev)
-                            }
-                        }
-                    }
-                }
-            }
+            self.prepare_input();
 
-            // 2. Update the scene.
-            // ------------------------------------------------
-            let scene_result = if let Some(scene) = self.scene_stack.current_mut() {
-                let scene_res = scene.update(dt, &mut self.world, &self.resources);
+            let should_continue = self.run_frame(surface, &mut back_buffer, dt);
 
-                {
-                    let chan = self.resources.fetch::<EventChannel<GameEvent>>().unwrap();
-                    for ev in chan.read(&mut self.rdr_id) {
-                        scene.process_event(&mut self.world, ev.clone(), &self.resources);
-                    }
-                }
-
-                let maybe_gui =
-                    scene.prepare_gui(dt, &mut self.world, &self.resources, &mut self.gui_context);
-
-                self.renderer.prepare_ui(
-                    self.surface,
-                    maybe_gui,
-                    &self.resources,
-                    &mut *self.gui_context.fonts.borrow_mut(),
-                );
-
-                Some(scene_res)
-            } else {
-                None
-            };
-
-            // Update children transforms:
-            // -----------------------------
-            update_transforms(&mut self.world);
-
-            // 3. Clean up dead entities.
-            // ------------------------------------------------
-            self.garbage_collector
-                .collect(&mut self.world, &self.resources);
-
-            // 4. Render to screen
-            // ------------------------------------------------
-            log::debug!("RENDER");
-            self.renderer
-                .update(self.surface, &self.world, dt, &self.resources);
-            if resize {
-                back_buffer = self.surface.back_buffer().unwrap();
-                let new_size = back_buffer.size();
-                let mut proj = self.resources.fetch_mut::<ProjectionMatrix>().unwrap();
-                proj.resize(new_size[0] as f32, new_size[1] as f32);
-
-                let mut dim = self.resources.fetch_mut::<WindowDim>().unwrap();
-                dim.resize(new_size[0], new_size[1]);
-                self.gui_context.window_dim = *dim;
-            }
-
-            let render =
-                self.renderer
-                    .render(self.surface, &mut back_buffer, &self.world, &self.resources);
-            if render.is_ok() {
-                #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-                {
-                    use glfw::Context;
-                    self.surface.window.swap_buffers();
-                }
-            } else {
+            if !should_continue {
                 break 'app;
-            }
-
-            // Play music :)
-            self.audio_system.process(&self.resources);
-
-            // Update collision world for collision queries.
-            {
-                let mut collisions = self.resources.fetch_mut::<CollisionWorld>().unwrap();
-                collisions.synchronize(&self.world);
-            }
-
-            // Either clean up or load new resources.
-            crate::assets::update_asset_managers(self.surface, &self.resources);
-            #[cfg(feature = "hot-reload")]
-            self.hot_reloader.update(&self.resources);
-
-            // Now, if need to switch scenes, do it.
-            if let Some(res) = scene_result {
-                self.scene_stack
-                    .apply_result(res, &mut self.world, &mut self.resources);
             }
 
             let now = Instant::now();
@@ -345,5 +264,139 @@ where
         }
 
         info!("Bye bye.");
+    }
+
+    pub fn prepare_input(&mut self) {
+        let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
+        input.prepare();
+        self.gui_context.reset_inputs();
+    }
+
+    pub fn process_input(&mut self, input_event: InputEvent) {
+        let mut input = self.resources.fetch_mut::<Input<A>>().unwrap();
+
+        self.gui_context.process_event(input_event.clone());
+        if let Some(scene) = self.scene_stack.current_mut() {
+            scene.process_input(&mut self.world, input_event.clone(), &self.resources);
+        }
+        input.process_event(input_event)
+    }
+
+    pub fn run_frame(
+        &mut self,
+        surface: &mut Context,
+        mut back_buffer: &mut Framebuffer<Dim2, (), ()>,
+        dt: Duration,
+    ) -> bool {
+        let mut resize = false;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            use glfw::WindowEvent;
+            surface.window.glfw.poll_events();
+            {
+                for (_, event) in surface.events_rx.try_iter() {
+                    match event {
+                        WindowEvent::Close => return false,
+                        WindowEvent::FramebufferSize(_, _) => resize = true,
+                        ev => {
+                            let ev: InputEvent = ev.into();
+                            self.process_input(ev);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Update the scene.
+        // ------------------------------------------------
+        trace!("Update scene");
+
+        let scene_result = if let Some(scene) = self.scene_stack.current_mut() {
+            let scene_res = scene.update(dt, &mut self.world, &self.resources);
+
+            {
+                let chan = self.resources.fetch::<EventChannel<GameEvent>>().unwrap();
+                for ev in chan.read(&mut self.rdr_id) {
+                    scene.process_event(&mut self.world, ev.clone(), &self.resources);
+                }
+            }
+
+            let maybe_gui =
+                scene.prepare_gui(dt, &mut self.world, &self.resources, &mut self.gui_context);
+
+            self.renderer.prepare_ui(
+                surface,
+                maybe_gui,
+                &self.resources,
+                &mut *self.gui_context.fonts.borrow_mut(),
+            );
+
+            Some(scene_res)
+        } else {
+            None
+        };
+
+        // Update children transforms:
+        // -----------------------------
+        update_transforms(&mut self.world);
+
+        // 3. Clean up dead entities.
+        // ------------------------------------------------
+        self.garbage_collector
+            .collect(&mut self.world, &self.resources);
+
+        // 4. Render to screen
+        // ------------------------------------------------
+        self.renderer
+            .update(surface, &self.world, dt, &self.resources);
+        if resize {
+            *back_buffer = surface.back_buffer().unwrap();
+            let new_size = back_buffer.size();
+            let mut proj = self.resources.fetch_mut::<ProjectionMatrix>().unwrap();
+            proj.resize(new_size[0] as f32, new_size[1] as f32);
+
+            let mut dim = self.resources.fetch_mut::<WindowDim>().unwrap();
+            dim.resize(new_size[0], new_size[1]);
+            self.gui_context.window_dim = *dim;
+        }
+
+        trace!("Render");
+        let render = self
+            .renderer
+            .render(surface, &mut back_buffer, &self.world, &self.resources);
+        if render.is_ok() {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                use glfw::Context;
+                surface.window.swap_buffers();
+            }
+        } else {
+            return false;
+        }
+
+        // Play music :)
+        trace!("Process audio system");
+        if let Some(ref mut audio) = self.audio_system {
+            audio.process(&self.resources);
+        }
+
+        // Update collision world for collision queries.
+        {
+            let mut collisions = self.resources.fetch_mut::<CollisionWorld>().unwrap();
+            collisions.synchronize(&self.world);
+        }
+
+        // Either clean up or load new resources.
+        crate::assets::update_asset_managers(surface, &self.resources);
+        #[cfg(feature = "hot-reload")]
+        self.hot_reloader.update(&self.resources);
+
+        // Now, if need to switch scenes, do it.
+        if let Some(res) = scene_result {
+            self.scene_stack
+                .apply_result(res, &mut self.world, &mut self.resources);
+        }
+
+        true
     }
 }

@@ -1,7 +1,7 @@
 use crate::assets::audio::Audio;
-use crate::assets::prefab::PrefabManager;
 use crate::assets::shader::ShaderManager;
 use crate::assets::sprite::SpriteAsset;
+use crate::core::serialization::SerializedEntity;
 use crate::paths::get_assets_path;
 use crate::render::Context;
 use crate::resources::Resources;
@@ -17,10 +17,35 @@ use thiserror::Error;
 // #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "web")))]
 pub mod audio;
 
+pub mod json;
 pub mod prefab;
 pub mod shader;
 pub mod sprite;
 
+#[cfg(target_arch = "wasm32")]
+pub fn create_asset_managers(_surface: &mut Context, resources: &mut Resources) {
+    let base_path = get_assets_path();
+
+    let sprite_manager: AssetManager<SpriteAsset> =
+        AssetManager::from_loader(Box::new(sprite::AsyncWebLoader));
+
+    let audio_loader: AssetManager<Audio> =
+        AssetManager::from_loader(Box::new(audio::AsyncWebLoader::new("/assets/".to_string())));
+    resources.insert(audio_loader);
+
+    let serialized_entity_loader: AssetManager<SerializedEntity> = AssetManager::from_loader(
+        Box::new(json::AsyncWebLoader::new("/assets/serialized/".to_string())),
+    );
+    resources.insert(serialized_entity_loader);
+
+    let shader_loader: ShaderManager = AssetManager::from_loader(Box::new(
+        shader::ShaderLoader::new(base_path.join("shaders")),
+    ));
+    resources.insert(sprite_manager);
+    resources.insert(shader_loader);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn create_asset_managers(_surface: &mut Context, resources: &mut Resources) {
     let base_path = get_assets_path();
 
@@ -34,9 +59,10 @@ pub fn create_asset_managers(_surface: &mut Context, resources: &mut Resources) 
         sprite::SpritePackLoader::new(base_path.join("sprites")),
     ));
 
-    let prefab_loader: PrefabManager = AssetManager::from_loader(Box::new(
-        prefab::PrefabSyncLoader::new(base_path.join("prefab")),
-    ));
+    let serialized_entity_loader: AssetManager<SerializedEntity> = AssetManager::from_loader(
+        Box::new(json::JsonSyncLoader::new(base_path.join("serialized"))),
+    );
+    resources.insert(serialized_entity_loader);
 
     let audio_loader: AssetManager<Audio> =
         AssetManager::from_loader(Box::new(audio::AudioSyncLoader::new(base_path.clone())));
@@ -57,10 +83,6 @@ pub fn update_asset_managers(surface: &mut Context, resources: &Resources) {
     }
 
     {
-        let mut prefab_loader = resources.fetch_mut::<PrefabManager>().unwrap();
-        prefab_loader.upload_all(surface);
-    }
-    {
         let mut audio_loader = resources.fetch_mut::<AssetManager<Audio>>().unwrap();
         audio_loader.upload_all(surface);
     }
@@ -68,6 +90,12 @@ pub fn update_asset_managers(surface: &mut Context, resources: &Resources) {
     {
         let mut shader_loader = resources.fetch_mut::<ShaderManager>().unwrap();
         shader_loader.upload_all(surface);
+    }
+    {
+        let mut serialized_manager = resources
+            .fetch_mut::<AssetManager<SerializedEntity>>()
+            .unwrap();
+        serialized_manager.upload_all(surface);
     }
 }
 

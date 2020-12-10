@@ -11,4 +11,5 @@ void main() {
         discard;
     }
     out_color = f_color * vec4(1.0, 1.0, 1.0, alpha);
+    out_color.rgb *= out_color.a;
 }

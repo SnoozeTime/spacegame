@@ -1,0 +1,72 @@
+{
+  "transform": {
+    "translation": [
+      0.0,
+      0.0
+    ],
+    "scale": [
+      64.0,
+      64.0
+    ],
+    "rotation": 0.0,
+    "dirty": false
+  },
+  "dynamic_body": {
+    "forces": [],
+    "impulses": [],
+    "velocity": [
+      0.0,
+      0.0
+    ],
+    "max_velocity": 500.0,
+    "mass": 10.0,
+    "max_force": 500.0
+  },
+  "sprite": {
+    "id": "spaceships/large_grey_02.png"
+  },
+  "bounding_box": {
+    "half_extend": [
+      32.0,
+      32.0
+    ],
+    "collision_layer": {
+      "bits": 2
+    },
+    "collision_mask": null
+  },
+  "health": {
+    "max": 10.0,
+    "current": 10.0,
+    "hittable": true,
+    "invulnerability_timer": {
+      "deadline": 0.5,
+      "elapsed": 0.0,
+      "enabled": false
+    }
+  },
+  "enemy": {
+    "enemy_type": {
+      "Boss1": {
+        "shoot_timer": {
+          "deadline": 0.3,
+          "elapsed": 0.0,
+          "enabled": false
+        },
+        "nb_shot": 20,
+        "current_shot": 0,
+        "salve_timer": {
+          "deadline": 5.0,
+          "elapsed": 0.0,
+          "enabled": false
+        }
+      }
+    },
+    "scrap_drop": [
+      20,
+      100
+    ],
+    "pickup_drop_percent": 100,
+    "movement": "Follow"
+  }
+}
