@@ -46,10 +46,6 @@ anyhow = "1.0.34"
 # Sound
 rodio = { version = "0.13.0", default-features = false, features = ["wav", "mp3"] }
 
-# hash for assets' ID
-md5 = "0.7.0"
-base64 = "0.13.0"
-
 # hot reload for assets
 notify = "5.0.0-pre.4"
 
