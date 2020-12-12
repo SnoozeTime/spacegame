@@ -275,7 +275,7 @@ impl DepthComparisonDef {
 }
 
 pub fn load_texels<P: AsRef<Path>>(path: P) -> Result<(u32, u32, Vec<u8>), ImageError> {
-    let img = image::open(path).map(|img| img.flipv().to_rgba())?;
+    let img = image::open(path).map(|img| img.flipv().to_rgba8())?;
     let (width, height) = img.dimensions();
     Ok((width, height, img.into_raw()))
 }
