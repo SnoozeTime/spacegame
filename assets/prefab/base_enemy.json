@@ -24,7 +24,7 @@
       "dirty": false
     },
     "sprite": {
-      "id": "spaceships/darkgrey_02.png"
+      "id": "darkgrey_02.png"
     },
     "bounding_box": {
       "half_extend": [

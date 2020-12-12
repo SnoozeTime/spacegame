@@ -233,7 +233,7 @@ pub fn spawn_missile(
         },
         Sprite {
             //id: "fast_bullet.png".to_string(),
-            id: "spaceships/Projectiles/missile-01.png".to_string(),
+            id: "missile-01.png".to_string(),
         },
         Transform {
             translation: initial_position,

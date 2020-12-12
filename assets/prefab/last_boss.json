@@ -24,7 +24,7 @@
       "dirty": false
     },
     "sprite": {
-      "id": "spaceships/large_purple_01.png"
+      "id": "large_purple_01.png"
     },
     "bounding_box": {
       "half_extend": [

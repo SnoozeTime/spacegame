@@ -24,7 +24,7 @@
       "dirty": false
     },
     "sprite": {
-      "id": "spaceships/red_04.png"
+      "id": "red_04.png"
     },
     "bounding_box": {
       "half_extend": [

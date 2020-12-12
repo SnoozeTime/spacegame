@@ -1,0 +1,3 @@
+{
+  "sampler": {"wrap_r":"ClampToEdge","wrap_s":"ClampToEdge","wrap_t":"ClampToEdge","min_filter":"Nearest","mag_filter":"Nearest","depth_comparison":null}
+}

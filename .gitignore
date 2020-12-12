@@ -1,9 +1,8 @@
 /target
-assets/sprites/**/*
-assets/sprites/*
 assets/scifi_effects
 .idea
 2packed.bin
 assets/music
 assets/sounds
 game_packed
+node_modules

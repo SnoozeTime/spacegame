@@ -22,8 +22,7 @@ fn gen_player() {
     let player = {
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/trail.json")).unwrap(),
         )
         .unwrap();
         let scale = 24.0;
@@ -43,7 +42,7 @@ fn gen_player() {
                 dirty: true,
             },
             sprite: Sprite {
-                id: "spaceships/blue_05.png".to_string(),
+                id: "blue_05.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: 20.0 * glam::Vec2::one(),
@@ -89,7 +88,7 @@ fn gen_mine() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/explosion-05.png".to_string(),
+                id: "explosion-05.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -166,7 +165,7 @@ fn gen_mine_lander() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/red_03.png".to_string(),
+                id: "red_03.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -211,7 +210,7 @@ fn gen_wanderer() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/red_04.png".to_string(),
+                id: "red_04.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -242,8 +241,7 @@ fn gen_base_enemy() {
         let scale = 24.0;
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json")).unwrap(),
         )
         .unwrap();
         let enemy_prefab = EnemyPrefab {
@@ -262,7 +260,7 @@ fn gen_base_enemy() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/darkgrey_02.png".to_string(),
+                id: "darkgrey_02.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -293,8 +291,7 @@ fn gen_carrier() {
         let scale = 128.0;
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json")).unwrap(),
         )
         .unwrap();
         let enemy_prefab = EnemyPrefab {
@@ -313,7 +310,7 @@ fn gen_carrier() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/large_red_01.png".to_string(),
+                id: "large_red_01.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -347,8 +344,7 @@ fn gen_kamikaze() {
         let scale = 20.0;
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json")).unwrap(),
         )
         .unwrap();
         let enemy_prefab = EnemyPrefab {
@@ -367,7 +363,7 @@ fn gen_kamikaze() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/metalic_06.png".to_string(),
+                id: "metalic_06.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -398,8 +394,7 @@ fn gen_base_enemy_2() {
         let scale = 24.0;
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json")).unwrap(),
         )
         .unwrap();
         let enemy_prefab = EnemyPrefab {
@@ -419,7 +414,7 @@ fn gen_base_enemy_2() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/metalic_06.png".to_string(),
+                id: "metalic_06.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -449,8 +444,7 @@ fn gen_base_enemy_3() {
         let scale = 24.0;
         let base_path = get_assets_path();
         let mut emitter: ParticleEmitter = serde_json::from_str(
-            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json"))
-                .unwrap(),
+            &std::fs::read_to_string(base_path.join("particle/enemy_trail.json")).unwrap(),
         )
         .unwrap();
         let enemy_prefab = EnemyPrefab {
@@ -470,7 +464,7 @@ fn gen_base_enemy_3() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/darkgrey_04.png".to_string(),
+                id: "darkgrey_04.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -515,7 +509,7 @@ fn gen_spammer() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/green_04.png".to_string(),
+                id: "green_04.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -565,7 +559,7 @@ fn gen_last_boss() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/large_purple_01.png".to_string(),
+                id: "large_purple_01.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
@@ -673,7 +667,7 @@ fn main() {
                 dirty: false,
             },
             sprite: Sprite {
-                id: "spaceships/large_grey_02.png".to_string(),
+                id: "large_grey_02.png".to_string(),
             },
             bounding_box: BoundingBox {
                 half_extend: scale / 2.0 * glam::Vec2::one(),
