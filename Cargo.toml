@@ -44,7 +44,7 @@ typetag = "0.1"
 anyhow = "1.0.34"
 
 # Sound
-rodio = "0.13.0"
+rodio = { version = "0.13.0", default-features = false, features = ["wav", "mp3"] }
 
 # hash for assets' ID
 md5 = "0.7.0"
