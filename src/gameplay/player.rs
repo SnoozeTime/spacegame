@@ -177,7 +177,7 @@ pub fn update_player(world: &mut World, dt: Duration, resources: &Resources) {
             // shoot from the top.
             let initial_pos = transform.translation
                 + glam::Mat2::from_angle(transform.rotation)
-                    * glam::vec2(0.0, transform.scale.y() / 2.0);
+                    * glam::vec2(0.0, transform.scale.y / 2.0);
 
             // calculate damages.
             let is_crit = player.stats.is_crit(random.rng());

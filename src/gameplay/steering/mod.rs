@@ -50,7 +50,7 @@ pub fn avoid(
         d: velocity.normalize(),
     };
 
-    let collisions = collision_world.ray_with_offset(ray, ignore_mask, transform.scale.x() / 2.0);
+    let collisions = collision_world.ray_with_offset(ray, ignore_mask, transform.scale.x / 2.0);
 
     let mut current_t = std::f32::INFINITY;
     let mut collision_data = None;
@@ -69,7 +69,7 @@ pub fn avoid(
 
     if let Some((_obstacle_pos, obstacle_center)) = collision_data {
         let d = (obstacle_center - transform.translation).length();
-        let avoidance_force = glam::vec2(velocity.y(), -velocity.x());
+        let avoidance_force = glam::vec2(velocity.y, -velocity.x);
         Some(avoidance_force.normalize() * avoidance_strength * look_ahead / d)
     } else {
         None

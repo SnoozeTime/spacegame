@@ -95,14 +95,14 @@ pub fn aabb_intersection2(
     dbg!(transform1.translation + bb1.half_extend);
     dbg!(transform2.translation - bb2.half_extend);
     dbg!(transform2.translation + bb2.half_extend);
-    transform1.translation.x() - bb1.half_extend.x()
-        < transform2.translation.x() + bb2.half_extend.x()
-        && transform1.translation.x() + bb1.half_extend.x()
-            > transform2.translation.x() - bb2.half_extend.x()
-        && transform1.translation.y() - bb1.half_extend.y()
-            < transform2.translation.y() + bb2.half_extend.y()
-        && transform1.translation.y() + bb1.half_extend.y()
-            > transform2.translation.y() - bb2.half_extend.y()
+    transform1.translation.x - bb1.half_extend.x
+        < transform2.translation.x + bb2.half_extend.x
+        && transform1.translation.x + bb1.half_extend.x
+            > transform2.translation.x - bb2.half_extend.x
+        && transform1.translation.y - bb1.half_extend.y
+            < transform2.translation.y + bb2.half_extend.y
+        && transform1.translation.y + bb1.half_extend.y
+            > transform2.translation.y - bb2.half_extend.y
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]

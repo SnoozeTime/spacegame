@@ -97,8 +97,8 @@ where
 
     pub fn mouse_position(&self) -> glam::Vec2 {
         glam::vec2(
-            (self.mouse_pos.x() / WIDTH as f32) * 2.0 - 1.0,
-            ((HEIGHT as f32 - self.mouse_pos.y()) / HEIGHT as f32) * 2.0 - 1.0,
+            (self.mouse_pos.x / WIDTH as f32) * 2.0 - 1.0,
+            ((HEIGHT as f32 - self.mouse_pos.y) / HEIGHT as f32) * 2.0 - 1.0,
         )
     }
 }

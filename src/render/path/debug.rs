@@ -39,7 +39,7 @@ pub fn stroke_circle(resources: &Resources, position: glam::Vec2, radius: f32, c
             let mut geometry: VertexBuffers<Point, u16> = VertexBuffers::new();
             let color = color.to_normalized();
             if let Err(e) = basic_shapes::stroke_circle(
-                Point::new(position.x(), position.y()),
+                Point::new(position.x, position.y),
                 radius,
                 &StrokeOptions::default(),
                 &mut simple_builder(&mut geometry),
@@ -80,16 +80,16 @@ pub fn stroke_quad(
             let color = color.to_normalized();
 
             let p1 = position;
-            let p2 = position + glam::Vec2::unit_x() * dimensions.x();
+            let p2 = position + glam::Vec2::unit_x() * dimensions.x;
             let p3 = position
-                + glam::Vec2::unit_x() * dimensions.x()
-                + glam::Vec2::unit_y() * dimensions.y();
-            let p4 = position + glam::Vec2::unit_y() * dimensions.y();
+                + glam::Vec2::unit_x() * dimensions.x
+                + glam::Vec2::unit_y() * dimensions.y;
+            let p4 = position + glam::Vec2::unit_y() * dimensions.y;
             if let Err(e) = basic_shapes::stroke_quad(
-                Point::new(p1.x(), p1.y()),
-                Point::new(p2.x(), p2.y()),
-                Point::new(p3.x(), p3.y()),
-                Point::new(p4.x(), p4.y()),
+                Point::new(p1.x, p1.y),
+                Point::new(p2.x, p2.y),
+                Point::new(p3.x, p3.y),
+                Point::new(p4.x, p4.y),
                 &StrokeOptions::default(),
                 &mut simple_builder(&mut geometry),
             ) {
@@ -129,8 +129,8 @@ pub fn stroke_line(
             let color = color.to_normalized();
             if let Err(e) = basic_shapes::stroke_polyline(
                 vec![
-                    Point::new(position.x(), position.y()),
-                    Point::new(target.x(), target.y()),
+                    Point::new(position.x, position.y),
+                    Point::new(target.x, target.y),
                 ],
                 false,
                 &StrokeOptions::default(),

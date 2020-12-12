@@ -21,7 +21,7 @@ pub fn update_trails(world: &mut World) {
             // );
 
             let dir = glam::Mat2::from_angle(transform.rotation) * glam::Vec2::unit_y();
-            emitter.position_offset = -dir * (trail.offset + transform.scale.y()) / 2.0;
+            emitter.position_offset = -dir * (trail.offset + transform.scale.y) / 2.0;
 
             emitter.enable();
         } else {

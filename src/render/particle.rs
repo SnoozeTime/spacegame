@@ -267,8 +267,8 @@ impl ParticleEmitter {
                         let scale = match self.scale {
                             ParticleScale::Constant(s) => s,
                             ParticleScale::Random(low, high) => {
-                                let x = rng.gen_range(low.x(), high.x());
-                                let y = rng.gen_range(low.y(), high.y());
+                                let x = rng.gen_range(low.x, high.x);
+                                let y = rng.gen_range(low.y, high.y);
                                 glam::vec2(x, y)
                             }
                         };

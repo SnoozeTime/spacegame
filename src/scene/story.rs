@@ -63,7 +63,7 @@ where
 
         if self.timer_before_instruction.finished() {
             gui.centered_label(
-                glam::Vec2::new(window_dim.x() / 2.0, window_dim.y() - 60.0),
+                glam::Vec2::new(window_dim.x / 2.0, window_dim.y - 60.0),
                 "Press Enter to continue...".to_string(),
             );
         }
