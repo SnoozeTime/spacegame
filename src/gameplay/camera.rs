@@ -16,9 +16,9 @@ pub fn update_camera(world: &mut World, resources: &Resources) {
         if let Some((_, t)) = world.query::<&mut Camera>().iter().next() {
             t.position = pos; // - glam::vec2(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0);
             t.position
-                .set_x((t.position.x().max(-800.0)).min(800.0) - dim.width as f32 / 2.0);
+                .x = (t.position.x.max(-800.0)).min(800.0) - dim.width as f32 / 2.0;
             t.position
-                .set_y(t.position.y().max(-450.0).min(450.0) - dim.height as f32 / 2.0);
+                .y = t.position.y.max(-450.0).min(450.0) - dim.height as f32 / 2.0;
         }
     }
 }

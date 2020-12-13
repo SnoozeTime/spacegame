@@ -43,8 +43,8 @@ impl GuiContext {
         match window_event {
             WindowEvent::MouseButton(btn, Action::Press, _) => self.mouse_clicked.push(btn),
             WindowEvent::CursorPos(x, y) => {
-                self.mouse_pos.set_x(x as f32);
-                self.mouse_pos.set_y(y as f32);
+                self.mouse_pos.x = x as f32;
+                self.mouse_pos.y = y as f32;
             }
             _ => (),
         }
@@ -153,7 +153,7 @@ impl Gui {
         let section = Section {
             text,
             scale,
-            screen_position: (0.0, 0.0), //(text_position.x(), text_position.y()),
+            screen_position: (0.0, 0.0), //(text_position.x, text_position.y),
             bounds: (
                 self.window_dim.width as f32 / 3.15,
                 self.window_dim.height as f32,

@@ -155,7 +155,7 @@ pub fn update_transforms(world: &mut hecs::World) {
 
 /// assume scale is always 1 to simplify. Only true in that specific case of course.
 fn decompose_mat3(mat: Mat3) -> (f32, Vec2) {
-    let translation = glam::vec2(mat.z_axis().x(), mat.z_axis().y());
-    let angle = mat.x_axis().y().atan2(mat.x_axis().x());
+    let translation = glam::vec2(mat.z_axis.x, mat.z_axis.y);
+    let angle = mat.x_axis.y.atan2(mat.x_axis.x);
     (angle, translation)
 }

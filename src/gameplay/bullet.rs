@@ -95,10 +95,10 @@ pub fn process_missiles(world: &World, resources: &Resources) {
             body.add_force(body.velocity.normalize() * body.max_velocity);
         }
 
-        if t.translation.x() > max_width
-            || t.translation.x() < -max_width
-            || t.translation.y() > max_height
-            || t.translation.y() < -max_height
+        if t.translation.x > max_width
+            || t.translation.x < -max_width
+            || t.translation.y > max_height
+            || t.translation.y < -max_height
         {
             to_despawn.push(GameEvent::Delete(e));
         }
@@ -123,10 +123,10 @@ pub fn process_bullets(world: &World, resources: &Resources) {
     for (e, (b, t)) in world.query::<(&Bullet, &mut Transform)>().iter() {
         t.translation += b.direction * b.speed;
 
-        if t.translation.x() > max_width
-            || t.translation.x() < -max_width
-            || t.translation.y() > max_height
-            || t.translation.y() < -max_height
+        if t.translation.x > max_width
+            || t.translation.x < -max_width
+            || t.translation.y > max_height
+            || t.translation.y < -max_height
         {
             to_despawn.push(GameEvent::Delete(e));
         }

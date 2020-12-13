@@ -43,7 +43,7 @@ pub fn screen_to_world(
     let pv = projection_matrix * view;
     let inv = pv.inverse();
     let mouse_pos_world = inv * screen_coords.extend(0.0).extend(1.0);
-    glam::vec2(mouse_pos_world.x(), mouse_pos_world.y())
+    glam::vec2(mouse_pos_world.x, mouse_pos_world.y)
 }
 
 #[derive(Copy, Clone, Debug)]

@@ -423,7 +423,7 @@ pub fn update_enemies(world: &mut World, resources: &Resources, dt: Duration) {
                             sat.shoot_timer.reset();
                             let norm_dir = dir.normalize();
                             missiles.push((
-                                t.translation + norm_dir * t.scale.x() * 2.0, // TODO better spawn points
+                                t.translation + norm_dir * t.scale.x * 2.0, // TODO better spawn points
                                 norm_dir,
                                 player,
                             ));

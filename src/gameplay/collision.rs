@@ -154,7 +154,7 @@ impl BoundingBox {
     fn is_point_inside(&self, position: glam::Vec2, point: glam::Vec2) -> bool {
         let min = position - self.half_extend;
         let max = position + self.half_extend;
-        point.x() >= min.x() && point.x() <= max.x() && point.y() >= min.y() && point.y() <= max.y()
+        point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y
     }
 
     fn collide_with_circle(&self, position: glam::Vec2, circle: Circle) -> bool {
@@ -165,10 +165,10 @@ impl BoundingBox {
 
         // If any edge in circle, that's a collision.
         let edge1 = position - self.half_extend;
-        let edge2 = position - self.half_extend.x() * glam::Vec2::unit_x()
-            + self.half_extend.y() * glam::Vec2::unit_y();
-        let edge3 = position + self.half_extend.x() * glam::Vec2::unit_x()
-            - self.half_extend.y() * glam::Vec2::unit_y();
+        let edge2 = position - self.half_extend.x * glam::Vec2::unit_x()
+            + self.half_extend.y * glam::Vec2::unit_y();
+        let edge3 = position + self.half_extend.x * glam::Vec2::unit_x()
+            - self.half_extend.y * glam::Vec2::unit_y();
         let edge4 = position + self.half_extend;
 
         circle.is_point_inside(edge1)
@@ -281,14 +281,14 @@ pub fn find_collisions(world: &World, resources: &Resources) -> Vec<(Entity, Ent
                 continue;
             }
 
-            if transform1.translation.x() - bb1.half_extend.x()
-                < transform2.translation.x() + bb2.half_extend.x()
-                && transform1.translation.x() + bb1.half_extend.x()
-                    > transform2.translation.x() - bb2.half_extend.x()
-                && transform1.translation.y() - bb1.half_extend.y()
-                    < transform2.translation.y() + bb2.half_extend.y()
-                && transform1.translation.y() + bb1.half_extend.y()
-                    > transform2.translation.y() - bb2.half_extend.y()
+            if transform1.translation.x - bb1.half_extend.x
+                < transform2.translation.x + bb2.half_extend.x
+                && transform1.translation.x + bb1.half_extend.x
+                    > transform2.translation.x - bb2.half_extend.x
+                && transform1.translation.y - bb1.half_extend.y
+                    < transform2.translation.y + bb2.half_extend.y
+                && transform1.translation.y + bb1.half_extend.y
+                    > transform2.translation.y - bb2.half_extend.y
             {
                 // if collision, let's draw the quads :)
                 debug::stroke_quad(
@@ -320,14 +320,14 @@ pub fn aabb_intersection(
     transform2: &Transform,
     bb2: &BoundingBox,
 ) -> bool {
-    transform1.translation.x() - bb1.half_extend.x()
-        < transform2.translation.x() + bb2.half_extend.x()
-        && transform1.translation.x() + bb1.half_extend.x()
-            > transform2.translation.x() - bb2.half_extend.x()
-        && transform1.translation.y() - bb1.half_extend.y()
-            < transform2.translation.y() + bb2.half_extend.y()
-        && transform1.translation.y() + bb1.half_extend.y()
-            > transform2.translation.y() - bb2.half_extend.y()
+    transform1.translation.x - bb1.half_extend.x
+        < transform2.translation.x + bb2.half_extend.x
+        && transform1.translation.x + bb1.half_extend.x
+            > transform2.translation.x - bb2.half_extend.x
+        && transform1.translation.y - bb1.half_extend.y
+            < transform2.translation.y + bb2.half_extend.y
+        && transform1.translation.y + bb1.half_extend.y
+            > transform2.translation.y - bb2.half_extend.y
 }
 
 pub fn process_collisions(

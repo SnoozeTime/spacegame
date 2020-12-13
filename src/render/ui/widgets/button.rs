@@ -105,10 +105,10 @@ impl Button {
         };
 
         let mouse_pos_rel = ui.mouse_pos - self.anchor;
-        let is_above = mouse_pos_rel.x() >= 0.0
-            && mouse_pos_rel.x() < dimensions.x()
-            && mouse_pos_rel.y() >= 0.0
-            && mouse_pos_rel.y() <= dimensions.y();
+        let is_above = mouse_pos_rel.x >= 0.0
+            && mouse_pos_rel.x < dimensions.x
+            && mouse_pos_rel.y >= 0.0
+            && mouse_pos_rel.y <= dimensions.y;
         let color = self.background_color(ui, is_above);
         let text_color = self.text_color(ui, is_above);
         let (vertices, indices) = Panel {

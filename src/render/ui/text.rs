@@ -147,8 +147,8 @@ where
 
         for (text, position) in text_data {
             // screen position is top-left origin
-            let pos_x = position.x();
-            let pos_y = position.y();
+            let pos_x = position.x;
+            let pos_y = position.y;
             debug!("Will display text at {}/{}", pos_x, pos_y);
 
             let scale = Scale::uniform(text.font_size.round());
