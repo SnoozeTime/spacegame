@@ -5,3 +5,7 @@
 Space shooter/Bullet hell made for Game Off 2020.
 
 [Link to project](https://snoozetime.itch.io/everfight-gameoff2020)
+
+## Packages
+
+* ArchLinux: install [everfight-git from AUR](https://aur.archlinux.org/packages/everfight-git)
